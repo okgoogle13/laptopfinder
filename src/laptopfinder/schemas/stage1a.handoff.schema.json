@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Stage 1A Handoff Packet",
+  "type": "object",
+  "required": [
+    "source_platform",
+    "listing_title",
+    "listing_price_aud",
+    "listing_url_or_identifier",
+    "inferred_component_category",
+    "inferred_model_hint",
+    "inferred_gpu_hint",
+    "inferred_vram_hint",
+    "inferred_condition_hint",
+    "discovery_flags"
+  ],
+  "properties": {
+    "source_platform": {"type": "string"},
+    "listing_title": {"type": "string"},
+    "listing_price_aud": {"type": ["number", "null"]},
+    "listing_url_or_identifier": {"type": ["string", "null"]},
+    "inferred_component_category": {"type": ["string", "null"]},
+    "inferred_model_hint": {"type": ["string", "null"]},
+    "inferred_gpu_hint": {"type": ["string", "null"]},
+    "inferred_vram_hint": {"type": ["string", "null"]},
+    "inferred_condition_hint": {"type": ["string", "null"]},
+    "discovery_flags": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

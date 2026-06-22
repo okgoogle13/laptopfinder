@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "laptopfinder"
+version = "0.1.0"
+description = "laptopfinder thin-slice Stage 1 / Stage 2 fixture harness"
+requires-python = ">=3.10"
+dependencies = [
+    "jsonschema>=4.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"laptopfinder.schemas" = ["*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,28 @@
+[
+  {
+    "source_platform": "GUMTREE",
+    "listing_title": "RTX 3090 24GB FE - perfect for AI / ML work",
+    "listing_price_aud": 950.0,
+    "listing_url_or_identifier": "gumtree-au:1234567890",
+    "inferred_component_category": "GPU",
+    "inferred_model_hint": "RTX 3090 Founders Edition",
+    "inferred_gpu_hint": "RTX 3090",
+    "inferred_vram_hint": "24GB",
+    "inferred_condition_hint": "stated as good, unverified",
+    "discovery_flags": [],
+    "discovery_confidence": 0.74
+  },
+  {
+    "source_platform": "GUMTREE",
+    "listing_title": "WANTED: looking for old laptop any condition",
+    "listing_price_aud": null,
+    "listing_url_or_identifier": "gumtree-au:1234567999",
+    "inferred_component_category": "OTHER",
+    "inferred_model_hint": null,
+    "inferred_gpu_hint": null,
+    "inferred_vram_hint": null,
+    "inferred_condition_hint": null,
+    "discovery_flags": ["wanted_ad_miscategorized_as_selling"],
+    "discovery_confidence": 0.05
+  }
+]

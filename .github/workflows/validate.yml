@@ -1,0 +1,27 @@
+name: validate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate-json:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JSON files parse correctly
+        run: |
+          set -e
+          find src/laptopfinder/schemas config -name "*.json" -print0 | xargs -0 -I{} python3 -c "import json,sys; json.load(open(sys.argv[1]))" {}
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -e ".[test]"
+      - name: Run test suite
+        run: pytest tests/ -v

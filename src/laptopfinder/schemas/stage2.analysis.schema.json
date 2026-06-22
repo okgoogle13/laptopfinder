@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Stage 2 Analysis Output",
+  "type": "object",
+  "required": ["metadata", "extracted_data", "analysis"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["source_platform", "listing_url_or_identifier", "listing_title", "listing_price_aud", "seller_name_or_identifier", "seller_rating_or_profile_signal"],
+      "properties": {
+        "source_platform": {"enum": ["EBAY_AU", "FB_MARKETPLACE", "GUMTREE", "UNKNOWN"]},
+        "listing_url_or_identifier": {"type": ["string", "null"]},
+        "listing_title": {"type": "string"},
+        "listing_price_aud": {"type": ["number", "null"]},
+        "seller_name_or_identifier": {"type": ["string", "null"]},
+        "seller_rating_or_profile_signal": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "extracted_data": {
+      "type": "object",
+      "required": ["exact_model_name", "component_category", "cpu", "gpu", "ram", "storage", "vram_capacity", "stated_condition", "shipping_or_pickup_signal", "missing_information"],
+      "properties": {
+        "exact_model_name": {"type": ["string", "null"]},
+        "component_category": {"enum": ["GPU", "CPU", "RAM", "SYSTEM", "OTHER"]},
+        "cpu": {"type": ["string", "null"]},
+        "gpu": {"type": ["string", "null"]},
+        "ram": {"type": ["string", "null"]},
+        "storage": {"type": ["string", "null"]},
+        "vram_capacity": {"type": ["string", "null"]},
+        "stated_condition": {"type": ["string", "null"]},
+        "shipping_or_pickup_signal": {"enum": ["SHIPPING_ONLY", "PICKUP_ONLY", "BOTH", "UNKNOWN"]},
+        "missing_information": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "analysis": {
+      "type": "object",
+      "required": ["risk_score", "risk_flags", "stated_pickup_location", "confidence"],
+      "properties": {
+        "risk_score": {"type": "number", "minimum": 0, "maximum": 10},
+        "risk_flags": {"type": "array", "items": {"type": "string"}},
+        "stated_pickup_location": {"type": ["string", "null"]},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

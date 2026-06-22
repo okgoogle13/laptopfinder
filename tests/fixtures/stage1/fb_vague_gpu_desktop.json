@@ -1,0 +1,15 @@
+[
+  {
+    "source_platform": "FB_MARKETPLACE",
+    "listing_title": "Gaming PC for sale, good graphics card, make an offer",
+    "listing_price_aud": null,
+    "listing_url_or_identifier": null,
+    "inferred_component_category": "SYSTEM",
+    "inferred_model_hint": null,
+    "inferred_gpu_hint": null,
+    "inferred_vram_hint": null,
+    "inferred_condition_hint": null,
+    "discovery_flags": ["vague_listing_title", "no_price_make_an_offer"],
+    "discovery_confidence": 0.15
+  }
+]

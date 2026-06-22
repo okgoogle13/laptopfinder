@@ -1,0 +1,61 @@
+{
+  "capability_bands": {
+    "ENTRY_LOCAL_LLM": {"vram_range_gb": [8, 12]},
+    "MID_TIER_LOCAL_LLM": {"vram_range_gb": [16, 16]},
+    "STRONG_8B_14B": {"vram_range_gb": [24, 24]},
+    "POSSIBLE_70B_QUANTIZED": {"vram_range_gb": [32, 128]}
+  },
+  "aspirational_monitor_list": [
+    "RTX 5080",
+    "RTX 5090",
+    "GB200",
+    "B200"
+  ],
+  "unicorn_gpus": {
+    "RTX 3080 Ti": {"vram_gb": 12},
+    "RTX 3090": {"vram_gb": 24},
+    "RTX 4090": {"vram_gb": 24},
+    "RTX A5000": {"vram_gb": 16},
+    "RTX 6000 Ada": {"vram_gb": 48},
+    "L40S": {"vram_gb": 48}
+  },
+  "unicorn_models": [
+    "ASUS ROG Zephyrus Duo 16",
+    "MSI Titan 18",
+    "MSI Raider 17",
+    "MSI Raider 18",
+    "ASUS ROG Strix Scar 18",
+    "ASUS ROG Strix 18",
+    "Lenovo Legion 9i",
+    "Lenovo Legion 7i",
+    "Lenovo ThinkPad P16",
+    "Alienware 17",
+    "Alienware 18"
+  ],
+  "conditional_unicorn_models": {
+    "Lenovo ThinkPad T16": "Eligible ONLY IF discrete high-VRAM workstation-like GPU is explicitly stated."
+  },
+  "unicorn_validation": {
+    "override_minimum_vram_gb": 16,
+    "high_interest_minimum_vram_gb": 12,
+    "requires_standard_value_and_risk_pass": true
+  },
+  "apple_uma_branch": {
+    "enabled": false,
+    "eligible_models": ["Mac Studio 64GB", "Mac Studio 128GB"],
+    "excluded_models": ["Mac Mini 32GB"]
+  },
+  "travel_rules": {
+    "pickup_mode": "CAR_OK",
+    "origin": "Northcote, VIC",
+    "standard_radius_max_minutes_one_way": 120,
+    "exceptional_radius_max_minutes_one_way": 150
+  },
+  "override_rules": {
+    "formula": "(category_jump_trigger OR unicorn_hardware_trigger) AND low_risk_gate",
+    "low_risk_gate": {
+      "max_risk_score": 3.0,
+      "max_missing_core_fields": 1
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "handoff_packet": {
+    "source_platform": "FB_MARKETPLACE",
+    "listing_title": "RTX 4090 BRAND NEW SEALED cheap price must sell today",
+    "listing_price_aud": null,
+    "listing_url_or_identifier": null,
+    "inferred_component_category": "GPU",
+    "inferred_model_hint": null,
+    "inferred_gpu_hint": "RTX 4090",
+    "inferred_vram_hint": null,
+    "inferred_condition_hint": "claimed new/sealed",
+    "discovery_flags": ["price_below_market_anomaly", "urgency_language"]
+  },
+  "full_listing_text": "RTX 4090 brand new sealed box, $400 only, must sell today moving overseas, no inspection before payment, bank transfer only, will ship after payment clears, message me on WhatsApp.",
+  "analysis_output": {
+    "metadata": {
+      "source_platform": "FB_MARKETPLACE",
+      "listing_url_or_identifier": null,
+      "listing_title": "RTX 4090 BRAND NEW SEALED cheap price must sell today",
+      "listing_price_aud": 400.0,
+      "seller_name_or_identifier": null,
+      "seller_rating_or_profile_signal": null
+    },
+    "extracted_data": {
+      "exact_model_name": null,
+      "component_category": "GPU",
+      "cpu": null,
+      "gpu": "RTX 4090",
+      "ram": null,
+      "storage": null,
+      "vram_capacity": null,
+      "stated_condition": "brand new sealed",
+      "shipping_or_pickup_signal": "SHIPPING_ONLY",
+      "missing_information": ["seller_identity", "listing_url", "in_person_inspection_availability"]
+    },
+    "analysis": {
+      "risk_score": 9.2,
+      "risk_flags": [
+        "price_far_below_market",
+        "payment_before_inspection",
+        "bank_transfer_only",
+        "urgency_pressure_language",
+        "no_seller_identity",
+        "off_platform_contact_requested"
+      ],
+      "stated_pickup_location": null,
+      "confidence": 0.6
+    }
+  }
+}

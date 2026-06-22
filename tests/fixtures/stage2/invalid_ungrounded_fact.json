@@ -1,0 +1,43 @@
+{
+  "handoff_packet": {
+    "source_platform": "GUMTREE",
+    "listing_title": "Graphics card for sale",
+    "listing_price_aud": 800.0,
+    "listing_url_or_identifier": "gumtree-au:000111",
+    "inferred_component_category": "GPU",
+    "inferred_model_hint": null,
+    "inferred_gpu_hint": "RTX 3080 Ti",
+    "inferred_vram_hint": "12GB",
+    "inferred_condition_hint": null,
+    "discovery_flags": []
+  },
+  "full_listing_text": "Selling graphics card, works great, $800, pickup only Northcote.",
+  "analysis_output": {
+    "metadata": {
+      "source_platform": "GUMTREE",
+      "listing_url_or_identifier": "gumtree-au:000111",
+      "listing_title": "Graphics card for sale",
+      "listing_price_aud": 800.0,
+      "seller_name_or_identifier": null,
+      "seller_rating_or_profile_signal": null
+    },
+    "extracted_data": {
+      "exact_model_name": null,
+      "component_category": "GPU",
+      "cpu": null,
+      "gpu": "RTX 3080 Ti",
+      "ram": null,
+      "storage": null,
+      "vram_capacity": "12GB",
+      "stated_condition": "works great",
+      "shipping_or_pickup_signal": "PICKUP_ONLY",
+      "missing_information": []
+    },
+    "analysis": {
+      "risk_score": 3.0,
+      "risk_flags": [],
+      "stated_pickup_location": "Northcote",
+      "confidence": 0.5
+    }
+  }
+}

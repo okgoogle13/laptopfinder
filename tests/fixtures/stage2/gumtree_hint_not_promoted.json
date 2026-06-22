@@ -1,0 +1,43 @@
+{
+  "handoff_packet": {
+    "source_platform": "GUMTREE",
+    "listing_title": "RTX 3090 24GB FE - perfect for AI / ML work",
+    "listing_price_aud": 950.0,
+    "listing_url_or_identifier": "gumtree-au:1234567890",
+    "inferred_component_category": "GPU",
+    "inferred_model_hint": "RTX 3090 Founders Edition",
+    "inferred_gpu_hint": "RTX 3090",
+    "inferred_vram_hint": "24GB",
+    "inferred_condition_hint": "stated as good, unverified",
+    "discovery_flags": []
+  },
+  "full_listing_text": "Selling my graphics card, works fine, $950 firm, cash only, pickup Thornbury area. No returns.",
+  "analysis_output": {
+    "metadata": {
+      "source_platform": "GUMTREE",
+      "listing_url_or_identifier": "gumtree-au:1234567890",
+      "listing_title": "RTX 3090 24GB FE - perfect for AI / ML work",
+      "listing_price_aud": 950.0,
+      "seller_name_or_identifier": null,
+      "seller_rating_or_profile_signal": null
+    },
+    "extracted_data": {
+      "exact_model_name": null,
+      "component_category": "GPU",
+      "cpu": null,
+      "gpu": null,
+      "ram": null,
+      "storage": null,
+      "vram_capacity": null,
+      "stated_condition": "works fine",
+      "shipping_or_pickup_signal": "PICKUP_ONLY",
+      "missing_information": ["gpu_model_not_restated_in_full_text", "vram_capacity", "exact_model_name"]
+    },
+    "analysis": {
+      "risk_score": 4.5,
+      "risk_flags": ["cash_only", "no_returns", "title_claims_not_repeated_in_body_text"],
+      "stated_pickup_location": "Thornbury area",
+      "confidence": 0.4
+    }
+  }
+}

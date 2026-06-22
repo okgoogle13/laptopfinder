@@ -1,0 +1,16 @@
+[
+  {
+    "source_platform": "EBAY_AU",
+    "listing_title": "RTX 4090 laptop",
+    "listing_price_aud": 3000.0,
+    "listing_url_or_identifier": "ebay-au:v999",
+    "inferred_component_category": "SYSTEM",
+    "inferred_model_hint": "MSI Titan 18 HX",
+    "inferred_gpu_hint": "RTX 4090",
+    "inferred_vram_hint": "16GB",
+    "inferred_condition_hint": "good",
+    "discovery_flags": [],
+    "discovery_confidence": 0.7,
+    "gpu": "RTX 4090"
+  }
+]

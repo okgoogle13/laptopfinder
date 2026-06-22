@@ -1,0 +1,43 @@
+{
+  "handoff_packet": {
+    "source_platform": "FB_MARKETPLACE",
+    "listing_title": "High spec gaming PC RTX 4090",
+    "listing_price_aud": 2800.0,
+    "listing_url_or_identifier": null,
+    "inferred_component_category": "SYSTEM",
+    "inferred_model_hint": null,
+    "inferred_gpu_hint": "RTX 4090",
+    "inferred_vram_hint": null,
+    "inferred_condition_hint": null,
+    "discovery_flags": []
+  },
+  "full_listing_text": "High spec gaming PC with RTX 4090 16GB and 64GB DDR5 RAM. Intel i9-14900K. 2TB NVMe storage. Great condition.",
+  "analysis_output": {
+    "metadata": {
+      "source_platform": "FB_MARKETPLACE",
+      "listing_url_or_identifier": null,
+      "listing_title": "High spec gaming PC RTX 4090",
+      "listing_price_aud": 2800.0,
+      "seller_name_or_identifier": null,
+      "seller_rating_or_profile_signal": null
+    },
+    "extracted_data": {
+      "exact_model_name": null,
+      "component_category": "SYSTEM",
+      "cpu": "i9-14900K",
+      "gpu": "RTX 4090",
+      "ram": "4GB",
+      "storage": "2TB NVMe",
+      "vram_capacity": "16GB",
+      "stated_condition": "Great condition",
+      "shipping_or_pickup_signal": "UNKNOWN",
+      "missing_information": []
+    },
+    "analysis": {
+      "risk_score": 2.0,
+      "risk_flags": [],
+      "stated_pickup_location": null,
+      "confidence": 0.8
+    }
+  }
+}
