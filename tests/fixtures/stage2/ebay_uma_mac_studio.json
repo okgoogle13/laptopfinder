@@ -1,0 +1,46 @@
+{
+  "handoff_packet": {
+    "source_platform": "EBAY_AU",
+    "listing_title": "Mac Studio M3 Ultra 128GB - perfect for local LLM inference",
+    "listing_price_aud": 5800.0,
+    "listing_url_or_identifier": "ebay-au:v9988776655",
+    "inferred_component_category": "SYSTEM",
+    "inferred_model_hint": "Mac Studio M3 Ultra",
+    "inferred_gpu_hint": null,
+    "inferred_vram_hint": "128GB unified memory",
+    "inferred_condition_hint": "excellent / like new",
+    "discovery_flags": []
+  },
+  "full_listing_text": "Mac Studio M3 Ultra, 128GB unified memory, 2TB SSD. Excellent condition, barely used. Pickup Northcote VIC or can ship. Seller has 150 feedback, 100% positive. Asking $5800.",
+  "analysis_output": {
+    "metadata": {
+      "source_platform": "EBAY_AU",
+      "listing_url_or_identifier": "ebay-au:v9988776655",
+      "listing_title": "Mac Studio M3 Ultra 128GB - perfect for local LLM inference",
+      "listing_price_aud": 5800.0,
+      "seller_name_or_identifier": "ebay-seller:trusted_au_tech_seller",
+      "seller_rating_or_profile_signal": "150 feedback, 100% positive"
+    },
+    "extracted_data": {
+      "exact_model_name": "Mac Studio M3 Ultra",
+      "component_category": "SYSTEM",
+      "cpu": null,
+      "gpu": null,
+      "ram": null,
+      "storage": "2TB SSD",
+      "vram_capacity": null,
+      "stated_condition": "Excellent",
+      "shipping_or_pickup_signal": "BOTH",
+      "missing_information": [],
+      "total_system_ram": "128GB",
+      "egpu_model": null
+    },
+    "analysis": {
+      "risk_score": 1.0,
+      "risk_flags": [],
+      "stated_pickup_location": "Northcote VIC",
+      "confidence": 0.92,
+      "seller_classification": "ESTABLISHED_RESELLER"
+    }
+  }
+}

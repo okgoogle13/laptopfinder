@@ -31,13 +31,16 @@
       "vram_capacity": "12GB",
       "stated_condition": "works great",
       "shipping_or_pickup_signal": "PICKUP_ONLY",
-      "missing_information": []
+      "missing_information": [],
+      "total_system_ram": null,
+      "egpu_model": null
     },
     "analysis": {
       "risk_score": 3.0,
       "risk_flags": [],
       "stated_pickup_location": "Northcote",
-      "confidence": 0.5
+      "confidence": 0.5,
+      "seller_classification": "PRIVATE_NEW_OR_UNKNOWN"
     }
   }
 }

@@ -20,6 +20,8 @@ node_modules/
 # Environment / secrets
 .env
 .env.*
+.envrc
+.direnv/
 
 # Logs
 *.log

@@ -1,0 +1,46 @@
+{
+  "handoff_packet": {
+    "source_platform": "GUMTREE",
+    "listing_title": "ASUS ROG Strix SCAR 18 RX 7900M 16GB",
+    "listing_price_aud": 3100.0,
+    "listing_url_or_identifier": "gumtree-au:5566778899",
+    "inferred_component_category": "SYSTEM",
+    "inferred_model_hint": "ASUS ROG Strix SCAR 18",
+    "inferred_gpu_hint": "RX 7900M",
+    "inferred_vram_hint": "16GB",
+    "inferred_condition_hint": "good",
+    "discovery_flags": []
+  },
+  "full_listing_text": "ASUS ROG Strix SCAR 18 gaming laptop, AMD RX 7900M 16GB, 32GB RAM, 1TB NVMe. Good condition, minor wear on lid. Pickup Coburg VIC, cash or bank transfer on pickup.",
+  "analysis_output": {
+    "metadata": {
+      "source_platform": "GUMTREE",
+      "listing_url_or_identifier": "gumtree-au:5566778899",
+      "listing_title": "ASUS ROG Strix SCAR 18 RX 7900M 16GB",
+      "listing_price_aud": 3100.0,
+      "seller_name_or_identifier": null,
+      "seller_rating_or_profile_signal": null
+    },
+    "extracted_data": {
+      "exact_model_name": "ASUS ROG Strix SCAR 18",
+      "component_category": "SYSTEM",
+      "cpu": null,
+      "gpu": "RX 7900M",
+      "ram": "32GB",
+      "storage": "1TB NVMe",
+      "vram_capacity": "16GB",
+      "stated_condition": "Good",
+      "shipping_or_pickup_signal": "PICKUP_ONLY",
+      "missing_information": [],
+      "total_system_ram": null,
+      "egpu_model": null
+    },
+    "analysis": {
+      "risk_score": 1.0,
+      "risk_flags": [],
+      "stated_pickup_location": "Coburg VIC",
+      "confidence": 0.88,
+      "seller_classification": "PRIVATE_NEW_OR_UNKNOWN"
+    }
+  }
+}

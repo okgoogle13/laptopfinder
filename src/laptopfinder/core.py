@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Any
 import jsonschema
 
-_FORBIDDEN_FACT_KEYS = {"exact_model_name", "cpu", "gpu", "ram", "storage", "vram_capacity", "stated_condition"}
-_FACT_KEYS = ("exact_model_name", "cpu", "gpu", "ram", "storage", "vram_capacity", "stated_condition")
+_FORBIDDEN_FACT_KEYS = {"exact_model_name", "cpu", "gpu", "ram", "storage", "vram_capacity", "stated_condition", "total_system_ram", "egpu_model"}
+_FACT_KEYS = ("exact_model_name", "cpu", "gpu", "ram", "storage", "vram_capacity", "stated_condition", "total_system_ram", "egpu_model")
 
 def load_schema(name: str) -> dict[str, Any]:
     with (Path(__file__).parent / "schemas" / name).open("r", encoding="utf-8") as f:
@@ -65,6 +65,59 @@ def run_stage2_from_fixture(path: str | Path) -> dict[str, Any]:
         payload = json.load(f)
     return run_stage2(payload["handoff_packet"], payload["full_listing_text"], payload["analysis_output"])
 
+def run_live_pipeline(raw_text_path: str | Path, run_audit: bool = False) -> dict[str, Any]:
+    from .runners.comet import run_comet_discovery
+    from .runners.aistudio import run_stage2_analysis
+    from .runners.claude_audit import run_claude_audit
+    from .decide import decide
+
+    with open(raw_text_path, "r", encoding="utf-8") as f:
+        raw_text = f.read()
+        
+    print("Executing Stage 1: Comet Discovery...")
+    stage1_candidates = run_comet_discovery(raw_text)
+    
+    # Run firewall validation
+    stage1_candidates = run_stage1(stage1_candidates)
+    
+    print(f"Found {len(stage1_candidates)} candidates. Proceeding to Stage 2...")
+    
+    results = []
+    
+    for candidate in stage1_candidates:
+        if candidate.get("discovery_confidence", 0) < 0.3:
+            print(f"Skipping candidate due to low confidence: {candidate.get('listing_title')}")
+            continue
+            
+        handoff_packet = {k: v for k, v in candidate.items() if k != "discovery_confidence"}
+        
+        print(f"\nExecuting Stage 2 Analysis for: {candidate.get('listing_title')}")
+        analysis_payload = run_stage2_analysis(handoff_packet, raw_text)
+        
+        # Run firewall validation on the AI output
+        try:
+            analysis_payload = run_stage2(handoff_packet, raw_text, analysis_payload)
+        except ValueError as e:
+            print(f"FIREWALL REJECTED: {e}")
+            continue
+            
+        print("Executing Decision Engine...")
+        decision_payload = decide(analysis_payload)
+        
+        audit_report = None
+        if run_audit:
+            print("Executing Claude Code Audit...")
+            audit_report = run_claude_audit(analysis_payload, decision_payload)
+            
+        results.append({
+            "stage1_candidate": candidate,
+            "stage2_analysis": analysis_payload,
+            "decision": decision_payload,
+            "audit_report": audit_report
+        })
+        
+    return {"live_run_results": results}
+
 def run_pipeline(stage1_fixture: str | Path, stage2_fixture: str | Path) -> dict[str, Any]:
     """Run Stage 1 (discovery) then Stage 2 (analysis + decision) in sequence.
 
@@ -107,6 +160,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_pipeline.add_argument("stage1_fixture", help="Path to a Stage 1 fixture JSON file")
     p_pipeline.add_argument("stage2_fixture", help="Path to a Stage 2 fixture JSON file")
 
+    p_run_live = subparsers.add_parser(
+        "run-live", help="Run the full agentic pipeline on raw text"
+    )
+    p_run_live.add_argument("--source-text", required=True, help="Path to raw listing text")
+    p_run_live.add_argument("--audit", action="store_true", help="Run the Claude audit on the results")
+
     return parser
 
 def main(argv: list[str] | None = None) -> int:
@@ -122,6 +181,8 @@ def main(argv: list[str] | None = None) -> int:
             from .decide import decide
             analysis = run_stage2_from_fixture(args.fixture)
             result = {"analysis": analysis, "decision": decide(analysis)}
+        elif args.mode == "run-live":
+            result = run_live_pipeline(args.source_text, args.audit)
         else:
             result = run_pipeline(args.stage1_fixture, args.stage2_fixture)
         print(json.dumps(result, indent=2))

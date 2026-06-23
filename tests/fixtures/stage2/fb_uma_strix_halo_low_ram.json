@@ -1,0 +1,46 @@
+{
+  "handoff_packet": {
+    "source_platform": "FB_MARKETPLACE",
+    "listing_title": "ASUS ROG Flow Z13 Strix Halo 32GB",
+    "listing_price_aud": 2400.0,
+    "listing_url_or_identifier": null,
+    "inferred_component_category": "SYSTEM",
+    "inferred_model_hint": "ASUS ROG Flow Z13",
+    "inferred_gpu_hint": null,
+    "inferred_vram_hint": "32GB unified memory",
+    "inferred_condition_hint": "good",
+    "discovery_flags": []
+  },
+  "full_listing_text": "ASUS ROG Flow Z13 with Ryzen AI Max (Strix Halo), 32GB unified memory, 1TB SSD. Good condition, light wear. Pickup Brunswick VIC.",
+  "analysis_output": {
+    "metadata": {
+      "source_platform": "FB_MARKETPLACE",
+      "listing_url_or_identifier": null,
+      "listing_title": "ASUS ROG Flow Z13 Strix Halo 32GB",
+      "listing_price_aud": 2400.0,
+      "seller_name_or_identifier": null,
+      "seller_rating_or_profile_signal": null
+    },
+    "extracted_data": {
+      "exact_model_name": "ASUS ROG Flow Z13",
+      "component_category": "SYSTEM",
+      "cpu": "Ryzen AI Max",
+      "gpu": null,
+      "ram": null,
+      "storage": "1TB SSD",
+      "vram_capacity": null,
+      "stated_condition": "Good",
+      "shipping_or_pickup_signal": "PICKUP_ONLY",
+      "missing_information": [],
+      "total_system_ram": "32GB",
+      "egpu_model": null
+    },
+    "analysis": {
+      "risk_score": 1.5,
+      "risk_flags": [],
+      "stated_pickup_location": "Brunswick VIC",
+      "confidence": 0.85,
+      "seller_classification": "PRIVATE_NEW_OR_UNKNOWN"
+    }
+  }
+}

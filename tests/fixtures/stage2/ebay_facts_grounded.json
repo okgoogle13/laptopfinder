@@ -31,13 +31,16 @@
       "vram_capacity": "16GB GDDR6",
       "stated_condition": "Excellent",
       "shipping_or_pickup_signal": "BOTH",
-      "missing_information": []
+      "missing_information": [],
+      "total_system_ram": null,
+      "egpu_model": null
     },
     "analysis": {
       "risk_score": 1.0,
       "risk_flags": [],
       "stated_pickup_location": "Reservoir VIC",
-      "confidence": 0.93
+      "confidence": 0.93,
+      "seller_classification": "ESTABLISHED_RESELLER"
     }
   }
 }

@@ -31,7 +31,9 @@
       "vram_capacity": null,
       "stated_condition": "brand new sealed",
       "shipping_or_pickup_signal": "SHIPPING_ONLY",
-      "missing_information": ["seller_identity", "listing_url", "in_person_inspection_availability"]
+      "missing_information": ["seller_identity", "listing_url", "in_person_inspection_availability"],
+      "total_system_ram": null,
+      "egpu_model": null
     },
     "analysis": {
       "risk_score": 9.2,
@@ -44,7 +46,8 @@
         "off_platform_contact_requested"
       ],
       "stated_pickup_location": null,
-      "confidence": 0.6
+      "confidence": 0.6,
+      "seller_classification": "PRIVATE_NEW_OR_UNKNOWN"
     }
   }
 }

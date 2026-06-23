@@ -30,6 +30,10 @@ VALID_FIXTURES = [
     "ebay_facts_grounded.json",
     "gumtree_hint_not_promoted.json",
     "fb_high_risk_listing.json",
+    "ebay_uma_mac_studio.json",
+    "fb_uma_strix_halo_low_ram.json",
+    "gumtree_radeon_7900m.json",
+    "ebay_egpu_bundle.json",
 ]
 
 
@@ -109,12 +113,15 @@ def test_stage2_rejects_schema_invalid_handoff_packet() -> None:
             "stated_condition": None,
             "shipping_or_pickup_signal": "UNKNOWN",
             "missing_information": [],
+            "total_system_ram": None,
+            "egpu_model": None,
         },
         "analysis": {
             "risk_score": 5.0,
             "risk_flags": [],
             "stated_pickup_location": None,
             "confidence": 0.5,
+            "seller_classification": "PRIVATE_NEW_OR_UNKNOWN",
         },
     }
     with pytest.raises(ValueError):

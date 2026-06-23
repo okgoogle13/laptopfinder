@@ -19,7 +19,7 @@
     },
     "extracted_data": {
       "type": "object",
-      "required": ["exact_model_name", "component_category", "cpu", "gpu", "ram", "storage", "vram_capacity", "stated_condition", "shipping_or_pickup_signal", "missing_information"],
+      "required": ["exact_model_name", "component_category", "cpu", "gpu", "ram", "storage", "vram_capacity", "stated_condition", "shipping_or_pickup_signal", "missing_information", "total_system_ram", "egpu_model"],
       "properties": {
         "exact_model_name": {"type": ["string", "null"]},
         "component_category": {"enum": ["GPU", "CPU", "RAM", "SYSTEM", "OTHER"]},
@@ -30,18 +30,30 @@
         "vram_capacity": {"type": ["string", "null"]},
         "stated_condition": {"type": ["string", "null"]},
         "shipping_or_pickup_signal": {"enum": ["SHIPPING_ONLY", "PICKUP_ONLY", "BOTH", "UNKNOWN"]},
-        "missing_information": {"type": "array", "items": {"type": "string"}}
+        "missing_information": {"type": "array", "items": {"type": "string"}},
+        "total_system_ram": {
+          "type": ["string", "null"],
+          "description": "Total unified/system RAM as stated in listing, e.g. '128GB'. Used for UMA platforms (Apple Silicon, Strix Halo) where there is no discrete VRAM."
+        },
+        "egpu_model": {
+          "type": ["string", "null"],
+          "description": "Name of a bundled eGPU enclosure (e.g. 'XG Mobile RTX 4090'), if explicitly stated. Null if no eGPU bundle is mentioned."
+        }
       },
       "additionalProperties": false
     },
     "analysis": {
       "type": "object",
-      "required": ["risk_score", "risk_flags", "stated_pickup_location", "confidence"],
+      "required": ["risk_score", "risk_flags", "stated_pickup_location", "confidence", "seller_classification"],
       "properties": {
         "risk_score": {"type": "number", "minimum": 0, "maximum": 10},
         "risk_flags": {"type": "array", "items": {"type": "string"}},
         "stated_pickup_location": {"type": ["string", "null"]},
-        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "seller_classification": {
+          "enum": ["RETAILER_WITH_WARRANTY", "ESTABLISHED_RESELLER", "PRIVATE_ESTABLISHED", "PRIVATE_NEW_OR_UNKNOWN"],
+          "description": "Judgment call on seller trustworthiness based on source_platform + seller_name_or_identifier + seller_rating_or_profile_signal. Not a literal hardware fact, so it is exempt from the text-grounding firewall — Stage 2 must always classify, never leave null."
+        }
       },
       "additionalProperties": false
     }

@@ -1,4 +1,4 @@
-.PHONY: test lint decide pipeline
+.PHONY: test lint decide pipeline live
 
 test:
 	.venv/bin/python -m pytest tests/ -v
@@ -18,3 +18,10 @@ pipeline:
 	@test -n "$(STAGE1)" || (echo "ERROR: Set STAGE1=<path>" && exit 1)
 	@test -n "$(STAGE2)" || (echo "ERROR: Set STAGE2=<path>" && exit 1)
 	.venv/bin/python -m laptopfinder.core pipeline $(STAGE1) $(STAGE2)
+
+# Run the live pipeline on unstructured text using LLMs
+# Usage: make live SOURCE=feed.txt
+live:
+	@test -n "$(SOURCE)" || (echo "ERROR: Set SOURCE=<path to raw text file>" && exit 1)
+	.venv/bin/python -m laptopfinder.core run-live --source-text $(SOURCE)
+

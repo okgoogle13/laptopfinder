@@ -31,13 +31,16 @@
       "vram_capacity": null,
       "stated_condition": "works fine",
       "shipping_or_pickup_signal": "PICKUP_ONLY",
-      "missing_information": ["gpu_model_not_restated_in_full_text", "vram_capacity", "exact_model_name"]
+      "missing_information": ["gpu_model_not_restated_in_full_text", "vram_capacity", "exact_model_name"],
+      "total_system_ram": null,
+      "egpu_model": null
     },
     "analysis": {
       "risk_score": 4.5,
       "risk_flags": ["cash_only", "no_returns", "title_claims_not_repeated_in_body_text"],
       "stated_pickup_location": "Thornbury area",
-      "confidence": 0.4
+      "confidence": 0.4,
+      "seller_classification": "PRIVATE_NEW_OR_UNKNOWN"
     }
   }
 }

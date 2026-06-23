@@ -31,13 +31,16 @@
       "vram_capacity": "16GB",
       "stated_condition": "Great condition",
       "shipping_or_pickup_signal": "UNKNOWN",
-      "missing_information": []
+      "missing_information": [],
+      "total_system_ram": null,
+      "egpu_model": null
     },
     "analysis": {
       "risk_score": 2.0,
       "risk_flags": [],
       "stated_pickup_location": null,
-      "confidence": 0.8
+      "confidence": 0.8,
+      "seller_classification": "PRIVATE_NEW_OR_UNKNOWN"
     }
   }
 }

@@ -1,0 +1,20 @@
+# Context
+Help build an extraction script for `laptopfinder`. 
+Goal: Feed raw marketplace data (eBay AU, FB Marketplace, Gumtree) into our pipeline to generate **evidence-based product recommendations** (SHORTLIST, MONITOR, SKIP).
+*Note: I have saved listings to test with, but the focal point is the extraction workflow, not just parsing my static files.*
+
+# Constraints
+1. **Flat Data Structures**: Simple JSON lists/dicts only. No nested OOP hierarchies.
+2. **Strict Nullability**: Do not infer missing specs. If it's missing, map to `null`.
+3. **Pipeline Target Format**: Output must match our Stage 1/Stage 2 schemas:
+   - `listing_id`, `platform`, `url`
+   - `price` (float, AUD)
+   - `seller_name`, `seller_rating`
+   - `title`
+   - `full_listing_text` (Raw, unedited. Crucial for our hint-vs-fact firewall)
+
+# Task
+1. Write a Python script to extract the fields above from eBay AU, FB Marketplace, and Gumtree.
+2. Support URLs, raw HTML files, and API JSON payloads (to bypass anti-bot blocks).
+3. Output a `.jsonl` or list of JSONs ready for pipeline ingestion.
+4. Keep the code "Karpathy-style": clean, functional, zero unnecessary abstractions.
