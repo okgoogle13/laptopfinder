@@ -27,6 +27,9 @@
       "inferred_gpu_hint": {"type": ["string", "null"]},
       "inferred_vram_hint": {"type": ["string", "null"]},
       "inferred_condition_hint": {"type": ["string", "null"]},
+      "inferred_system_ram_hint": {"type": ["string", "null"]},
+      "inferred_cpu_hint": {"type": ["string", "null"]},
+      "discovery_reasoning": {"type": ["string", "null"]},
       "discovery_flags": {"type": "array", "items": {"type": "string"}},
       "discovery_confidence": {"type": "number", "minimum": 0, "maximum": 1}
     },

@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def run_stage2_analysis(handoff_packet: dict, full_listing_text: str, model: str = "gemini-2.5-pro") -> dict:
+def run_stage2_analysis(handoff_packet: dict, full_listing_text: str, model: str = "gemini-3.1-pro") -> dict:
     """Run Stage 2 analysis on a single listing using AI Studio."""
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:

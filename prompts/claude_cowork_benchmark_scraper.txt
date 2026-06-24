@@ -7,11 +7,11 @@ Goal: Feed raw marketplace data (eBay AU, FB Marketplace, Gumtree) into our pipe
 1. **Flat Data Structures**: Simple JSON lists/dicts only. No nested OOP hierarchies.
 2. **Strict Nullability**: Do not infer missing specs. If it's missing, map to `null`.
 3. **Pipeline Target Format**: Output must match our Stage 1/Stage 2 schemas:
-   - `listing_id`, `platform`, `url`
-   - `price` (float, AUD)
-   - `seller_name`, `seller_rating`
-   - `title`
-   - `full_listing_text` (Raw, unedited. Crucial for our hint-vs-fact firewall)
+   - `listing_url_or_identifier`, `source_platform` (one of: "EBAY_AU", "FB_MARKETPLACE", "GUMTREE", "UNKNOWN")
+   - `listing_price_aud` (float, AUD — null if absent or non-AUD)
+   - `seller_name_or_identifier`, `seller_rating_or_profile_signal`
+   - `listing_title`
+   - `full_listing_text` (raw, unedited — crucial for the hint-vs-fact firewall)
 
 # Task
 1. Write a Python script to extract the fields above from eBay AU, FB Marketplace, and Gumtree.

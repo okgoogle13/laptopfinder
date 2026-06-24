@@ -1,24 +1,17 @@
 """Claude Code Audit Runner.
 
 Executes the claude_code_audit prompt against a Stage 2 Analysis JSON payload
-and its corresponding Decision object using the Anthropic API.
+and its corresponding Decision object using the Anthropic API (or Gemini API as fallback).
 """
 import os
 import json
 from pathlib import Path
-from anthropic import Anthropic
 from dotenv import load_dotenv
 
 load_dotenv()
 
 def run_claude_audit(analysis_payload: dict, decision_payload: dict, model: str = "claude-3-5-sonnet-20241022") -> str:
-    """Run the Claude code audit against the analysis and decision payloads."""
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise ValueError("ANTHROPIC_API_KEY is not set. Check your .env file.")
-        
-    client = Anthropic(api_key=api_key)
-    
+    """Run the code audit against the analysis and decision payloads."""
     prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "claude_code_audit.txt"
     if not prompt_path.exists():
         raise FileNotFoundError(f"Prompt not found at {prompt_path}")
@@ -33,17 +26,39 @@ def run_claude_audit(analysis_payload: dict, decision_payload: dict, model: str 
         f"{json.dumps(decision_payload, indent=2)}\n\n"
         "Please provide the audit report."
     )
-    
-    message = client.messages.create(
-        model=model,
-        max_tokens=1500,
-        system=system_prompt,
-        messages=[
-            {"role": "user", "content": input_text}
-        ]
-    )
-    
-    return message.content[0].text
+
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    if anthropic_key:
+        from anthropic import Anthropic
+        client = Anthropic(api_key=anthropic_key)
+        message = client.messages.create(
+            model=model,
+            max_tokens=1500,
+            system=system_prompt,
+            messages=[
+                {"role": "user", "content": input_text}
+            ]
+        )
+        return message.content[0].text
+    else:
+        gemini_key = os.environ.get("GEMINI_API_KEY")
+        if not gemini_key:
+            raise ValueError("Neither ANTHROPIC_API_KEY nor GEMINI_API_KEY is set. Check your .env file.")
+            
+        print("ANTHROPIC_API_KEY not found. Falling back to Gemini API (gemini-3.1-pro)...")
+        from google import genai
+        from google.genai import types
+        
+        client = genai.Client(api_key=gemini_key)
+        response = client.models.generate_content(
+            model="gemini-3.1-pro",
+            contents=[
+                types.Content(role="user", parts=[
+                    types.Part.from_text(f"{system_prompt}\n\n{input_text}")
+                ])
+            ]
+        )
+        return response.text
 
 if __name__ == "__main__":
     import sys

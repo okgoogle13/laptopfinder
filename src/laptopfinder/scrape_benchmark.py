@@ -1,8 +1,8 @@
 """
 scrape_benchmark.py — Benchmark dataset builder for laptopfinder.
 
-Accepts a list of saved listing sources (URLs or local HTML/JSON files) and
-extracts the raw fields the pipeline expects: title, price, seller info,
+Accepts saved listing sources (URLs, local HTML files, or JSON API payloads)
+and extracts the raw fields the pipeline expects: title, price, seller info,
 full listing text, platform, and URL.
 
 Output: one JSONL file where each line is a Stage 2 fixture
@@ -12,14 +12,19 @@ Usage:
     # From a URLs file (one URL per line):
     python -m laptopfinder.scrape_benchmark --urls urls.txt --out benchmark.jsonl
 
-    # From a directory of saved .html files:
+    # From a directory of saved .html or .json files:
     python -m laptopfinder.scrape_benchmark --html-dir saved_pages/ --out benchmark.jsonl
 
-    # From a single eBay API JSON file:
-    python -m laptopfinder.scrape_benchmark --ebay-api ebay_response.json --out benchmark.jsonl
+    # From individual files (HTML or JSON, auto-detected):
+    python -m laptopfinder.scrape_benchmark --html-file ebay_titan.html fb_rtx4080.json --out benchmark.jsonl
 
     # Mix and match (all flags are additive):
     python -m laptopfinder.scrape_benchmark --urls urls.txt --html-dir saved_pages/ --out benchmark.jsonl
+
+Ad-hoc single item (from Python):
+    from laptopfinder.scrape_benchmark import process_input, to_stage2_fixture
+    raw = process_input("https://www.ebay.com.au/itm/123456")
+    fixture = to_stage2_fixture(raw)
 """
 
 import argparse
@@ -31,13 +36,15 @@ import hashlib
 from pathlib import Path
 from urllib.parse import urlparse
 
-# Optional: requests + bs4 for live fetching. Fail gracefully if absent.
+# Optional: requests + bs4 for live fetching / rich HTML parsing.
+# Falls back to stdlib urllib + regex when absent.
 try:
     import requests
     from bs4 import BeautifulSoup
-    _LIVE_FETCH_OK = True
+    _BS4_OK = True
 except ImportError:
-    _LIVE_FETCH_OK = False
+    BeautifulSoup = None  # type: ignore[assignment,misc]
+    _BS4_OK = False
 
 
 # ---------------------------------------------------------------------------
@@ -369,6 +376,120 @@ def extract_ebay_api_item(item: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Generic JSON extractor (non-eBay API payloads: Gumtree, FB intercepts, etc.)
+# ---------------------------------------------------------------------------
+
+def extract_generic_json(data: dict, url: str = "", platform: str | None = None) -> dict:
+    """Extract fields from any generic JSON payload with common field names.
+
+    Covers Gumtree internal API, FB Marketplace intercepts, or any ad-hoc
+    JSON you've saved from browser DevTools. Never infers missing fields.
+    """
+    title = data.get("title") or data.get("name") or data.get("heading")
+
+    price_raw = None
+    price_val = data.get("price") or data.get("currentPrice") or data.get("asking_price")
+    if isinstance(price_val, (int, float)):
+        price_raw = str(price_val)
+    elif isinstance(price_val, str):
+        price_raw = price_val
+    elif isinstance(price_val, dict):
+        # e.g. {"amount": 4200, "currency": "AUD"}
+        v = price_val.get("amount") or price_val.get("value")
+        price_raw = str(v) if v is not None else None
+
+    seller_info = data.get("seller") or data.get("advertiser") or {}
+    if isinstance(seller_info, str):
+        seller_name = seller_info
+        seller_rating = None
+    else:
+        seller_name = (seller_info.get("username") or seller_info.get("name")
+                       or seller_info.get("displayName"))
+        fb_score = seller_info.get("feedbackScore") or seller_info.get("rating")
+        fb_pct = seller_info.get("feedbackPercentage") or seller_info.get("positivePercent")
+        if fb_score or fb_pct:
+            seller_rating = f"{fb_score} feedback, {fb_pct}% positive"
+        else:
+            seller_rating = None
+
+    # Build full_listing_text from the richest available text fields.
+    # Never fall back to json.dumps — that would pollute the grounding firewall.
+    desc = data.get("description") or data.get("body") or data.get("details") or ""
+    attrs = data.get("attributes") or data.get("specs") or {}
+    if isinstance(attrs, dict):
+        attrs_text = " ".join(f"{k}: {v}" for k, v in attrs.items())
+    elif isinstance(attrs, list):
+        attrs_text = " ".join(
+            f"{a.get('name','')}: {a.get('value','')}" for a in attrs if isinstance(a, dict)
+        )
+    else:
+        attrs_text = ""
+
+    full_text_parts = [p for p in [title, attrs_text, desc] if p]
+    full_listing_text = " ".join(full_text_parts).strip() or None
+
+    item_url = data.get("url") or data.get("itemWebUrl") or data.get("link") or url or None
+    item_id = data.get("id") or data.get("itemId") or data.get("listingId")
+    plat = platform or detect_platform(url or "")
+    prefix = {"EBAY_AU": "ebay-au", "FB_MARKETPLACE": "fb", "GUMTREE": "gumtree"}.get(plat, "unknown")
+    listing_id = f"{prefix}:{item_id}" if item_id else f"{prefix}:unknown-{_short_hash(str(data))}"
+
+    return {
+        "platform": plat,
+        "listing_id": listing_id,
+        "url": item_url,
+        "title": title,
+        "price_raw": price_raw,
+        "seller_name": seller_name,
+        "seller_rating": seller_rating,
+        "full_listing_text": full_listing_text,
+    }
+
+
+# ---------------------------------------------------------------------------
+# process_input — convenience wrapper for ad-hoc single-item use
+# ---------------------------------------------------------------------------
+
+def process_input(path_or_url: str, platform: str | None = None) -> dict | None:
+    """Accept a URL, a local HTML file, or a local JSON file and return a raw record.
+
+    Auto-detects content type: tries JSON parse first, falls back to HTML.
+    Platform is inferred from URL/filename if not provided.
+    """
+    content = ""
+    url = ""
+
+    if path_or_url.startswith("http://") or path_or_url.startswith("https://"):
+        url = path_or_url
+        content = fetch_html(url)
+        if not content:
+            return None
+    else:
+        p = Path(path_or_url)
+        if not p.exists():
+            print(f"[ERROR] File not found: {path_or_url}", file=sys.stderr)
+            return None
+        content = p.read_text(encoding="utf-8", errors="replace")
+        platform = platform or platform_from_filename(p)
+
+    # Try JSON first
+    try:
+        data = json.loads(content)
+        if isinstance(data, list) and data:
+            data = data[0]
+        if isinstance(data, dict):
+            # Route eBay API items through the dedicated extractor
+            if "sellingStatus" in data or "localizedAspects" in data or "legacyItemId" in data:
+                return extract_ebay_api_item(data)
+            return extract_generic_json(data, url=url, platform=platform)
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    # Fall through to HTML parsing
+    return html_to_raw(content, url or path_or_url, platform=platform)
+
+
+# ---------------------------------------------------------------------------
 # Live fetching (optional, may be blocked by anti-bot)
 # ---------------------------------------------------------------------------
 
@@ -379,33 +500,72 @@ _HEADERS = {
         "Chrome/124.0.0.0 Safari/537.36"
     ),
     "Accept-Language": "en-AU,en;q=0.9",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 
 
 def fetch_html(url: str, delay: float = 2.0) -> str | None:
-    """Fetch a URL and return raw HTML. Returns None on failure."""
-    if not _LIVE_FETCH_OK:
-        print(f"[WARN] requests/bs4 not installed — cannot fetch {url}", file=sys.stderr)
-        return None
-    try:
-        time.sleep(delay)
-        resp = requests.get(url, headers=_HEADERS, timeout=20)
-        resp.raise_for_status()
-        return resp.text
-    except Exception as e:
-        print(f"[WARN] fetch failed for {url}: {e}", file=sys.stderr)
-        return None
+    """Fetch a URL and return raw HTML. Uses requests if available, else stdlib urllib."""
+    time.sleep(delay)
+    if _BS4_OK:
+        try:
+            resp = requests.get(url, headers=_HEADERS, timeout=20)
+            resp.raise_for_status()
+            return resp.text
+        except Exception as e:
+            print(f"[WARN] fetch failed for {url}: {e}", file=sys.stderr)
+            return None
+    else:
+        import urllib.request
+        import urllib.error
+        req = urllib.request.Request(url, headers=_HEADERS)
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                return resp.read().decode("utf-8", errors="replace")
+        except Exception as e:
+            print(f"[WARN] fetch failed for {url}: {e}", file=sys.stderr)
+            return None
 
 
 # ---------------------------------------------------------------------------
 # HTML → raw record
 # ---------------------------------------------------------------------------
 
+def _html_to_raw_regex(html: str, url: str) -> dict:
+    """Zero-dependency HTML extraction via regex. Used when bs4 is absent.
+    Extracts title and full visible text; price/seller will usually be null.
+    """
+    title_m = re.search(r"<title[^>]*>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
+    title = title_m.group(1).strip() if title_m else None
+
+    price_m = re.search(r"\$\s*([\d,]+(?:\.\d{2})?)", html)
+    price_raw = price_m.group(0).strip() if price_m else None
+
+    # Strip tags and collapse whitespace
+    full_text = re.sub(r"<script[^>]*>.*?</script>", " ", html, flags=re.DOTALL | re.IGNORECASE)
+    full_text = re.sub(r"<style[^>]*>.*?</style>", " ", full_text, flags=re.DOTALL | re.IGNORECASE)
+    full_text = re.sub(r"<[^>]+>", " ", full_text)
+    full_text = re.sub(r"\s+", " ", full_text).strip() or None
+
+    return {
+        "platform": detect_platform(url),
+        "listing_id": f"unknown:{_short_hash(url)}",
+        "url": url,
+        "title": title,
+        "price_raw": price_raw,
+        "seller_name": None,
+        "seller_rating": None,
+        "full_listing_text": full_text,
+    }
+
+
 def html_to_raw(html: str, url: str, platform: str | None = None) -> dict | None:
-    """Parse HTML and dispatch to the right extractor."""
-    if not _LIVE_FETCH_OK:
-        print("[ERROR] beautifulsoup4 not installed. Run: pip install beautifulsoup4 lxml", file=sys.stderr)
-        return None
+    """Parse HTML and dispatch to the right extractor.
+    Falls back to regex extraction if bs4 is not installed.
+    """
+    if not _BS4_OK:
+        print("[WARN] beautifulsoup4 not installed — using regex fallback (install bs4+lxml for full extraction)", file=sys.stderr)
+        return _html_to_raw_regex(html, url)
 
     soup = BeautifulSoup(html, "lxml")
     plat = platform or detect_platform(url)
@@ -417,7 +577,7 @@ def html_to_raw(html: str, url: str, platform: str | None = None) -> dict | None
     if plat == "GUMTREE":
         return extract_gumtree(soup, url)
 
-    # UNKNOWN — try to extract at least the title and visible text
+    # UNKNOWN — extract title and body text
     title_tag = soup.find("title")
     title = title_tag.get_text(strip=True) if title_tag else None
     body = soup.find("body")
@@ -528,9 +688,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--html-dir", metavar="DIR",
                    help="Directory of saved .html files (filename must start with ebay_, fb_, or gumtree_)")
     p.add_argument("--html-file", metavar="FILE", nargs="+",
-                   help="One or more individual .html files (platform guessed from filename)")
+                   help="One or more .html or .json files (platform guessed from filename; content auto-detected)")
     p.add_argument("--ebay-api", metavar="FILE",
-                   help="eBay API JSON response file (FindingAPI or Browse API)")
+                   help="eBay API JSON response file (FindingAPI or Browse API); for generic JSON use --html-file")
     p.add_argument("--out", metavar="FILE", default="benchmark.jsonl",
                    help="Output JSONL file (default: benchmark.jsonl)")
     p.add_argument("--format", choices=["stage2", "stage1"], default="stage2",
@@ -563,33 +723,35 @@ def process_sources(args) -> list[dict]:
                 else:
                     print("  [SKIP] could not fetch — save the page manually and use --html-file", file=sys.stderr)
 
-    # --- HTML directory ---
+    # --- HTML/JSON directory ---
     if args.html_dir:
         html_dir = Path(args.html_dir)
         if not html_dir.is_dir():
             print(f"[ERROR] Not a directory: {html_dir}", file=sys.stderr)
         else:
-            html_files = sorted(html_dir.glob("*.html")) + sorted(html_dir.glob("*.htm"))
-            if not html_files:
-                print(f"[WARN] No .html files found in {html_dir}", file=sys.stderr)
-            for f in html_files:
-                print(f"[HTML] {f.name}")
-                plat = platform_from_filename(f)
-                raw = html_to_raw(f.read_text(encoding="utf-8", errors="replace"), f.name, platform=plat)
+            glob_patterns = ["*.html", "*.htm", "*.json"]
+            all_files = []
+            for pat in glob_patterns:
+                all_files.extend(html_dir.glob(pat))
+            all_files = sorted(set(all_files))
+            if not all_files:
+                print(f"[WARN] No .html/.json files found in {html_dir}", file=sys.stderr)
+            for f in all_files:
+                print(f"[FILE] {f.name}")
+                raw = process_input(str(f))
                 if raw:
-                    raw["url"] = raw.get("url") or f.stem  # use filename as fallback URL
+                    raw["url"] = raw.get("url") or f.stem
                     raws.append(raw)
 
-    # --- Individual HTML files ---
+    # --- Individual HTML/JSON files ---
     if args.html_file:
         for filepath in args.html_file:
             f = Path(filepath)
             if not f.exists():
                 print(f"[ERROR] File not found: {f}", file=sys.stderr)
                 continue
-            print(f"[HTML] {f.name}")
-            plat = platform_from_filename(f)
-            raw = html_to_raw(f.read_text(encoding="utf-8", errors="replace"), f.name, platform=plat)
+            print(f"[FILE] {f.name}")
+            raw = process_input(str(f))
             if raw:
                 raw["url"] = raw.get("url") or f.stem
                 raws.append(raw)

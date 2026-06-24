@@ -11,42 +11,47 @@ TASK: Execute a targeted market research pass on the Australian used-hardware ma
 ---
 
 EXISTING REFERENCE — Full current state of config/static_reference_layer.json.
-Your output must ONLY diff against the keys: unicorn_gpus, unicorn_models, conditional_unicorn_models, aspirational_monitor_list.
-Do NOT emit entries for capability_bands, unicorn_validation, apple_uma_branch, travel_rules, or override_rules — these are managed elsewhere and are shown only for context.
+Your output must ONLY diff against the keys: target_gpus, target_models, conditional_models, watch_list.
+Do NOT emit entries for vram_tiers, uma_platforms, travel, shortlist_override, llm_index_score, or design_notes — these are managed elsewhere and are shown only for context.
 
 {
-  "capability_bands": {
-    "ENTRY_LOCAL_LLM": {"vram_range_gb": [8, 12]},
-    "MID_TIER_LOCAL_LLM": {"vram_range_gb": [16, 16]},
-    "STRONG_8B_14B": {"vram_range_gb": [24, 24]},
-    "POSSIBLE_70B_QUANTIZED": {"vram_range_gb": [32, 128]}
+  "vram_tiers": {
+    "entry": {"min_gb": 8, "max_gb": 12},
+    "mid": {"min_gb": 16, "max_gb": 16},
+    "high": {"min_gb": 24, "max_gb": 24},
+    "extreme": {"min_gb": 32, "max_gb": 128}
   },
-  "aspirational_monitor_list": ["RTX 5080", "RTX 5090", "GB200", "B200"],
-  "unicorn_gpus": {
-    "RTX 3080 Ti": {"vram_gb": 12},
+  "watch_list": [
+    {"name": "RTX 5080", "graduation_condition": "AU used-market listings confirmed on eBay AU, FB Marketplace, or Gumtree.", "graduate_to": "target_gpus", "graduate_vram_gb": 16},
+    {"name": "RTX 5090", "graduation_condition": "AU used-market listings confirmed on eBay AU, FB Marketplace, or Gumtree.", "graduate_to": "target_gpus", "graduate_vram_gb": 24},
+    {"name": "GB200",    "graduation_condition": "Mobile or workstation form factor with AU retail availability confirmed.", "graduate_to": "target_gpus", "graduate_vram_gb": null},
+    {"name": "B200",     "graduation_condition": "Mobile or workstation form factor with AU retail availability confirmed.", "graduate_to": "target_gpus", "graduate_vram_gb": null}
+  ],
+  "target_gpus": {
+    "RTX 3080 Ti": {"vram_gb": 16},
     "RTX 3090": {"vram_gb": 24},
-    "RTX 4090": {"vram_gb": 24},
+    "RTX 4090": {"vram_gb": 16},
     "RTX A5000": {"vram_gb": 16},
     "RTX 6000 Ada": {"vram_gb": 48},
     "L40S": {"vram_gb": 48}
   },
-  "unicorn_models": [
+  "target_models": [
     "ASUS ROG Zephyrus Duo 16", "MSI Titan 18", "MSI Raider 17", "MSI Raider 18",
     "ASUS ROG Strix Scar 18", "ASUS ROG Strix 18", "Lenovo Legion 9i",
     "Lenovo Legion 7i", "Lenovo ThinkPad P16", "Alienware 17", "Alienware 18"
   ],
-  "conditional_unicorn_models": {
-    "Lenovo ThinkPad T16": "Eligible ONLY IF discrete high-VRAM workstation-like GPU is explicitly stated."
+  "conditional_models": {
+    "Lenovo ThinkPad T16": {
+      "requires_discrete_gpu": true,
+      "min_vram_gb": 16,
+      "note": "Only eligible if a discrete high-VRAM workstation GPU is explicitly stated in the listing."
+    }
   },
-  "unicorn_validation": {
-    "override_minimum_vram_gb": 16,
-    "high_interest_minimum_vram_gb": 12,
-    "requires_standard_value_and_risk_pass": true
-  },
-  "apple_uma_branch": {
-    "enabled": false,
-    "eligible_models": ["Mac Studio 64GB", "Mac Studio 128GB"],
-    "excluded_models": ["Mac Mini 32GB"]
+  "apple_silicon": {
+    "routing": "CONDITIONAL",
+    "score_ceiling": 75,
+    "eligible": ["Mac Studio 64GB", "Mac Studio 128GB"],
+    "excluded": ["Mac Mini 32GB"]
   }
 }
 
@@ -60,7 +65,7 @@ ADMISSION CHECK 1 — Identity: The GPU or model has an exact, citable name stri
 
 ADMISSION CHECK 2 — VRAM is a hard integer: vram_gb MUST be a single integer in whole GB, sourced from a manufacturer spec sheet or retailer listing. Never a range, never a string, never null. If VRAM is unconfirmed, omit the entry — do not guess and do not emit MONITOR_ONLY just to preserve a half-known entry.
 
-ADMISSION CHECK 3 — Scope fit: VRAM >= 16GB AND the form factor is mobile/laptop (not desktop, not server, not a dGPU dock). Entries failing this are omitted, not flagged EXCLUDE — EXCLUDE is reserved for previously-tracked entries being revoked (see stale_or_invalid_entries), not for new candidates that never qualified.
+ADMISSION CHECK 3 — Scope fit: VRAM >= 16 GB AND the form factor is mobile/laptop OR a compact desktop workstation (Mac Studio, Strix Halo mini-PC) explicitly evaluated for LLM use. For Apple Silicon UMA platforms, the threshold is total system RAM >= 64 GB rather than discrete VRAM. Standard desktops, servers, and dGPU docks are excluded. Entries failing this are omitted, not flagged EXCLUDE — EXCLUDE is reserved for previously-tracked entries being revoked (see stale_or_invalid_entries), not for new candidates that never qualified.
 
 ADMISSION CHECK 4 — Non-duplication: The entry is not a rebrand, regional SKU variant, or clock-speed refresh of an existing unicorn_gpu or unicorn_model with identical vram_gb. If it is, omit it (or, if it meaningfully changes search behavior, route it to high_value_search_skus instead with a note in graduation_evidence).
 
@@ -75,7 +80,7 @@ A platform status MUST be one of exactly three string values:
 
 Do NOT assign "TARGET" to any GPU/platform unless you have grounding evidence of AU used-market availability. Grounding evidence must be summarized in plain prose inside graduation_evidence — no citation markers, no URLs, no footnote numbers.
 
-EMPTY RESULT HANDLING: If no new entries pass the admission gate, emit empty arrays/objects for the affected schema keys (e.g. "new_unicorn_gpus": {}). Do not invent a placeholder entry, do not explain why nothing was found inside the JSON, and do not skip the key.
+EMPTY RESULT HANDLING: If no new entries pass the admission gate, emit empty arrays/objects for the affected schema keys (e.g. "new_target_gpus": {}). Do not invent a placeholder entry, do not explain why nothing was found inside the JSON, and do not skip the key. Always emit watch_list_graduation with one entry per existing watch_list item — graduation_condition_met may be false and graduation_evidence may be null, but the entry must be present.
 
 ---
 
@@ -89,6 +94,16 @@ HARD CONSTRAINTS:
 6. No code fences (```), no lead-in sentence, no trailing sign-off after Block 2.
 7. Every entry in every array/object must have already passed the four-check admission gate above. If you are unsure whether an entry qualifies, the correct action is to omit it, not to include it with caveats.
 
+ARCHITECTURE COVERAGE:
+
+8. Research scope is GPU-architecture-neutral. Search for AU used-market evidence across all three ecosystems equally:
+   - NVIDIA (CUDA): RTX / Quadro / datacenter mobile SKUs
+   - AMD (ROCm): RDNA3 and later mobile/workstation GPUs with VRAM >= 16 GB
+   - Apple Silicon (UMA): M-series Max and Ultra chips with total RAM >= 64 GB
+   Do NOT weight AU availability evidence differently by architecture. If an AMD or Apple Silicon candidate has comparable VRAM and confirmed AU used-market listings, it must be admitted on the same evidence standard as an NVIDIA candidate.
+
+9. Watch list graduation check: For every entry in watch_list, actively search for AU used-market evidence. If the graduation_condition is met, note it in graduation_evidence with plain prose. The human reviewer will decide whether to promote the entry to target_gpus.
+
 ---
 
 PRE-OUTPUT SELF-CHECK (perform silently, do not show this work):
@@ -96,7 +111,7 @@ PRE-OUTPUT SELF-CHECK (perform silently, do not show this work):
 Before emitting your response, verify:
 a. The response starts with { and nothing precedes it.
 b. The response contains zero instances of "```", "[1]", "Here", or any sentence-case lead-in.
-c. Every object in new_unicorn_gpus, new_unicorn_models, and new_conditional_unicorn_models passed all 4 admission checks.
+c. Every object in new_target_gpus, new_target_models, and new_conditional_models passed all 4 admission checks.
 d. Every vram_gb is a bare integer, not a string or range.
 e. Block 2 is separated from Block 1 by exactly one blank line and contains only raw terms.
 If any check fails, fix it before responding. Do not narrate the fix.
@@ -109,7 +124,7 @@ BLOCK 1: A single raw JSON object. No code fences. No leading text. Start the re
 
 Schema:
 {
-  "new_unicorn_gpus": {
+  "new_target_gpus": {
     "<GPU Name>": {
       "vram_gb": <integer>,
       "status": "<TARGET|MONITOR_ONLY>",
@@ -117,7 +132,7 @@ Schema:
       "graduation_evidence": "<one-sentence grounding statement or null>"
     }
   },
-  "new_unicorn_models": [
+  "new_target_models": [
     {
       "model": "<Exact Model String>",
       "gpu": "<GPU Name>",
@@ -127,9 +142,20 @@ Schema:
       "graduation_evidence": "<one-sentence grounding statement or null>"
     }
   ],
-  "new_conditional_unicorn_models": {
-    "<Model Name>": "<Eligibility condition string>"
+  "new_conditional_models": {
+    "<Model Name>": {
+      "requires_discrete_gpu": <true|false>,
+      "min_vram_gb": <integer>,
+      "note": "<Eligibility condition string>"
+    }
   },
+  "watch_list_graduation": [
+    {
+      "name": "<Exact watch_list entry name>",
+      "graduation_condition_met": <true|false>,
+      "graduation_evidence": "<one-sentence AU used-market evidence summary or null>"
+    }
+  ],
   "stale_or_invalid_entries": [
     {
       "entry": "<Exact key from existing reference>",
@@ -146,7 +172,7 @@ Schema:
   ]
 }
 
-NOTE: "EXCLUDE" is valid ONLY inside stale_or_invalid_entries reasoning — it is not a legal status value anywhere in new_unicorn_gpus, new_unicorn_models, or high_value_search_skus. A candidate that would be EXCLUDE is omitted per the admission gate, not labeled.
+NOTE: "EXCLUDE" is valid ONLY inside stale_or_invalid_entries reasoning — it is not a legal status value anywhere in new_target_gpus, new_target_models, or high_value_search_skus. A candidate that would be EXCLUDE is omitted per the admission gate, not labeled.
 
 BLOCK 2: Immediately after the closing JSON brace, output one blank line, then the keyword registry in this exact format. No other text.
 

@@ -1,0 +1,148 @@
+You are auditing the prompt engineering and JSON schema design of a multi-stage used-hardware procurement pipeline. The pipeline processes Australian marketplace listings (eBay AU, Facebook Marketplace, Gumtree) for local LLM inference hardware.
+
+Your job is NOT to produce config changes or JSON fragments — a local model with structured outputs handles that. Your job is to review the prompt/schema contracts, find ergonomic weaknesses, generate adversarial test cases, and advise on which work belongs at which model tier.
+
+---
+
+PIPELINE ARCHITECTURE (for context):
+
+Stage 1 — Discovery (Gemini 2.5 Pro via Comet runner):
+  Prompt: comet_discovery_agent.txt
+  Schema: stage1.discovery.schema.json
+  Input: raw marketplace text (DOM, JSON feeds, copy-paste)
+  Output: JSON array of candidate objects with inferred_* hint fields
+  Firewall: Python rejects any fact-shaped keys (gpu, vram_capacity, etc.)
+
+Stage 1A — Handoff:
+  Schema: stage1a.handoff.schema.json
+  Human/agent assembles selected candidate into handoff packet
+
+Stage 2 — Analysis (Gemini via AI Studio):
+  Prompt: ai_studio_runtime.txt
+  Schema: stage2.analysis.schema.json
+  Input: handoff_packet + full_listing_text
+  Output: structured extraction with metadata, extracted_data, analysis
+  Firewall: Python enforces verbatim text grounding — every non-null extracted_data value must be a literal case-insensitive word-boundary substring match in full_listing_text
+
+Decision Engine (local Python, no LLM):
+  Config: static_reference_layer.json
+  Logic: watch_list → MONITOR, risk gate → SKIP, UMA 64GB+ → SHORTLIST, target GPU/VRAM ≥16GB → SHORTLIST, else SKIP
+  Scoring: capacity (max 60) + generation (max 25) + seller modifier (±20) − deductions
+
+Claude Audit (optional post-decision):
+  Prompt: claude_code_audit.txt
+  Checks: fact grounding, hint-promotion leakage, risk logic, routing logic, null consistency
+
+Perplexity Deep Research (this prompt):
+  Role: market intelligence, prompt/schema audit, edge-case generation
+  NOT: strict JSON extraction, config mutations, scoring arithmetic
+
+---
+
+STAGE 1 DISCOVERY PROMPT (comet_discovery_agent.txt — 52 lines):
+
+Key contract points:
+- Flat JSON array, every key required, null for unknowns
+- All spec fields prefixed inferred_* (hint/fact firewall)
+- discovery_confidence measures extraction clarity, not buyer interest
+- Canonical short-form naming for downstream matching (e.g. "RTX 4090" not "NVIDIA GeForce RTX 4090 Laptop GPU")
+- Platform-specific rules: FB Marketplace preserves location, Gumtree flags obfuscated titles and wanted ads
+- Bundle listings → single object, most relevant category, "multi_component_bundle" flag
+
+STAGE 2 ANALYSIS PROMPT (ai_studio_runtime.txt — 78 lines):
+
+Key contract points:
+- Verbatim Fact Grounding rule: extracted_data values must be literal substrings of full_listing_text
+- Canonical Short-Form override: when both long marketing name and short identifier appear, prefer short form — but Rule 6 (verbatim) always overrides
+- Risk score 0.0–10.0 continuous scale with anchoring bands (0–2 clean, 2–4 minor gaps, 4–6.5 one flag, 6.5–8.5 compounding, 8.5–10 dense scam signals)
+- Seller quality feeds risk score (not a separate gate)
+- seller_classification is a judgment call, exempt from text-grounding firewall
+- missing_information array captures what couldn't be verified
+
+SCHEMAS (JSON Schema Draft 2020-12):
+
+stage1.discovery.schema.json — 39 lines:
+  additionalProperties: false on items
+  11 required fields, 3 optional (inferred_system_ram_hint, inferred_cpu_hint, discovery_reasoning)
+  discovery_confidence: number [0, 1]
+
+stage1a.handoff.schema.json — 34 lines:
+  Same shape minus discovery_confidence
+  additionalProperties: false
+
+stage2.analysis.schema.json — 63 lines:
+  Three required sections: metadata, extracted_data, analysis
+  extracted_data: 12 required fields including total_system_ram and egpu_model
+  analysis: risk_score [0, 10], confidence [0, 1], seller_classification enum
+  additionalProperties: false at every level
+
+---
+
+Perform these five analyses:
+
+### 1. PROMPT–SCHEMA ERGONOMICS REVIEW
+
+For each of the three prompts (Comet Stage 1, AI Studio Stage 2, Claude Audit):
+
+a) Contract tightness: Does the prompt's natural-language contract match its JSON schema exactly? Find any fields the prompt describes but the schema doesn't enforce, or schema fields the prompt never mentions. These are drift points where the LLM will guess.
+
+b) Prompt length vs. signal: Which sections of each prompt are load-bearing (directly prevent common failure modes) and which are defensive repetition? Identify specific passages that could be cut without losing enforcement power, and passages that are dangerously under-specified.
+
+c) Instruction conflicts: Find any instructions that contradict each other or create ambiguous edge cases. The canonical short-form naming rule vs. the verbatim grounding rule is a known tension — are there others?
+
+d) Schema gaps: Are there real-world listing patterns that the current schemas can't represent? (e.g., dual-GPU systems, refurbished-with-warranty, auction vs. buy-now pricing, listings with multiple condition states)
+
+### 2. ADVERSARIAL TEST CASES
+
+Generate 8–10 realistic Australian marketplace listing texts (raw DOM/copy-paste style, not clean prose) that would stress-test the pipeline. Each should target a specific failure mode:
+
+For each test case provide:
+- A realistic listing title and body text (Australian English, seller shorthand, platform-specific formatting)
+- The target pipeline stage (Stage 1, Stage 2, or Decision Engine)
+- The specific failure mode it tests (e.g., "verbatim grounding breaks on Unicode dash in VRAM spec", "discovery_confidence should be low but GPU is tempting so model inflates it")
+- Expected correct behavior vs. likely actual behavior
+
+Categories to cover:
+- Grounding edge cases (Unicode variants, seller abbreviations, specs only in image alt-text, specs split across non-adjacent paragraphs)
+- Hint-to-fact leakage traps (title says "RTX 4090" but body says "RTX 4080", or VRAM never stated but model is known to have 16GB)
+- Risk scoring adversarial cases (sophisticated scam with all green signals except one subtle tell, or legitimate seller who triggers multiple false-positive flags)
+- UMA / eGPU / bundle edge cases (Mac with upgraded RAM but non-Max chip, eGPU listed separately from laptop, "gaming PC" that's actually a laptop with dock)
+- Platform-specific formatting traps (Gumtree keyword-stuffed titles, FB Marketplace "Make an Offer" with hidden price, eBay multi-variation listings)
+
+### 3. MODEL TIER ALLOCATION REVIEW
+
+For each step in the pipeline, assess whether the current model assignment is correct:
+
+| Step | Current Model | Right Fit? | Reasoning |
+|------|---------------|------------|-----------|
+
+Consider:
+- Which steps genuinely need web-grounded research (→ Deep Research)?
+- Which steps need structured output with schema enforcement (→ local/API model with JSON mode)?
+- Which steps are pure rule application (→ no LLM needed)?
+- Are any steps currently assigned to an expensive model tier that a cheaper model could handle equally well?
+- Is there a missing step that would improve pipeline reliability? (e.g., a schema-validation retry loop, a confidence-gated re-extraction pass, a cross-listing deduplication step)
+
+### 4. PROMPT COMPRESSION OPPORTUNITIES
+
+The three pipeline prompts total ~167 lines / ~18KB. For a structured-output stack where the JSON schema does most of the enforcement work, the prompts may be over-specified.
+
+For each prompt, propose a "contract-first" rewrite strategy:
+- What can the JSON schema enforce that the prompt currently enforces in prose? (Move enforcement to schema, cut prompt text.)
+- What are the 3–5 irreducible natural-language instructions that NO schema can express? (These are the only things the prompt must say.)
+- Estimate the achievable compression ratio (e.g., "Stage 1 prompt could go from 52 lines to ~20 lines if schema handles X, Y, Z").
+
+### 5. KARPATHY GUIDELINES AUDIT
+
+Evaluate the pipeline architecture and prompt engineering against Andrej Karpathy's LLM behavioral guidelines:
+- **Simplicity First (Minimum viable solution)**: Are there speculative features, over-engineering, or abstractions in the prompts or schemas that aren't strictly necessary? Identify where the pipeline asks the model to do too much or handle impossible scenarios.
+- **Goal-Driven Execution (Verifiable success criteria)**: Do the prompts define strong, verifiable success criteria, or do they rely on weak instructions (e.g., "do your best", "extract what you can")? Pinpoint instructions that need to be tightened into verifiable checks.
+- **Surgical Design (Touch only what you must)**: Where do the prompts encourage the LLM to infer, paraphrase, or "improve" data rather than surgically extracting exactly what is there? Recommend ways to restrict the model's blast radius.
+
+---
+
+CONSTRAINTS:
+- Do NOT produce JSON config fragments, scoring adjustments, or code patches — those belong in local structured-output passes.
+- DO cite specific line numbers, field names, and prompt passages when identifying issues.
+- If you find no issues in a section, say so — don't invent problems.
+- Ground recommendations in how modern structured-output stacks work (JSON schema enforcement, Pydantic validation, retry-on-schema-failure patterns), not in generic prompt engineering advice.

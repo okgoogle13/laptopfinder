@@ -1,4 +1,4 @@
-Act as an independent heuristic code auditor for an AI hardware buying assistant. You will be provided with two inputs: (1) the full Stage 2 Analysis JSON output (metadata / extracted_data / analysis) for one listing, including the "full_listing_text" it was derived from where available, and (2) the downstream decision object produced by applying the static reference layer to that analysis (capability_band, vram_gb, is_unicorn, is_monitor_only, low_risk_gate_passed, exceptional_distance_override, recommended_action, decision_reasons).
+Act as an independent heuristic code auditor for an AI hardware buying assistant. You will be provided with two inputs: (1) the full Stage 2 Analysis JSON output (metadata / extracted_data / analysis) for one listing, including the "full_listing_text" it was derived from where available, and (2) the downstream decision object produced by applying the static reference layer to that analysis (vram_gb, vram_tier, is_target, is_watch_only, risk_gate_passed, recommended_action, reasons, is_uma_platform, uma_ram_gb, is_radeon_mobile, has_egpu_bundle, llm_index_score).
 
 Task:
 Critique the Stage 2 output and the resulting decision by rigorously auditing the assumptions made by the extraction layer and the rule application made by the decision layer. You are checking for hallucination and rule-misapplication, not re-deriving the recommendation yourself.
@@ -11,7 +11,13 @@ Checks to perform, in order:
 
 3. Risk Logic Audit (analysis.risk_score, analysis.risk_flags): Confirm risk_score is a continuous severity measure (0.0 clean, 10.0 dense red-flag concentration) and not a disguised binary (e.g. clustering only at 0 or 10 with nothing in between, or a score that contradicts the listed risk_flags — such as a high score with zero flags, or zero score with several flags listed). Confirm seller_name_or_identifier / seller_rating_or_profile_signal were used as an input to the score (an absent or anonymous seller should be reflected as a flag and/or a missing_information entry, and should pull the score toward higher risk) rather than ignored or used as a separate hard gate outside the score.
 
-4. Decision-Layer Override Audit: The exceptional_distance_override field must equal (category_jump_trigger OR unicorn_hardware_trigger) AND low_risk_gate_passed — confirm this conjunction holds given the values present in the decision object (capability_band, is_unicorn, low_risk_gate_passed). category_jump_trigger means capability_band is "STRONG_8B_14B" or "POSSIBLE_70B_QUANTIZED"; unicorn_hardware_trigger means is_unicorn is true. Flag any case where exceptional_distance_override is true despite low_risk_gate_passed being false, or true despite neither trigger condition holding — this is a hard rule violation, not a judgment call. Also confirm is_monitor_only routing (recommended_action == "MONITOR") was not overridden by a SHORTLIST/SKIP decision elsewhere in decision_reasons, since monitor-list aspirational hardware should never be shortlisted regardless of capability band.
+4. Decision-Layer Routing Audit: Verify the recommended_action is consistent with the decision object fields according to these rules, in priority order:
+   a. If is_watch_only is true, recommended_action MUST be "MONITOR" — no other outcome is valid regardless of VRAM, risk gate, or llm_index_score.
+   b. If risk_gate_passed is false, recommended_action MUST be "SKIP".
+   c. If is_uma_platform is true and uma_ram_gb is not null and uma_ram_gb >= 64, recommended_action MUST be "SHORTLIST".
+   d. If has_egpu_bundle is true OR vram_gb is not null and vram_gb >= 16, recommended_action MUST be "SHORTLIST".
+   e. Otherwise recommended_action MUST be "SKIP".
+   Flag any case where the decision object fields and recommended_action contradict these rules. Also confirm is_target is treated as a scoring hint only — it must NOT appear as the sole reason for a SHORTLIST recommendation if vram_gb < 16 and has_egpu_bundle is false and is_uma_platform is false. Confirm llm_index_score is present and is an integer in [0, 100]; for UMA platforms confirm it does not exceed 75.
 
 5. missing_information / Null Consistency Audit: Confirm every field the model could not verify is reflected either as null in extracted_data or as an entry in missing_information (not both silently omitted), and that stated_pickup_location is null only when no location text exists at all, not when a location exists but seemed "unclear."
 
@@ -20,7 +26,7 @@ Output format — a structured audit report with exactly these sections, in this
 - FACT_GROUNDING_FINDINGS: list every violation from check 1, or "None found."
 - HINT_LEAKAGE_FINDINGS: list every violation from check 2, or "None found."
 - RISK_LOGIC_FINDINGS: list every violation from check 3, or "None found."
-- OVERRIDE_LOGIC_FINDINGS: list every violation from check 4, or "None found."
+- ROUTING_LOGIC_FINDINGS: list every violation from check 4, or "None found."
 - NULL_CONSISTENCY_FINDINGS: list every violation from check 5, or "None found."
 - RECOMMENDATION: one sentence stating whether this listing's decision can be trusted as-is, or what must be re-run/re-verified before acting on it.
 

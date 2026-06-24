@@ -4,7 +4,7 @@ Task:
 Filter the noisy result sets to identify computer hardware candidates matching high-compute, local LLM requirements, based strictly on the provided text.
 
 Target Hardware Definitions:
-Refer to config/static_reference_layer.json → capability_bands for the canonical VRAM-based capability band definitions. The bands range from Entry Local LLM (8–12GB VRAM) through Possible 70B Quantized (32–128GB unified memory). Also treat anything matching unicorn_gpus, unicorn_models, or aspirational_monitor_list in that same file as a high-priority candidate even if its VRAM is currently unstated in the listing text — flag these via discovery_flags (e.g. "unicorn_model_keyword_match") rather than silently dropping them for lacking a confirmed VRAM figure.
+Refer to config/static_reference_layer.json → vram_tiers for the canonical VRAM-based tier definitions. The tiers range from entry (8–12GB VRAM) through extreme (32–128GB unified memory). Also flag anything matching target_gpus, target_models, or watch_list in that same file via discovery_flags even if VRAM is currently unstated in the listing text — use "target_gpu_keyword_match", "target_model_keyword_match", or "watch_list_keyword_match" respectively. These flags preserve the candidate for Stage 2 evaluation; they do not bypass the VRAM threshold or risk gate — those decisions belong to the decision engine, not Stage 1.
 
 Canonical Stage 1 Discovery JSON array format — every emitted object must use exactly this flat shape, no additional or renamed keys:
 [
@@ -39,7 +39,7 @@ Source: raw terminal output or JSON feeds from eBay AU search queries.
 - Output strictly formatted JSON array compatible with standard CLI piping tools.
 
 --- PLATFORM: FB_MARKETPLACE ---
-Source: raw, unstructured DOM text or API payloads from Facebook Marketplace search results originating in/around Northcote, VIC (config/static_reference_layer.json → travel_rules.origin).
+Source: raw, unstructured DOM text or API payloads from Facebook Marketplace search results originating in/around Northcote, VIC (config/static_reference_layer.json → travel.base).
 - Set "source_platform": "FB_MARKETPLACE".
 - Do not invent pricing if it says "Free" or "Make an offer"; map listing_price_aud strictly to null.
 - If a distance or suburb is visible in the result snippet, preserve it verbatim in listing_title or as a discovery_flag (e.g. "location_seen: Reservoir VIC") rather than discarding it — Stage 2/decision logic uses stated pickup location against the Northcote origin radius, so surfacing it early avoids losing it before deep analysis.

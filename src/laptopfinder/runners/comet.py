@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def run_comet_discovery(raw_text: str, model: str = "gemini-2.5-pro") -> list[dict]:
+def run_comet_discovery(raw_text: str, model: str = "gemini-3.5-flash") -> list[dict]:
     """Run the Comet discovery agent over raw text to extract candidates."""
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:

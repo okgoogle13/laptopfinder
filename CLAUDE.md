@@ -27,6 +27,9 @@ make pipeline STAGE1=tests/fixtures/stage1/ebay_rtx4090_laptop.json STAGE2=tests
 
 # Run the live pipeline on raw text (requires API keys in .env)
 make live SOURCE=feed.txt
+
+# Run benchmark scraper against saved HTML pages
+python -m laptopfinder.scrape_benchmark --html-dir saved_pages/ --out benchmark.jsonl
 ```
 
 **Environment:** uses `.venv` (uv-managed). Always invoke Python as `.venv/bin/python` or `.venv/bin/pytest`, not the system Python. Copy `.env.example` → `.env` and fill in `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `PERPLEXITY_API_KEY` before running the live pipeline.
@@ -54,12 +57,15 @@ Reads a validated Stage 2 analysis and `config/static_reference_layer.json` to c
 
 Also computes a `llm_index_score` (0–100): capacity points (max 60) + GPU generation points (max 25) + seller reward/risk modifier (~±20) − uncapped deductions. The score is informational and never gates `recommended_action`.
 
+**Benchmark Scraper** (`src/laptopfinder/scrape_benchmark.py`)  
+Converts saved HTML pages or JSON API payloads from eBay AU / FB Marketplace / Gumtree into Stage 2 fixture format (`handoff_packet + full_listing_text + analysis_output stub`). CSS selectors are best-guess — verify against real saved pages before trusting output. See `memory/projects/scrape_benchmark.md` for full caveats. Input modes: `--html-dir`, `--html-file`, `--urls`, `--ebay-api`. Platform auto-detected from filename prefix or URL hostname.
+
 **Static Reference Layer** (`config/static_reference_layer.json`)  
 The single source of truth for all scoring weights, VRAM tier thresholds, target GPU/model lists, watch lists, UMA chip patterns, Radeon mobile GPUs, eGPU enclosure names, and risk gate limits. Change scoring/thresholds here, not in Python source. `decide.py` loads it at runtime via `load_ref()`.
 
 **Live Pipeline Runners** (`src/laptopfinder/runners/`)  
-- `comet.py` — Gemini 2.5 Pro via `google-genai`; runs the `prompts/comet_discovery_agent.txt` prompt to produce Stage 1 JSON
-- `aistudio.py` — Gemini via AI Studio; runs `prompts/ai_studio_runtime.txt` for Stage 2 analysis
+- `comet.py` — Gemini 3.1 Pro via `google-genai`; runs the `prompts/comet_discovery_agent.txt` prompt to produce Stage 1 JSON
+- `aistudio.py` — Gemini 3.1 Pro via AI Studio; runs `prompts/ai_studio_runtime.txt` for Stage 2 analysis
 - `claude_audit.py` — Anthropic API; optional post-decision audit pass
 - `perplexity.py` — Perplexity API; deep research runner
 
@@ -70,3 +76,15 @@ The single source of truth for all scoring weights, VRAM tier thresholds, target
 - **`static_reference_layer.json` is the governance layer.** Scoring weights, tier thresholds, and hardware lists live there. Adding a new target GPU means editing the JSON, not the Python.
 - **Fixture-driven development.** All logic changes must be verifiable with `make test`. Add or update fixtures in `tests/fixtures/stage1/` or `tests/fixtures/stage2/` alongside any schema or scoring change.
 - **Stage 2 fixture format:** each file contains `handoff_packet`, `full_listing_text`, and `analysis_output` at the top level. `run_stage2_from_fixture` unwraps these.
+- **Missing data → null.** Never infer specs from category or price averages. If the listing text doesn't state it, the field is null.
+- **Karpathy-style Python.** Flat structures, no deep OOP, no custom exceptions. Schema constraints replace Python validation.
+
+## Tooling context
+
+This project is developed using **Antigravity IDE** as the visual environment with **Claude Code CLI** running in the integrated terminal. `AGENTS.md` is a symlink to `CLAUDE.md`, ensuring a single source of truth for both tools.
+
+**MCP:** Antigravity IDE is the host MCP client. Claude Code has native file access and shell execution, but Antigravity handles any MCP connections. Desktop Commander and Filesystem MCP are redundant for this project.
+
+## Current sprint
+
+Building the ground-truth benchmark dataset to validate the decision engine against real listings. See `memory/context/sprint.md` for the full implementation sequence and `TASKS.md` for the task list.
