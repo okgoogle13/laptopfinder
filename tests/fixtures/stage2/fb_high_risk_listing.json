@@ -9,7 +9,10 @@
     "inferred_gpu_hint": "RTX 4090",
     "inferred_vram_hint": null,
     "inferred_condition_hint": "claimed new/sealed",
-    "discovery_flags": ["price_below_market_anomaly", "urgency_language"]
+    "discovery_flags": [
+      "price_below_market_anomaly",
+      "urgency_language"
+    ]
   },
   "full_listing_text": "RTX 4090 brand new sealed box, $400 only, must sell today moving overseas, no inspection before payment, bank transfer only, will ship after payment clears, message me on WhatsApp.",
   "analysis_output": {
@@ -31,9 +34,14 @@
       "vram_capacity": null,
       "stated_condition": "brand new sealed",
       "shipping_or_pickup_signal": "SHIPPING_ONLY",
-      "missing_information": ["seller_identity", "listing_url", "in_person_inspection_availability"],
+      "missing_information": [
+        "seller_identity",
+        "listing_url",
+        "in_person_inspection_availability"
+      ],
       "total_system_ram": null,
-      "egpu_model": null
+      "egpu_model": null,
+      "touchscreen_digitizer": null
     },
     "analysis": {
       "risk_score": 9.2,

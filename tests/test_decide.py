@@ -75,7 +75,7 @@ class TestVramTier:
 
 class TestIsTarget:
     def test_gpu_match(self):
-        assert _is_target(None, "RTX 3090", REF) is True
+        assert _is_target(None, "RTX 3080 Ti", REF) is True
 
     def test_model_match(self):
         assert _is_target("MSI Titan 18 HX", None, REF) is True
@@ -179,6 +179,82 @@ class TestDecide:
             "is_uma_platform", "uma_ram_gb", "is_radeon_mobile", "has_egpu_bundle",
             "llm_index_score",
         }
+
+    def test_touchscreen_exception_shortlisted(self):
+        """A 12GB listing with touchscreen support should be shortlisted."""
+        analysis = {
+            "metadata": {
+                "source_platform": "GUMTREE",
+                "listing_url_or_identifier": None,
+                "listing_title": "HP ZBook Fury 12GB Touch",
+                "listing_price_aud": 2000.0,
+                "seller_name_or_identifier": None,
+                "seller_rating_or_profile_signal": None,
+            },
+            "extracted_data": {
+                "exact_model_name": "ZBook Fury",
+                "component_category": "SYSTEM",
+                "cpu": None,
+                "gpu": "RTX A3000",
+                "ram": None,
+                "storage": None,
+                "vram_capacity": "12GB",
+                "stated_condition": "Used",
+                "shipping_or_pickup_signal": "BOTH",
+                "missing_information": [],
+                "total_system_ram": None,
+                "egpu_model": None,
+                "touchscreen_digitizer": "touchscreen",
+            },
+            "analysis": {
+                "risk_score": 1.0,
+                "risk_flags": [],
+                "stated_pickup_location": "Melbourne",
+                "confidence": 0.9,
+                "seller_classification": "PRIVATE_ESTABLISHED",
+            },
+        }
+        result = decide(analysis, REF)
+        assert result["recommended_action"] == "SHORTLIST"
+        assert any("touchscreen exception" in r for r in result["reasons"])
+
+    def test_12gb_no_touchscreen_skipped(self):
+        """A 12GB listing without touchscreen support should be skipped."""
+        analysis = {
+            "metadata": {
+                "source_platform": "GUMTREE",
+                "listing_url_or_identifier": None,
+                "listing_title": "HP ZBook Fury 12GB NoTouch",
+                "listing_price_aud": 2000.0,
+                "seller_name_or_identifier": None,
+                "seller_rating_or_profile_signal": None,
+            },
+            "extracted_data": {
+                "exact_model_name": "ZBook Fury",
+                "component_category": "SYSTEM",
+                "cpu": None,
+                "gpu": "RTX A3000",
+                "ram": None,
+                "storage": None,
+                "vram_capacity": "12GB",
+                "stated_condition": "Used",
+                "shipping_or_pickup_signal": "BOTH",
+                "missing_information": [],
+                "total_system_ram": None,
+                "egpu_model": None,
+                "touchscreen_digitizer": None,
+            },
+            "analysis": {
+                "risk_score": 1.0,
+                "risk_flags": [],
+                "stated_pickup_location": "Melbourne",
+                "confidence": 0.9,
+                "seller_classification": "PRIVATE_ESTABLISHED",
+            },
+        }
+        result = decide(analysis, REF)
+        assert result["recommended_action"] == "SKIP"
+        assert any("requires touchscreen exception" in r for r in result["reasons"])
 
 
 # --- UMA (Apple Silicon Max/Ultra, Strix Halo) ---
@@ -306,7 +382,7 @@ class TestGpuGenerationPoints:
         assert _gpu_generation_points("RTX 4090", is_uma=False, ref=REF) == 20
 
     def test_ampere(self):
-        assert _gpu_generation_points("RTX 3090", is_uma=False, ref=REF) == 12
+        assert _gpu_generation_points("RTX 3080 Ti", is_uma=False, ref=REF) == 12
 
     def test_blackwell(self):
         assert _gpu_generation_points("RTX 5090", is_uma=False, ref=REF) == 25

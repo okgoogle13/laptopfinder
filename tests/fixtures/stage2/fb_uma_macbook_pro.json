@@ -1,0 +1,52 @@
+{
+  "handoff_packet": {
+    "source_platform": "FB_MARKETPLACE",
+    "listing_title": "Apple MacBook Pro 16 M1 Max 64GB RAM 1TB SSD",
+    "listing_price_aud": 2800.0,
+    "listing_url_or_identifier": "saved_pages/fb_macbook.html",
+    "inferred_component_category": "SYSTEM",
+    "inferred_model_hint": "MacBook Pro 16",
+    "inferred_gpu_hint": "M1 Max",
+    "inferred_vram_hint": null,
+    "inferred_condition_hint": "Pristine",
+    "discovery_flags": []
+  },
+  "full_listing_text": "Apple MacBook Pro 16 M1 Max 64GB RAM 1TB SSD Up for sale is my M1 Max Macbook Pro. Pristine condition, 64GB unified system RAM and 1TB SSD storage. Extremely fast for local LLM and AI development. Pickup Preston VIC, cash only.",
+  "_meta": {
+    "seller_name_or_identifier": null,
+    "seller_rating_or_profile_signal": null,
+    "scrape_source": "benchmark_scraper"
+  },
+  "analysis_output": {
+    "metadata": {
+      "source_platform": "FB_MARKETPLACE",
+      "listing_url_or_identifier": "saved_pages/fb_macbook.html",
+      "listing_title": "Apple MacBook Pro 16 M1 Max 64GB RAM 1TB SSD",
+      "listing_price_aud": 2800.0,
+      "seller_name_or_identifier": null,
+      "seller_rating_or_profile_signal": null
+    },
+    "extracted_data": {
+      "exact_model_name": "MacBook Pro 16",
+      "component_category": "SYSTEM",
+      "cpu": "M1 Max",
+      "gpu": null,
+      "ram": "64GB",
+      "storage": "1TB",
+      "vram_capacity": null,
+      "stated_condition": "Pristine condition",
+      "shipping_or_pickup_signal": "PICKUP_ONLY",
+      "missing_information": [],
+      "total_system_ram": "64GB",
+      "egpu_model": null,
+      "touchscreen_digitizer": null
+    },
+    "analysis": {
+      "risk_score": 2.0,
+      "risk_flags": [],
+      "stated_pickup_location": "Preston",
+      "confidence": 0.95,
+      "seller_classification": "PRIVATE_NEW_OR_UNKNOWN"
+    }
+  }
+}

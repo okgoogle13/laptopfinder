@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Any
 import jsonschema
 
-_FORBIDDEN_FACT_KEYS = {"exact_model_name", "cpu", "gpu", "ram", "storage", "vram_capacity", "stated_condition", "total_system_ram", "egpu_model"}
-_FACT_KEYS = ("exact_model_name", "cpu", "gpu", "ram", "storage", "vram_capacity", "stated_condition", "total_system_ram", "egpu_model")
+_FORBIDDEN_FACT_KEYS = {"exact_model_name", "cpu", "gpu", "ram", "storage", "vram_capacity", "stated_condition", "total_system_ram", "egpu_model", "touchscreen_digitizer"}
+_FACT_KEYS = ("exact_model_name", "cpu", "gpu", "ram", "storage", "vram_capacity", "stated_condition", "total_system_ram", "egpu_model", "touchscreen_digitizer")
 
 def load_schema(name: str) -> dict[str, Any]:
     with (Path(__file__).parent / "schemas" / name).open("r", encoding="utf-8") as f:
@@ -43,6 +43,16 @@ def run_stage2(handoff: dict[str, Any], text: str, analysis: dict[str, Any]) -> 
     validate(handoff, "stage1a.handoff.schema.json")
     validate(analysis, "stage2.analysis.schema.json")
     
+    # 1. Data Integrity: Salvaged hardware chassis check (parts only, missing motherboard etc.)
+    from .decide import load_ref
+    ref = load_ref()
+    exclusion_pattern = ref.get("data_integrity", {}).get("exclusion_regex")
+    if exclusion_pattern:
+        title = analysis.get("metadata", {}).get("listing_title", "")
+        # Check both title and full listing text
+        if re.search(exclusion_pattern, title) or re.search(exclusion_pattern, text):
+            raise ValueError("Data integrity violation: salvaged hardware or parts-only listing detected")
+
     extracted = analysis.get("extracted_data", {})
     text_lower = text.lower()
 

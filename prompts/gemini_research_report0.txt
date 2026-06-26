@@ -1,0 +1,210 @@
+# Pipeline Audit: Prompt Engineering and JSON Schema Design
+
+This audit evaluates the prompt-schema contracts, ergonomic tightness, model allocations, and behavioral guidelines of the multi-stage used-hardware procurement pipeline.
+
+---
+
+## 1. PROMPT–SCHEMA ERGONOMICS REVIEW
+
+An analysis of the contracts between the system prompts (`comet_discovery_agent.txt`, `ai_studio_runtime.txt`, and `claude_code_audit.txt`) and their corresponding JSON schemas reveals several drift points, redundant instructions, and architectural tensions.
+
+### a) Contract Tightness & Drift Points
+* **Stage 1 (Discovery) Drift**: 
+  * The schema file `stage1.discovery.schema.json` defines three optional fields: `inferred_system_ram_hint`, `inferred_cpu_hint`, and `discovery_reasoning` (lines 66-67). 
+  * However, the corresponding prompt `comet_discovery_agent.txt` (lines 10-24) lists exactly 11 fields in its layout structure and makes no mention of these 3 optional fields. The prompt provides no instructions on when or how to populate them, making them dead schema elements that the model will never emit.
+* **Stage 2 (Analysis) Drift**: 
+  * The schema file `stage2.analysis.schema.json` defines 12 required fields in `extracted_data`, including `total_system_ram` and `egpu_model` (lines 22-44).
+  * However, the prompt `ai_studio_runtime.txt` (under MODE [STAGE 2: ANALYSIS] lines 59-70) only lists 10 fields, completely omitting both `total_system_ram` and `egpu_model` from the example JSON layout.
+  * Because these fields are marked as **required** in the JSON schema, this prompt-schema gap is critical. When the model generates a response following the prompt layout, the API-level schema validator (which enforces `response_schema`) will trigger validation errors because the model has no instructions to output them.
+
+### b) Prompt Length vs. Signal
+* **Stage 1 (Discovery)**:
+  * *Load-Bearing*: The platform-specific details (such as preserving Facebook Marketplace suburbs in the listing title and flagging Gumtree-specific wanted ads or heavily obfuscated titles) are load-bearing because they prevent false positives early in the pipeline.
+  * *Defensive Repetition*: Lines 36-52 duplicate formatting details and enum constraints that are already strictly defined in `stage1.discovery.schema.json`.
+* **Stage 2 (Analysis)**:
+  * *Load-Bearing*: Rule 6 (Verbatim Fact Grounding) and the detailed Risk Score Anchoring bands (lines 39-45) are highly load-bearing and prevent hallucinated specs or arbitrary risk assessments.
+  * *Defensive Repetition/Dead Weight*: Lines 13-34 contain the entire layout for Stage 1 (Discovery) and Stage 1A (Handoff), which are never used during the Stage 2 Analysis runtime. This creates unnecessary token bloat and increases model confusion.
+* **Claude Audit**:
+  * *Load-Bearing*: The detailed heuristic checks (grounding, hint-leakage, risk logic, and routing rules) are extremely detailed and actionable.
+  * *Defensive Repetition*: Repeating instructions not to give generic "looks fine" answers is defensive but necessary for high auditing quality.
+
+### c) Instruction Conflicts (Verbatim Grounding vs. Canonical Short-Forms)
+* A fundamental architectural tension exists in Stage 2 (`ai_studio_runtime.txt`) between **Rule 6 (Verbatim Grounding)** and **Rule 7 (Canonical Short-Form Naming)**:
+  * Rule 7 instructs the model to prefer canonical short forms (e.g., `RTX 4090`) to match downstream hardware target keys.
+  * However, Rule 6 strictly mandates that any value in `extracted_data` must be a literal word-boundary substring match of `full_listing_text`.
+  * If a listing text only says `"NVIDIA GeForce RTX 4090 Laptop GPU"`, extracting the short form `"RTX 4090"` will fail the downstream word-boundary check if the regex expects the exact verbatim match. Conversely, if the model outputs the long string, it fails the decision engine's target GPU matching. The model is trapped between failing grounding or failing target matching.
+
+### d) Schema Gaps
+1. **Dual-GPU Configurations**: Neither schema supports multiple GPUs (e.g., dual-SLI desktop builds or laptops with an integrated + discrete GPU mix). `gpu` is defined as a single string, forcing truncation or invalid concatenation.
+2. **Warranty / Refurbishment Status**: Stated condition is captured as a generic string, but there is no specific field for whether a listing is seller/manufacturer-refurbished or carries a warranty, which is a major factor in hardware valuation.
+3. **Listing Type (Auction vs. Buy-It-Now)**: The schemas fail to distinguish between active auctions (where a cheap price is merely a starting bid) and immediate Buy-It-Now sales, leading to false-positive price alerts.
+
+---
+
+## 2. ADVERSARIAL TEST CASES
+
+These 10 adversarial listings are designed to stress-test specific grounding, risk-scoring, and UMA logic gates in the pipeline.
+
+### Case 1: Unicode Dash & Space Normalization
+* **Listing text**:
+  ```text
+  Title: ASUS ROG Strix Laptop –– RTX 4090 – 16 GB VRAM
+  Body: Selling my gaming laptop. Has RTX 4090 with 16GB VRAM. 32 GB RAM, 2 TB SSD.
+  ```
+* **Target Stage**: Stage 2 (Analysis)
+* **Failure Mode**: Verbatim grounding fails on minor unicode/space discrepancies. The title uses an en-dash (`–`) and spaced `16 GB`, while the body uses `16GB`. If the model normalizes the extraction to `"16GB"`, the grounding check fails.
+* **Expected vs. Actual**: Expected `vram_capacity: "16 GB"` or `"16GB"` (matching whichever is checked). Actual: Grounding check aborts the listing because the normalized representation does not match the exact title substring.
+
+### Case 2: Implicit UMA VRAM Inference
+* **Listing text**:
+  ```text
+  Title: Apple MacBook Pro 16 M3 Max 64GB / 1TB Space Black
+  Body: Up for sale is my M3 Max Macbook. 64GB RAM, 1TB SSD. Local pickup in Preston.
+  ```
+* **Target Stage**: Stage 2 (Analysis)
+* **Failure Mode**: Hint-to-fact leakage. The listing contains no mention of VRAM. A naive model will copy `"64GB"` into `vram_capacity` because it knows it is a UMA system, failing the verbatim check.
+* **Expected vs. Actual**: Expected `vram_capacity: null`, `total_system_ram: "64GB"`. Actual: Model populates `vram_capacity: "64GB"`, crashing downstream grounding.
+
+### Case 3: Title Typo & Correction
+* **Listing text**:
+  ```text
+  Title: MSI Titan 18 HX Core i9 RTX 4090 64GB RAM 2TB
+  Body: Hey guys, selling my MSI Titan 18. This is the top model with Intel Core i9-14900HX, 64GB RAM, 2TB SSD, and NVIDIA RTX 4080 Laptop GPU. Sorry, title typo, it's a 4080 not 4090!
+  ```
+* **Target Stage**: Stage 2 & Claude Audit
+* **Failure Mode**: Stage 1 discovery matches `"RTX 4090"` from the title. Handoff packet carries `inferred_gpu_hint: "RTX 4090"`. Stage 2 model promotes this hint blindly, ignoring the body text correction.
+* **Expected vs. Actual**: Expected `gpu: "RTX 4080"`. Actual: Model outputs `gpu: "RTX 4090"`.
+
+### Case 4: Misclassified Wanted Ad
+* **Listing text**:
+  ```text
+  Title: WANTED: RTX 3090 or RTX 4090 Gaming PC / Laptop
+  Body: Hi all, looking to buy a gaming laptop or PC with RTX 3090 or 4090. Budget is around $2000. Let me know what you have. Local pickup in Carlton.
+  ```
+* **Target Stage**: Stage 1 (Discovery)
+* **Failure Mode**: Wanted ad detection failure. The agent ignores the "WANTED" context and flags the listing as a high-compute GPU deal.
+* **Expected vs. Actual**: Expected `discovery_confidence` <= 0.3 with `wanted_ad_miscategorized_as_selling` flag. Actual: Model extracts `"RTX 4090"` with 0.95 confidence.
+
+### Case 5: WhatsApp Redirect / Urgent Scam
+* **Listing text**:
+  ```text
+  Title: ASUS ROG Strix Scar 18 RTX 4090 16GB VRAM
+  Body: Selling my ASUS ROG Scar 18. Pristine condition. RTX 4090, 64GB RAM, 2TB SSD. Moving overseas tomorrow so need a quick sale, priced cheap at $1200. DO NOT BUY ON GUMTREE. Message me on WhatsApp at +61 491 570 156 first to arrange instant payment via bank transfer. I can ship express for free.
+  ```
+* **Target Stage**: Stage 2 (Analysis) / Decision Engine
+* **Failure Mode**: Low risk score assignment. The model extracts valid hardware specs but ignores the urgent, off-platform payment scam triggers.
+* **Expected vs. Actual**: Expected `risk_score` > 8.5 with flags `["urgency_language", "off_platform_contact", "non_standard_payment", "suspicious_price"]`. Actual: Model assigns `risk_score: 3.5` because specs are clear.
+
+### Case 6: Local Pickup Restrictions False-Positive
+* **Listing text**:
+  ```text
+  Title: MSI Raider GE78 (RTX 4090, i9, 32GB RAM)
+  Body: Raider GE78 for sale. Scratches on the bottom cover (see photos). Works perfectly. Pickup only from Northcote. Cash on pickup preferred. No payid, no bank transfers. Price is slightly negotiable. Message here only.
+  ```
+* **Target Stage**: Stage 2 (Analysis)
+* **Failure Mode**: Safe local transaction flagged as suspicious. The seller explicitly restricts payments to Cash/Pickup to avoid scams, but the model flags it as "non-standard payment terms".
+* **Expected vs. Actual**: Expected `risk_score` < 2.0. Actual: Model inflates `risk_score` to 5.0.
+
+### Case 7: Apple Silicon UMA Pro vs. Max Routing
+* **Listing text**:
+  ```text
+  Title: Apple MacBook Pro 14 M3 Pro 64GB RAM 1TB
+  Body: Selling M3 Pro MacBook Pro with custom 64GB RAM upgrade. 12-core CPU, 18-core GPU. Perfect for dev work.
+  ```
+* **Target Stage**: Decision Engine
+* **Failure Mode**: UMA configuration matching. The Decision Engine matches 64GB RAM but must reject the listing because it has an "M3 Pro" chip instead of a "Max" or "Ultra" chip (which has the requisite memory bandwidth for fast local inference).
+* **Expected vs. Actual**: Expected `recommended_action: "SKIP"`. Actual: Decision engine routes to `SHORTLIST` based solely on the `64GB` memory size.
+
+### Case 8: Non-Contiguous Specs Spaced Across Paragraphs
+* **Listing text**:
+  ```text
+  Title: High End ASUS Gaming Laptop
+  Body: First Paragraph: Up for sale is my Asus ROG laptop. It has 32GB of RAM and a fast CPU.
+  Second Paragraph: I bought this for university but don't use it anymore.
+  Third Paragraph: The graphics card is a GeForce RTX 4080 (16GB VRAM version).
+  ```
+* **Target Stage**: Stage 2 (Analysis)
+* **Failure Mode**: Verbatim grounding check. The model attempts to normalize the GPU to `"GeForce RTX 4080 16GB"`, which fails because that specific contiguous string does not exist in the source text.
+* **Expected vs. Actual**: Expected `gpu: "GeForce RTX 4080"`, `vram_capacity: "16GB"`. Actual: Grounding check fails.
+
+### Case 9: FB Marketplace Obfuscated Pricing
+* **Listing text**:
+  ```text
+  Title: RTX 3080 Ti Gaming Laptop ($1 Listing)
+  Body: Price is $1800 firm. Do not offer $1. L aptop has RTX 3080 Ti, 32GB RAM. Pickup Reservoir.
+  ```
+* **Target Stage**: Stage 2 (Analysis)
+* **Failure Mode**: Metadata price extraction. The marketplace scraper reads `$1`, but the actual listing price is $1800.
+* **Expected vs. Actual**: Expected `listing_price_aud: 1800.0` (extracted from body). Actual: Model outputs `listing_price_aud: 1.0`.
+
+### Case 10: Gumtree Keyword-Stuffing Tag Spam
+* **Listing text**:
+  ```text
+  Title: RTX 4090 4080 3090 3080 Ti Macbook M3 Max Legion Laptop
+  Body: Selling my Lenovo Legion 7. It has a GTX 1660 Ti card. Ignore tags: rtx 4090, macbook, etc.
+  ```
+* **Target Stage**: Stage 1 (Discovery)
+* **Failure Mode**: Keyword stuffing tricks discovery model into extracting a target GPU.
+* **Expected vs. Actual**: Expected `inferred_gpu_hint: null` or `"GTX 1660 Ti"`. Actual: Model extracts `inferred_gpu_hint: "RTX 4090"`.
+
+---
+
+## 3. MODEL TIER ALLOCATION REVIEW
+
+| Step | Current Model | Right Fit? | Reasoning |
+|------|---------------|------------|-----------|
+| **Stage 1 — Discovery** | Gemini 2.5 Pro (Comet) | **No (Overkill)** | High-volume filtering of messy text does not require deep reasoning. A cheaper, fast model like **Gemini 2.5 Flash** (or a local quantized model with JSON mode) reduces API costs significantly while maintaining high recall. |
+| **Stage 2 — Analysis** | Gemini 2.5 Pro (AI Studio) | **Yes** | Requires complex, multi-sentence reasoning to analyze risk scores, check verbatim text grounding, and extract nested JSON payload data. Gemini 2.5 Pro is the right fit. |
+| **Decision Engine** | Local Python (rules) | **Yes** | Pure rule application (threshold cuts, indexing) is deterministic. An LLM here would be slow, unreliable, and expensive. |
+| **Claude Audit** | Claude 3.5 Sonnet (Audit) | **Yes (Optional)** | Independent cross-verification works best when using a different model family to avoid correlation of errors. Claude Sonnet is excellent at verifying grounding. |
+
+* **Missing Steps to Improve Reliability**:
+  1. **Schema-Validation Recovery Loop**: If Stage 2 fails validation (e.g. omitting a required field), the pipeline should catch the exception, feed the error back to the model, and request a corrected JSON payload.
+  2. **Cross-Listing Deduplication**: Sellers frequently cross-post listings across Facebook Marketplace and Gumtree. A post-extraction deduplication step based on title similarity, price, and description text embeddings would prevent duplicate alerts.
+
+---
+
+## 4. PROMPT COMPRESSION OPPORTUNITIES
+
+Using schema-first design allows us to migrate formatting and validation rules out of the prompts and into the JSON schemas.
+
+### a) Stage 1 Discovery Prompt (`comet_discovery_agent.txt`)
+* *Shift to Schema*: The flat JSON structure, key requirements, and enums (`source_platform`, `inferred_component_category`) are already enforced by `stage1.discovery.schema.json`.
+* *Irreducible Instructions*:
+  * Currency restriction (set price to null for non-AUD and add flag).
+  * Gumtree anomaly flagging (`wanted_ad_miscategorized_as_selling`, `heavily_obfuscated_title`).
+  * Bundle priority logic (GPU > SYSTEM > CPU > RAM > OTHER).
+* *Compression Strategy*: Remove the layout example and enum definitions. Let the schema handle formatting.
+* *Compression Ratio*: **50% compression** (from 52 lines to ~25 lines).
+
+### b) Stage 2 Analysis Prompt (`ai_studio_runtime.txt`)
+* *Shift to Schema*: The entire nested JSON layout (metadata, extracted_data, analysis) and enums are enforced by `stage2.analysis.schema.json`.
+* *Irreducible Instructions*:
+  * Verbatim grounding rule (Rule 6).
+  * Continuous risk score scale and anchoring bands.
+  * Safety rating inputs to the risk score.
+* *Compression Strategy*: Eliminate the duplicate Stage 1/1A prompt text and the Stage 2 JSON layout block.
+* *Compression Ratio*: **65% compression** (from 78 lines to ~27 lines).
+
+### c) Claude Audit Prompt (`claude_code_audit.txt`)
+* *Shift to Schema*: Introduce a JSON schema for the audit report (`claude_audit.schema.json`) to enforce the sections (`verdict`, `fact_grounding_findings`, etc.).
+* *Irreducible Instructions*:
+  * The 5 sequential checks (grounding, leakage, risk, routing, null consistency).
+* *Compression Strategy*: Create the schema and remove the text layout formatting instructions.
+* *Compression Ratio*: **30% compression** (from 37 lines to ~26 lines).
+
+---
+
+## 5. KARPATHY GUIDELINES AUDIT
+
+### a) Simplicity First (Minimum viable solution)
+* *Over-engineering*: Including the Stage 1 and Stage 1A prompt layouts inside the Stage 2 runtime prompt is speculative and confusing. The runtime should only contain instructions for the active step.
+* *Redundant Logic*: The Stage 1 prompt defines detailed VRAM tiers. Discovery should only extract raw text hints; calculating VRAM tiers is a deterministic Python task and should reside entirely in the Decision Engine.
+
+### b) Goal-Driven Execution (Verifiable success criteria)
+* *Weak Instructions*: Instructions such as "If the true value is ambiguous... output null" are difficult for the model to self-verify.
+* *Tightening*: Add an explicit self-check step to the Stage 2 prompt: `"Self-Verification Check: Before emitting a string in extracted_data, perform a case-insensitive search for that string in full_listing_text. If it is not found, you MUST output null."`
+
+### c) Surgical Design (Touch only what you must)
+* *Paraphrasing Traps*: `comet_discovery_agent.txt` says: "prefer extracting the short form... If only a long marketing string appears, hint with that string as-is." This encourages the LLM to dynamically toggle between normalizing and extracting.
+* *Fix*: The LLM should only perform surgical extraction of the literal text. Normalization to canonical forms should be handled by a deterministic mapping dictionary in the Python codebase.

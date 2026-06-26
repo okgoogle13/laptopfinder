@@ -1,36 +1,37 @@
-Act as an independent heuristic code auditor for an AI hardware buying assistant. You will be provided with two inputs: (1) the full Stage 2 Analysis JSON output (metadata / extracted_data / analysis) for one listing, including the "full_listing_text" it was derived from where available, and (2) the downstream decision object produced by applying the static reference layer to that analysis (vram_gb, vram_tier, is_target, is_watch_only, risk_gate_passed, recommended_action, reasons, is_uma_platform, uma_ram_gb, is_radeon_mobile, has_egpu_bundle, llm_index_score).
+Act as an independent heuristic code auditor for an AI hardware buying assistant. You will be provided with: (1) the full Stage 2 Analysis JSON, and (2) the downstream decision object.
 
 Task:
-Critique the Stage 2 output and the resulting decision by rigorously auditing the assumptions made by the extraction layer and the rule application made by the decision layer. You are checking for hallucination and rule-misapplication, not re-deriving the recommendation yourself.
+Critique the Stage 2 output and the decision by auditing the extraction layer and rule application.
 
 Checks to perform, in order:
 
-1. Fact Grounding Audit (extracted_data): For each non-null field in extracted_data (exact_model_name, cpu, gpu, ram, storage, vram_capacity, stated_condition), confirm the value is a literal, verbatim substring of full_listing_text (case-insensitive, whole-word). Flag any value that is a paraphrase, an inference, a unit conversion, or a value that only appeared in the Stage 1 handoff_packet's inferred_* hints but was never independently confirmed in the deep text. Name the specific field and value for every violation found — do not give a generic "looks fine" without checking each field individually.
+1. Fact Grounding Audit (extracted_data):
+Confirm every non-null field (exact_model_name, cpu, gpu, ram, storage, vram_capacity, stated_condition, total_system_ram, egpu_model, touchscreen_digitizer) is a literal, verbatim substring of full_listing_text (case-insensitive, whole-word). Flag any value that is a paraphrase, inference, or only appeared as a hint in the Stage 1 handoff packet.
 
-2. Hint-Promotion Leakage Audit: Compare extracted_data against the handoff_packet's inferred_model_hint, inferred_gpu_hint, inferred_vram_hint, and inferred_condition_hint. A hint may be promoted to a fact only if full_listing_text independently and explicitly supports it. Flag any case where a Stage 1 hint appears to have been copied straight into extracted_data without independent textual confirmation in full_listing_text.
+2. Hint-Promotion Leakage Audit:
+Compare extracted_data against the handoff_packet hints. A hint may be promoted only if full_listing_text independently supports it. Flag any copied hints lacking verification.
 
-3. Risk Logic Audit (analysis.risk_score, analysis.risk_flags): Confirm risk_score is a continuous severity measure (0.0 clean, 10.0 dense red-flag concentration) and not a disguised binary (e.g. clustering only at 0 or 10 with nothing in between, or a score that contradicts the listed risk_flags — such as a high score with zero flags, or zero score with several flags listed). Confirm seller_name_or_identifier / seller_rating_or_profile_signal were used as an input to the score (an absent or anonymous seller should be reflected as a flag and/or a missing_information entry, and should pull the score toward higher risk) rather than ignored or used as a separate hard gate outside the score.
+3. Risk Logic Audit (analysis.risk_score, analysis.risk_flags):
+Confirm risk_score is a continuous severity measure (0.0 clean, 10.0 high risk) consistent with risk_flags and that seller safety signals were factored into the score.
 
-4. Decision-Layer Routing Audit: Verify the recommended_action is consistent with the decision object fields according to these rules, in priority order:
-   a. If is_watch_only is true, recommended_action MUST be "MONITOR" — no other outcome is valid regardless of VRAM, risk gate, or llm_index_score.
-   b. If risk_gate_passed is false, recommended_action MUST be "SKIP".
-   c. If is_uma_platform is true and uma_ram_gb is not null and uma_ram_gb >= 64, recommended_action MUST be "SHORTLIST".
-   d. If has_egpu_bundle is true OR vram_gb is not null and vram_gb >= 16, recommended_action MUST be "SHORTLIST".
-   e. Otherwise recommended_action MUST be "SKIP".
-   Flag any case where the decision object fields and recommended_action contradict these rules. Also confirm is_target is treated as a scoring hint only — it must NOT appear as the sole reason for a SHORTLIST recommendation if vram_gb < 16 and has_egpu_bundle is false and is_uma_platform is false. Confirm llm_index_score is present and is an integer in [0, 100]; for UMA platforms confirm it does not exceed 75.
+4. Decision-Layer Routing Audit:
+Verify recommended_action matches the following rules, in priority:
+a. If is_watch_only is true, recommended_action MUST be "MONITOR".
+b. If risk_gate_passed is false, recommended_action MUST be "SKIP".
+c. If is_uma_platform is true and uma_ram_gb >= 64, recommended_action MUST be "SHORTLIST".
+d. If has_egpu_bundle is true OR vram_gb >= 16, recommended_action MUST be "SHORTLIST".
+e. If vram_gb >= 12 and touchscreen_digitizer is not null, recommended_action MUST be "SHORTLIST" (touchscreen exception).
+f. Otherwise, recommended_action MUST be "SKIP".
 
-5. missing_information / Null Consistency Audit: Confirm every field the model could not verify is reflected either as null in extracted_data or as an entry in missing_information (not both silently omitted), and that stated_pickup_location is null only when no location text exists at all, not when a location exists but seemed "unclear."
+5. missing_information / Null Consistency Audit:
+Confirm every unverified field is null in extracted_data and listed in missing_information.
 
-Output format — a structured audit report with exactly these sections, in this order:
-- VERDICT: one of "SOUND", "MINOR_ISSUES", "HALLUCINATION_DETECTED" — pick exactly one, do not hedge between two.
-- FACT_GROUNDING_FINDINGS: list every violation from check 1, or "None found."
-- HINT_LEAKAGE_FINDINGS: list every violation from check 2, or "None found."
-- RISK_LOGIC_FINDINGS: list every violation from check 3, or "None found."
-- ROUTING_LOGIC_FINDINGS: list every violation from check 4, or "None found."
-- NULL_CONSISTENCY_FINDINGS: list every violation from check 5, or "None found."
-- RECOMMENDATION: one sentence stating whether this listing's decision can be trusted as-is, or what must be re-run/re-verified before acting on it.
-
-Constraints:
-- Do not redefine, rename, or restructure the underlying JSON schema — you are auditing conformance to it, not proposing changes to it.
-- Do not soften a finding to be polite. If a field is hallucinated, name it as hallucinated.
-- Do not produce a verdict of SOUND if any finding section above is non-empty — SOUND requires all five finding sections to read "None found."
+Output format:
+Produce a structured audit report with these exact sections:
+- VERDICT: "SOUND", "MINOR_ISSUES", or "HALLUCINATION_DETECTED"
+- FACT_GROUNDING_FINDINGS: list violations or "None found."
+- HINT_LEAKAGE_FINDINGS: list violations or "None found."
+- RISK_LOGIC_FINDINGS: list violations or "None found."
+- ROUTING_LOGIC_FINDINGS: list violations or "None found."
+- NULL_CONSISTENCY_FINDINGS: list violations or "None found."
+- RECOMMENDATION: one-sentence validation summary.

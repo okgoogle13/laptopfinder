@@ -34,6 +34,9 @@ VALID_FIXTURES = [
     "fb_uma_strix_halo_low_ram.json",
     "gumtree_radeon_7900m.json",
     "ebay_egpu_bundle.json",
+    "ebay_rtx4090_laptop.json",
+    "fb_uma_macbook_pro.json",
+    "gumtree_zbook_touchscreen.json",
 ]
 
 
@@ -115,6 +118,7 @@ def test_stage2_rejects_schema_invalid_handoff_packet() -> None:
             "missing_information": [],
             "total_system_ram": None,
             "egpu_model": None,
+            "touchscreen_digitizer": None,
         },
         "analysis": {
             "risk_score": 5.0,
@@ -134,4 +138,31 @@ def test_stage2_rejects_substring_collision_via_firewall() -> None:
     from naive substring matching."""
     with pytest.raises(ValueError, match="firewall violation"):
         run_stage2_from_fixture(FIXTURES_DIR / "invalid_substring_collision.json")
+
+
+def test_stage2_rejects_salvaged_hardware_exclusion() -> None:
+    """A listing with 'parts only' or 'missing motherboard' in the title or text
+    must be rejected by the data integrity check."""
+    payload = load_fixture(FIXTURES_DIR / "ebay_facts_grounded.json")
+    
+    # Test matching in title
+    payload_bad_title = json.loads(json.dumps(payload))
+    payload_bad_title["analysis_output"]["metadata"]["listing_title"] = "ASUS ROG Strix (parts only)"
+    with pytest.raises(ValueError, match="salvaged hardware or parts-only listing detected"):
+        run_stage2(
+            payload_bad_title["handoff_packet"],
+            payload_bad_title["full_listing_text"],
+            payload_bad_title["analysis_output"],
+        )
+
+    # Test matching in full text
+    payload_bad_text = json.loads(json.dumps(payload))
+    bad_text = payload_bad_text["full_listing_text"] + " Note: selling as-is for bare shell."
+    with pytest.raises(ValueError, match="salvaged hardware or parts-only listing detected"):
+        run_stage2(
+            payload_bad_text["handoff_packet"],
+            bad_text,
+            payload_bad_text["analysis_output"],
+        )
+
 

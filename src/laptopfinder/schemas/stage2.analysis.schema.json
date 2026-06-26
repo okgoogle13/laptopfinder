@@ -19,7 +19,7 @@
     },
     "extracted_data": {
       "type": "object",
-      "required": ["exact_model_name", "component_category", "cpu", "gpu", "ram", "storage", "vram_capacity", "stated_condition", "shipping_or_pickup_signal", "missing_information", "total_system_ram", "egpu_model"],
+      "required": ["exact_model_name", "component_category", "cpu", "gpu", "ram", "storage", "vram_capacity", "stated_condition", "shipping_or_pickup_signal", "missing_information", "total_system_ram", "egpu_model", "touchscreen_digitizer"],
       "properties": {
         "exact_model_name": {"type": ["string", "null"]},
         "component_category": {"enum": ["GPU", "CPU", "RAM", "SYSTEM", "OTHER"]},
@@ -38,6 +38,10 @@
         "egpu_model": {
           "type": ["string", "null"],
           "description": "Name of a bundled eGPU enclosure (e.g. 'XG Mobile RTX 4090'), if explicitly stated. Null if no eGPU bundle is mentioned."
+        },
+        "touchscreen_digitizer": {
+          "type": ["string", "null"],
+          "description": "Verbatim substring confirming touchscreen or digitizer support, e.g. 'touchscreen' or 'digitizer'. Null if absent."
         }
       },
       "additionalProperties": false

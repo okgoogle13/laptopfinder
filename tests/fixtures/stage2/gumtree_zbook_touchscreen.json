@@ -1,0 +1,52 @@
+{
+  "handoff_packet": {
+    "source_platform": "GUMTREE",
+    "listing_title": "HP ZBook Fury 16 G9 Creator Laptop Touchscreen RTX A3000",
+    "listing_price_aud": 2100.0,
+    "listing_url_or_identifier": "saved_pages/gumtree_zbook.html",
+    "inferred_component_category": "SYSTEM",
+    "inferred_model_hint": "ZBook Fury",
+    "inferred_gpu_hint": "RTX A3000",
+    "inferred_vram_hint": "12GB",
+    "inferred_condition_hint": "Used - Like New",
+    "discovery_flags": []
+  },
+  "full_listing_text": "HP ZBook Fury 16 G9 Creator Laptop Touchscreen RTX A3000 Condition: Used - Like New Screen: 16-inch Touchscreen Digitizer display GPU: NVIDIA RTX A3000 12GB VRAM HP ZBook Fury 16 G9 mobile workstation. High end digitizer touchscreen display, perfect for creative design. Intel i7, 32GB RAM, 1TB SSD, and NVIDIA RTX A3000 GPU with 12GB VRAM. Pickup in Northcote VIC.",
+  "_meta": {
+    "seller_name_or_identifier": "Professional Workstations VIC",
+    "seller_rating_or_profile_signal": null,
+    "scrape_source": "benchmark_scraper"
+  },
+  "analysis_output": {
+    "metadata": {
+      "source_platform": "GUMTREE",
+      "listing_url_or_identifier": "saved_pages/gumtree_zbook.html",
+      "listing_title": "HP ZBook Fury 16 G9 Creator Laptop Touchscreen RTX A3000",
+      "listing_price_aud": 2100.0,
+      "seller_name_or_identifier": "Professional Workstations VIC",
+      "seller_rating_or_profile_signal": null
+    },
+    "extracted_data": {
+      "exact_model_name": "ZBook Fury",
+      "component_category": "SYSTEM",
+      "cpu": null,
+      "gpu": "RTX A3000",
+      "ram": "32GB",
+      "storage": "1TB",
+      "vram_capacity": "12GB",
+      "stated_condition": "Used - Like New",
+      "shipping_or_pickup_signal": "PICKUP_ONLY",
+      "missing_information": [],
+      "total_system_ram": null,
+      "egpu_model": null,
+      "touchscreen_digitizer": "touchscreen"
+    },
+    "analysis": {
+      "risk_score": 1.5,
+      "risk_flags": [],
+      "stated_pickup_location": "Northcote",
+      "confidence": 0.9,
+      "seller_classification": "PRIVATE_ESTABLISHED"
+    }
+  }
+}

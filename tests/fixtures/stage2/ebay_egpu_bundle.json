@@ -33,7 +33,8 @@
       "shipping_or_pickup_signal": "BOTH",
       "missing_information": [],
       "total_system_ram": null,
-      "egpu_model": "XG Mobile RTX 4090"
+      "egpu_model": "XG Mobile RTX 4090",
+      "touchscreen_digitizer": null
     },
     "analysis": {
       "risk_score": 1.2,

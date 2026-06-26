@@ -33,7 +33,8 @@
       "shipping_or_pickup_signal": "PICKUP_ONLY",
       "missing_information": [],
       "total_system_ram": null,
-      "egpu_model": null
+      "egpu_model": null,
+      "touchscreen_digitizer": null
     },
     "analysis": {
       "risk_score": 1.0,

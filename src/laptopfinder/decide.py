@@ -150,7 +150,14 @@ def _seller_reward_points(analysis: dict, ref: dict) -> int:
 
     classification_points = cfg.get("seller_classification_points", {}).get(classification, 0)
     platform_points = cfg.get("platform_modifier_points", {}).get(platform, 0)
-    return classification_points + platform_points
+    
+    # Check for overseas import flag
+    overseas_penalty = 0
+    ships_from_overseas = analysis.get("metadata", {}).get("ships_from_overseas", False)
+    if ships_from_overseas:
+        overseas_penalty = cfg.get("platform_modifier_points", {}).get("OVERSEAS_IMPORT", -10)
+
+    return classification_points + platform_points + overseas_penalty
 
 
 def _deduction_points(analysis: dict, ref: dict) -> int:
@@ -223,6 +230,7 @@ def decide(analysis: dict, ref: dict | None = None) -> dict:
     vram_str = extracted.get("vram_capacity")
     ram_str = extracted.get("total_system_ram")
     egpu_model = extracted.get("egpu_model")
+    touchscreen_digitizer = extracted.get("touchscreen_digitizer")
 
     vram = _vram_gb(vram_str)
     tier = _vram_tier(vram, ref)
@@ -241,14 +249,23 @@ def decide(analysis: dict, ref: dict | None = None) -> dict:
     # Radeon ecosystem risk is surfaced as a buyer disclosure note, not added to risk_score.
     low_risk = _passes_risk_gate(analysis, ref, 0.0)
 
-    min_vram = ref.get("min_vram_to_shortlist_gb", 16)
-    min_uma_ram = ref.get("uma_platforms", {}).get("min_total_ram_gb_to_shortlist", 64)
+    gating = ref.get("vram_gating_logic", {})
+    min_vram = gating.get("standard_mobile_min_gb", 16)
+    min_uma_ram = gating.get("uma_unified_min_gb", 64)
+    min_touchscreen_vram = gating.get("touchscreen_exception_min_gb", 12)
     reasons: list[str] = []
 
     # eGPU bundle: the base laptop's own (possibly weak) GPU is irrelevant. The bundled
     # eGPU's VRAM (already parsed into `vram` from vram_capacity) is what's evaluated.
     if has_egpu:
         reasons.append(f"eGPU bundle detected ('{egpu_model}') — internal GPU ignored")
+
+    # Touchscreen exception: relaxed threshold (12GB) if touchscreen feature is detected
+    has_touchscreen_exception = (
+        vram is not None 
+        and vram >= min_touchscreen_vram 
+        and touchscreen_digitizer is not None
+    )
 
     if is_watch:
         action = "MONITOR"
@@ -261,20 +278,25 @@ def decide(analysis: dict, ref: dict | None = None) -> dict:
     elif is_uma and uma_ram is not None and uma_ram >= min_uma_ram:
         action = "SHORTLIST"
         reasons.append(f"UMA platform, system RAM {uma_ram}GB >= {min_uma_ram}GB threshold")
-    elif has_egpu or (vram is not None and vram >= min_vram):
+    elif has_egpu or (vram is not None and vram >= min_vram) or has_touchscreen_exception:
         action = "SHORTLIST"
+        if has_touchscreen_exception:
+            reasons.append(f"VRAM touchscreen exception: {vram}GB with touchscreen ('{touchscreen_digitizer}')")
         if is_target:
             reasons.append("Matches target GPU or model list (scoring hint)")
         if radeon_match:
             reasons.append(f"Radeon mobile GPU '{radeon_match}' — passes risk gate; see radeon_ecosystem_disclosure for buyer notes")
-        if tier:
+        if tier and not has_touchscreen_exception:
             reasons.append(f"VRAM tier: {tier} ({vram}GB)")
     elif is_uma:
         action = "SKIP"
         reasons.append(f"UMA platform but system RAM too low or unknown (got {uma_ram}GB, need {min_uma_ram}GB+)")
     else:
         action = "SKIP"
-        reasons.append(f"VRAM too low or unknown (got {vram}GB, need {min_vram}GB+)")
+        if vram is not None and vram >= min_touchscreen_vram and touchscreen_digitizer is None:
+            reasons.append(f"VRAM is {vram}GB, which requires touchscreen exception support but touchscreen_digitizer is null")
+        else:
+            reasons.append(f"VRAM too low or unknown (got {vram}GB, need {min_vram}GB+)")
 
     return {
         "vram_gb": vram,
