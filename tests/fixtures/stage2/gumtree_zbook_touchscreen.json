@@ -33,10 +33,20 @@
       "gpu": "RTX A3000",
       "ram": "32GB",
       "storage": "1TB",
-      "vram_capacity": "12GB",
+      "vram_capacity": {
+        "semantic_value": 12.0,
+        "verbatim_quote": "12GB"
+      },
       "stated_condition": "Used - Like New",
       "shipping_or_pickup_signal": "PICKUP_ONLY",
-      "missing_information": [],
+      "missing_information": {
+        "gpu": false,
+        "vram": false,
+        "cpu": true,
+        "ram": false,
+        "storage": false,
+        "condition": false
+      },
       "total_system_ram": null,
       "egpu_model": null,
       "touchscreen_digitizer": "touchscreen"

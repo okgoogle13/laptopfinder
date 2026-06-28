@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Normalized Evidence Record",
+  "description": "Atomic observation of macOS telemetry at a specific point in time.",
+  "type": "object",
+  "properties": {
+    "event_timestamp": { "type": "string", "format": "date-time" },
+    "source_file": { "type": "string" },
+    "data_confidence": { "type": "string", "enum": ["high", "medium", "low"] },
+    "observed_telemetry": {
+      "type": "object",
+      "properties": {
+        "memory_pressure_state": { "type": ["string", "null"] },
+        "physical_memory_gb": { "type": ["number", "null"] },
+        "app_memory_gb": { "type": ["number", "null"] },
+        "wired_memory_gb": { "type": ["number", "null"] },
+        "compressed_memory_gb": { "type": ["number", "null"] },
+        "cached_files_gb": { "type": ["number", "null"] },
+        "swap_used_gb": { "type": ["number", "null"] }
+      },
+      "required": [
+        "memory_pressure_state",
+        "swap_used_gb",
+        "physical_memory_gb",
+        "app_memory_gb",
+        "wired_memory_gb",
+        "compressed_memory_gb",
+        "cached_files_gb"
+      ],
+      "additionalProperties": false
+    },
+    "active_processes": { "type": "array", "items": { "type": "string" } },
+    "uncertainty_flags": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": [
+    "event_timestamp",
+    "source_file",
+    "data_confidence",
+    "observed_telemetry",
+    "active_processes",
+    "uncertainty_flags"
+  ],
+  "additionalProperties": false
+}

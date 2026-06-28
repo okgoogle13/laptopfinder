@@ -28,10 +28,20 @@
       "gpu": "RTX 4090",
       "ram": "4GB",
       "storage": "2TB NVMe",
-      "vram_capacity": "16GB",
+      "vram_capacity": {
+        "semantic_value": 16.0,
+        "verbatim_quote": "16GB"
+      },
       "stated_condition": "Great condition",
       "shipping_or_pickup_signal": "UNKNOWN",
-      "missing_information": [],
+      "missing_information": {
+        "gpu": false,
+        "vram": false,
+        "cpu": false,
+        "ram": false,
+        "storage": false,
+        "condition": false
+      },
       "total_system_ram": null,
       "egpu_model": null,
       "touchscreen_digitizer": null

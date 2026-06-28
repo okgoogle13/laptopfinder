@@ -4,16 +4,16 @@ Task:
 Identify mobile computer hardware candidates matching high-compute local LLM requirements based strictly on the text.
 
 Target Hardware & Keywords:
-- NVIDIA mobile flagships (RTX 4090 Laptop, RTX 5080 Laptop, RTX 3080 Ti Laptop, RTX A5000 Mobile).
-- UMA platforms: Apple Silicon Max/Ultra (64GB+ unified RAM) or AMD Strix Halo / Ryzen AI Max (64GB+).
+- Match candidates against the following injected target lists:
+  [INJECT_TARGETS_HERE]
 - Support colloquialisms and variants: "4090 lappy", "M1 Max 64GB", "Oculink", "Thunderbolt 5", "OLED digitizer".
-- Flag matching targets from config/static_reference_layer.json using "target_gpu_keyword_match", "target_model_keyword_match", or "watch_list_keyword_match".
+- UMA platforms: Apple Silicon Max/Ultra (64GB+ unified RAM) or AMD Strix Halo / Ryzen AI Max (64GB+).
 
 General Constraints:
 - Extract strictly into the JSON schema layout defined in stage1.discovery.schema.json. Populate all required keys.
 - Set listing_price_aud to null and add a flag if the listing is in a non-AUD currency. Do not convert.
 - For FB Marketplace, preserve suburb names in listing_title or as flags (e.g. "location_seen: Northcote").
-- For Gumtree, flag wanted ads as "wanted_ad_miscategorized_as_selling" with confidence < 0.3. Flag stuffing as "heavily_obfuscated_title".
+- For Gumtree, if the listing is a wanted ad (buyer seeking hardware, not seller offering it), add the boolean flag "IS_WANTED_AD": true in discovery_flags. Do not lower discovery_confidence for this case.
 - Bundle listings: emit one candidate. Category priority: GPU > SYSTEM > CPU > RAM > OTHER.
 
 Format:

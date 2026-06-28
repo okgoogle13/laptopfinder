@@ -31,7 +31,14 @@
       "vram_capacity": null,
       "stated_condition": "Excellent",
       "shipping_or_pickup_signal": "BOTH",
-      "missing_information": [],
+      "missing_information": {
+        "gpu": false,
+        "vram": false,
+        "cpu": false,
+        "ram": false,
+        "storage": false,
+        "condition": false
+      },
       "total_system_ram": "128GB",
       "egpu_model": null,
       "touchscreen_digitizer": null

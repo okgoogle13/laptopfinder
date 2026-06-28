@@ -37,6 +37,7 @@ VALID_FIXTURES = [
     "ebay_rtx4090_laptop.json",
     "fb_uma_macbook_pro.json",
     "gumtree_zbook_touchscreen.json",
+    "ebay_low_vram_skip.json",
 ]
 
 

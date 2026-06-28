@@ -27,10 +27,32 @@
         "gpu": {"type": ["string", "null"]},
         "ram": {"type": ["string", "null"]},
         "storage": {"type": ["string", "null"]},
-        "vram_capacity": {"type": ["string", "null"]},
+        "vram_capacity": {
+          "type": ["object", "null"],
+          "properties": {
+            "semantic_value": {"type": "number"},
+            "verbatim_quote": {"type": "string"}
+          },
+          "required": ["semantic_value", "verbatim_quote"],
+          "additionalProperties": false,
+          "description": "Discriminated object carrying the numeric GB value and the verbatim substring from full_listing_text that grounds it. Null if VRAM is not stated."
+        },
         "stated_condition": {"type": ["string", "null"]},
         "shipping_or_pickup_signal": {"enum": ["SHIPPING_ONLY", "PICKUP_ONLY", "BOTH", "UNKNOWN"]},
-        "missing_information": {"type": "array", "items": {"type": "string"}},
+        "missing_information": {
+          "type": "object",
+          "description": "Boolean flags indicating which required facts are absent from the listing text. True means the fact is missing.",
+          "properties": {
+            "gpu":        {"type": "boolean"},
+            "vram":       {"type": "boolean"},
+            "cpu":        {"type": "boolean"},
+            "ram":        {"type": "boolean"},
+            "storage":    {"type": "boolean"},
+            "condition":  {"type": "boolean"}
+          },
+          "required": ["gpu", "vram", "cpu", "ram", "storage", "condition"],
+          "additionalProperties": false
+        },
         "total_system_ram": {
           "type": ["string", "null"],
           "description": "Total unified/system RAM as stated in listing, e.g. '128GB'. Used for UMA platforms (Apple Silicon, Strix Halo) where there is no discrete VRAM."

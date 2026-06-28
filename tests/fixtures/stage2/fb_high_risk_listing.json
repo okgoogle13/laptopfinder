@@ -34,11 +34,14 @@
       "vram_capacity": null,
       "stated_condition": "brand new sealed",
       "shipping_or_pickup_signal": "SHIPPING_ONLY",
-      "missing_information": [
-        "seller_identity",
-        "listing_url",
-        "in_person_inspection_availability"
-      ],
+      "missing_information": {
+        "gpu": false,
+        "vram": true,
+        "cpu": true,
+        "ram": true,
+        "storage": true,
+        "condition": false
+      },
       "total_system_ram": null,
       "egpu_model": null,
       "touchscreen_digitizer": null

@@ -1,8 +1,9 @@
 # Memory Index
 
-- [Project context](context/project.md) — pipeline architecture, terminology, key invariants
-- [Sprint plan](context/sprint.md) — final sprint goals, implementation sequence, risks, tooling setup
-- [Scraper](projects/scrape_benchmark.md) — scrape_benchmark.py design decisions and known caveats
+## Project (active state)
+- [Sprint — Pipeline Audit June 2026](project/sprint.md) — active sprint goals, phases, definition of done
 
-## Tooling decision (baked in)
-Antigravity IDE (VS Code fork) + Claude Code CLI in integrated terminal. AGENTS.md = Antigravity rules. CLAUDE.md = Claude Code rules. Both kept in sync. No MCP servers needed.
+## Reference (stable facts)
+- [Pipeline reference](reference/pipeline.md) — terminology, data contracts, expected score ranges, decision priority order
+- [scrape_benchmark.py](reference/scrape_benchmark.md) — input modes, output format, CSS selector caveats per platform
+- [Tooling setup](reference/tooling.md) — Antigravity IDE + Claude Code CLI, MCP decisions, Python env

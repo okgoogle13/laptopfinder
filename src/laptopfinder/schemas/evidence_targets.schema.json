@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Hardware Target Specifications",
+  "description": "Inferred workload profiles and provisional bounding boxes for hardware search.",
+  "type": "object",
+  "properties": {
+    "primary_workload": { "type": "string" },
+    "bottleneck_indicators": { "type": "array", "items": { "type": "string" } },
+    "toolchain_requirements": { "type": "array", "items": { "type": "string" } },
+    "target_spec_ranges": {
+      "type": "object",
+      "properties": {
+        "system_memory_gb": {
+          "type": "object",
+          "properties": {
+            "provisional_min": { "type": "number" },
+            "provisional_max": { "type": "number" }
+          },
+          "required": ["provisional_min", "provisional_max"]
+        },
+        "vram_gb": {
+          "type": "object",
+          "properties": {
+            "provisional_min": { "type": "number" },
+            "provisional_max": { "type": "number" }
+          },
+          "required": ["provisional_min", "provisional_max"]
+        },
+        "storage_gb": {
+          "type": "object",
+          "properties": {
+            "provisional_min": { "type": "number" },
+            "provisional_max": { "type": "number" }
+          },
+          "required": ["provisional_min", "provisional_max"]
+        }
+      },
+      "required": ["system_memory_gb", "vram_gb", "storage_gb"],
+      "additionalProperties": false
+    },
+    "platform_tradeoffs": {
+      "type": "object",
+      "properties": {
+        "apple_unified": { "type": "string" },
+        "discrete_gpu": { "type": "string" }
+      },
+      "required": ["apple_unified", "discrete_gpu"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "primary_workload",
+    "bottleneck_indicators",
+    "toolchain_requirements",
+    "target_spec_ranges",
+    "platform_tradeoffs"
+  ],
+  "additionalProperties": false
+}

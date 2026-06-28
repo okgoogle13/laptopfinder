@@ -19,7 +19,10 @@
     "listing_title": {"type": "string"},
     "listing_price_aud": {"type": ["number", "null"]},
     "listing_url_or_identifier": {"type": ["string", "null"]},
-    "inferred_component_category": {"type": ["string", "null"]},
+    "inferred_component_category": {
+      "enum": ["GPU", "CPU", "RAM", "SYSTEM", "OTHER"],
+      "description": "Strict enum matching Stage 1 discovery schema. Never null — Stage 1A must always classify."
+    },
     "inferred_model_hint": {"type": ["string", "null"]},
     "inferred_gpu_hint": {"type": ["string", "null"]},
     "inferred_vram_hint": {"type": ["string", "null"]},

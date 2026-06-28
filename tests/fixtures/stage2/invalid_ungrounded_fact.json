@@ -28,10 +28,20 @@
       "gpu": "RTX 3080 Ti",
       "ram": null,
       "storage": null,
-      "vram_capacity": "12GB",
+      "vram_capacity": {
+        "semantic_value": 12.0,
+        "verbatim_quote": "12GB"
+      },
       "stated_condition": "works great",
       "shipping_or_pickup_signal": "PICKUP_ONLY",
-      "missing_information": [],
+      "missing_information": {
+        "gpu": false,
+        "vram": false,
+        "cpu": true,
+        "ram": true,
+        "storage": true,
+        "condition": false
+      },
       "total_system_ram": null,
       "egpu_model": null,
       "touchscreen_digitizer": null

@@ -17,11 +17,21 @@ def load_ref(path: str | Path | None = None) -> dict[str, Any]:
         return json.load(f)
 
 
-def _vram_gb(vram_str: str | None) -> float | None:
-    """Parse '16GB GDDR6' → 16.0. Returns None if unparseable."""
-    if not vram_str:
+def _vram_gb(vram_val: "str | dict | None") -> float | None:
+    """Extract VRAM capacity in GB from a vram_capacity field.
+
+    Accepts the new discriminated-object schema {"semantic_value": 16.0, ...}
+    or a legacy flat string '16GB GDDR6' (for backward compat with old fixtures).
+    Returns None if the value is absent or unparseable.
+    """
+    if not vram_val:
         return None
-    m = re.search(r"(\d+(?:\.\d+)?)\s*GB", vram_str, re.IGNORECASE)
+    # New schema: {"semantic_value": <number>, "verbatim_quote": <str>}
+    if isinstance(vram_val, dict):
+        val = vram_val.get("semantic_value")
+        return float(val) if val is not None else None
+    # Legacy string fallback (e.g. '16GB GDDR6')
+    m = re.search(r"(\d+(?:\.\d+)?)\s*GB", str(vram_val), re.IGNORECASE)
     return float(m.group(1)) if m else None
 
 
@@ -111,7 +121,8 @@ def _passes_risk_gate(analysis: dict, ref: dict, risk_penalty: float = 0.0) -> b
     max_missing = cfg.get("requires_missing_fields_max", 1)
 
     risk_score = analysis.get("analysis", {}).get("risk_score", 10.0) + risk_penalty
-    missing = len(analysis.get("extracted_data", {}).get("missing_information", []))
+    mi = analysis.get("extracted_data", {}).get("missing_information", {})
+    missing = sum(mi.values()) if isinstance(mi, dict) else len(mi)
 
     return risk_score <= max_risk and missing <= max_missing
 
@@ -164,7 +175,8 @@ def _deduction_points(analysis: dict, ref: dict) -> int:
     """Deductions for missing fields and risk score. Uncapped downside — a sufficiently
     risky/incomplete listing can drive the overall score negative."""
     cfg = ref.get("llm_index_score", {})
-    n_missing = len(analysis.get("extracted_data", {}).get("missing_information", []))
+    mi = analysis.get("extracted_data", {}).get("missing_information", {})
+    n_missing = sum(mi.values()) if isinstance(mi, dict) else len(mi)
     risk_score = analysis.get("analysis", {}).get("risk_score", 0.0)
 
     missing_deduction = n_missing * cfg.get("deduction_per_missing_field", 0)
@@ -273,7 +285,8 @@ def decide(analysis: dict, ref: dict | None = None) -> dict:
     elif not low_risk:
         action = "SKIP"
         risk = analysis.get("analysis", {}).get("risk_score", "?")
-        n_missing = len(extracted.get("missing_information", []))
+        mi = extracted.get("missing_information", {})
+        n_missing = sum(mi.values()) if isinstance(mi, dict) else len(mi)
         reasons.append(f"Too risky to shortlist (risk={risk}, missing fields={n_missing})")
     elif is_uma and uma_ram is not None and uma_ram >= min_uma_ram:
         action = "SHORTLIST"

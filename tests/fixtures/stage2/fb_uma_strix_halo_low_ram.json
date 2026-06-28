@@ -31,7 +31,14 @@
       "vram_capacity": null,
       "stated_condition": "Good",
       "shipping_or_pickup_signal": "PICKUP_ONLY",
-      "missing_information": [],
+      "missing_information": {
+        "gpu": true,
+        "vram": true,
+        "cpu": false,
+        "ram": true,
+        "storage": false,
+        "condition": false
+      },
       "total_system_ram": "32GB",
       "egpu_model": null,
       "touchscreen_digitizer": null

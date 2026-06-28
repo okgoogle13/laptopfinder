@@ -31,11 +31,14 @@
       "vram_capacity": null,
       "stated_condition": "works fine",
       "shipping_or_pickup_signal": "PICKUP_ONLY",
-      "missing_information": [
-        "gpu_model_not_restated_in_full_text",
-        "vram_capacity",
-        "exact_model_name"
-      ],
+      "missing_information": {
+        "gpu": true,
+        "vram": true,
+        "cpu": true,
+        "ram": true,
+        "storage": true,
+        "condition": false
+      },
       "total_system_ram": null,
       "egpu_model": null,
       "touchscreen_digitizer": null

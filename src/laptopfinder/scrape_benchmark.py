@@ -10,16 +10,16 @@ Output: one JSONL file where each line is a Stage 2 fixture
 
 Usage:
     # From a URLs file (one URL per line):
-    python -m laptopfinder.scrape_benchmark --urls urls.txt --out benchmark.jsonl
+    python -m laptopfinder.scrape_benchmark --urls urls.txt --out data/benchmark/benchmark.jsonl
 
     # From a directory of saved .html or .json files:
-    python -m laptopfinder.scrape_benchmark --html-dir saved_pages/ --out benchmark.jsonl
+    python -m laptopfinder.scrape_benchmark --html-dir saved_pages/ --out data/benchmark/benchmark.jsonl
 
     # From individual files (HTML or JSON, auto-detected):
-    python -m laptopfinder.scrape_benchmark --html-file ebay_titan.html fb_rtx4080.json --out benchmark.jsonl
+    python -m laptopfinder.scrape_benchmark --html-file ebay_titan.html fb_rtx4080.json --out data/benchmark/benchmark.jsonl
 
     # Mix and match (all flags are additive):
-    python -m laptopfinder.scrape_benchmark --urls urls.txt --html-dir saved_pages/ --out benchmark.jsonl
+    python -m laptopfinder.scrape_benchmark --urls urls.txt --html-dir saved_pages/ --out data/benchmark/benchmark.jsonl
 
 Ad-hoc single item (from Python):
     from laptopfinder.scrape_benchmark import process_input, to_stage2_fixture
@@ -102,7 +102,7 @@ def extract_ebay(soup: BeautifulSoup, url: str) -> dict:
     if not t:
         t = soup.find("h1", itemprop="name")
     if t:
-        title = t.get_text(separator=" ", strip=True)
+        title = t.get_text(separator="\n", strip=True)
 
     price_raw = None
     p = soup.find("div", {"class": re.compile(r"x-price-primary")})
@@ -130,17 +130,17 @@ def extract_ebay(soup: BeautifulSoup, url: str) -> dict:
     desc_text = ""
     desc_div = soup.find("div", {"class": re.compile(r"x-item-description|itemDescContainer")})
     if desc_div:
-        desc_text = desc_div.get_text(separator=" ", strip=True)
+        desc_text = desc_div.get_text(separator="\n", strip=True)
 
     # Item specifics table (condition, brand, model etc.)
     specifics_text = ""
     specs_table = soup.find("div", {"class": re.compile(r"ux-layout-section--features|x-about-this-item")})
     if specs_table:
-        specifics_text = specs_table.get_text(separator=" ", strip=True)
+        specifics_text = specs_table.get_text(separator="\n", strip=True)
 
     # Combine: title + specifics + description is the raw text Stage 2 reads
     full_text_parts = [p for p in [title, specifics_text, desc_text] if p]
-    full_listing_text = " ".join(full_text_parts).strip() or None
+    full_listing_text = "\n".join(full_text_parts).strip() or None
 
     # Listing ID from URL (e.g. /itm/123456789)
     m = re.search(r"/itm/(\d+)", url)
@@ -168,6 +168,12 @@ def extract_facebook(soup: BeautifulSoup, url: str) -> dict:
     FB Marketplace is heavily client-rendered. This extractor works against
     saved HTML that includes the server-rendered JSON-LD or meta tags — the
     most reliable surface after a manual Save Page As.
+
+    Fallback order for full_listing_text:
+      1. application/ld+json description
+      2. __REQUIRE__ / RelayPrefetchedStreamCache JSON blob in <script> tags
+      3. og:description meta tag
+      4. Visible text of the role="main" or <main> element
     """
     title = None
     price_raw = None
@@ -190,6 +196,34 @@ def extract_facebook(soup: BeautifulSoup, url: str) -> dict:
         except (json.JSONDecodeError, AttributeError):
             continue
 
+    # Relay / require JSON blob fallback — FB embeds full listing data inside
+    # plain <script> tags as __REQUIRE__([...]) or RelayPrefetchedStreamCache.
+    # These often contain the untruncated description when ld+json is cut short.
+    if not full_listing_text:
+        relay_patterns = [
+            re.compile(r"__REQUIRE__\("),
+            re.compile(r"RelayPrefetchedStreamCache"),
+        ]
+        for script in soup.find_all("script"):
+            script_text = script.string or ""
+            if not any(pat.search(script_text) for pat in relay_patterns):
+                continue
+            # Extract candidate description strings: look for "story_body" or
+            # "message" keys which FB uses for marketplace listing descriptions.
+            desc_match = re.search(
+                r'"(?:story_body|message|description)"\s*:\s*"((?:[^"\\]|\\.)+)"',
+                script_text,
+            )
+            if desc_match:
+                try:
+                    candidate = json.loads(f'"{desc_match.group(1)}"')
+                    if len(candidate) > len(full_listing_text or ""):
+                        full_listing_text = candidate
+                except (json.JSONDecodeError, ValueError):
+                    pass
+            if full_listing_text:
+                break
+
     # OG meta fallback
     if not title:
         og = soup.find("meta", property="og:title")
@@ -204,7 +238,7 @@ def extract_facebook(soup: BeautifulSoup, url: str) -> dict:
     if not full_listing_text:
         main = soup.find("div", {"role": "main"}) or soup.find("main")
         if main:
-            full_listing_text = main.get_text(separator=" ", strip=True) or None
+            full_listing_text = main.get_text(separator="\n", strip=True) or None
 
     # Listing ID from URL (e.g. /marketplace/item/123456789)
     m = re.search(r"/item/(\d+)", url)
@@ -257,16 +291,16 @@ def extract_gumtree(soup: BeautifulSoup, url: str) -> dict:
     desc_text = ""
     desc_div = soup.find("div", {"class": re.compile(r"description|ad-description|listing-description")})
     if desc_div:
-        desc_text = desc_div.get_text(separator=" ", strip=True)
+        desc_text = desc_div.get_text(separator="\n", strip=True)
 
     # Attributes panel (condition, brand, etc.)
     attrs_text = ""
     attrs_div = soup.find("ul", {"class": re.compile(r"attributes|listing-attributes")})
     if attrs_div:
-        attrs_text = attrs_div.get_text(separator=" ", strip=True)
+        attrs_text = attrs_div.get_text(separator="\n", strip=True)
 
     full_text_parts = [p for p in [title, attrs_text, desc_text] if p]
-    full_listing_text = " ".join(full_text_parts).strip() or None
+    full_listing_text = "\n".join(full_text_parts).strip() or None
 
     # Listing ID from URL (e.g. /ad/computers/1234567890)
     m = re.search(r"/(\d{8,})", url)
@@ -351,11 +385,11 @@ def extract_ebay_api_item(item: dict) -> dict:
     short_desc = item.get("shortDescription") or ""
     cat_path = item.get("categoryPath") or ""
     aspects = item.get("localizedAspects", [])
-    aspects_text = " ".join(f"{a.get('name','')}: {a.get('value','')}" for a in aspects)
+    aspects_text = "\n".join(f"{a.get('name','')}: {a.get('value','')}" for a in aspects)
 
     subtitle = _unpack(item.get("subtitle", [None])) or item.get("subtitle") or ""
     full_text_parts = [p for p in [title, subtitle, condition, short_desc, cat_path, aspects_text] if p]
-    full_listing_text = " ".join(full_text_parts).strip() or None
+    full_listing_text = "\n".join(full_text_parts).strip() or None
 
     url = item.get("viewItemURL") or item.get("itemWebUrl")
     if isinstance(url, list):
@@ -417,16 +451,16 @@ def extract_generic_json(data: dict, url: str = "", platform: str | None = None)
     desc = data.get("description") or data.get("body") or data.get("details") or ""
     attrs = data.get("attributes") or data.get("specs") or {}
     if isinstance(attrs, dict):
-        attrs_text = " ".join(f"{k}: {v}" for k, v in attrs.items())
+        attrs_text = "\n".join(f"{k}: {v}" for k, v in attrs.items())
     elif isinstance(attrs, list):
-        attrs_text = " ".join(
+        attrs_text = "\n".join(
             f"{a.get('name','')}: {a.get('value','')}" for a in attrs if isinstance(a, dict)
         )
     else:
         attrs_text = ""
 
     full_text_parts = [p for p in [title, attrs_text, desc] if p]
-    full_listing_text = " ".join(full_text_parts).strip() or None
+    full_listing_text = "\n".join(full_text_parts).strip() or None
 
     item_url = data.get("url") or data.get("itemWebUrl") or data.get("link") or url or None
     item_id = data.get("id") or data.get("itemId") or data.get("listingId")
@@ -541,11 +575,11 @@ def _html_to_raw_regex(html: str, url: str) -> dict:
     price_m = re.search(r"\$\s*([\d,]+(?:\.\d{2})?)", html)
     price_raw = price_m.group(0).strip() if price_m else None
 
-    # Strip tags and collapse whitespace
-    full_text = re.sub(r"<script[^>]*>.*?</script>", " ", html, flags=re.DOTALL | re.IGNORECASE)
-    full_text = re.sub(r"<style[^>]*>.*?</style>", " ", full_text, flags=re.DOTALL | re.IGNORECASE)
-    full_text = re.sub(r"<[^>]+>", " ", full_text)
-    full_text = re.sub(r"\s+", " ", full_text).strip() or None
+    # Strip tags and preserve structural boundaries with newlines
+    full_text = re.sub(r"<script[^>]*>.*?</script>", "\n", html, flags=re.DOTALL | re.IGNORECASE)
+    full_text = re.sub(r"<style[^>]*>.*?</style>", "\n", full_text, flags=re.DOTALL | re.IGNORECASE)
+    full_text = re.sub(r"<[^>]+>", "\n", full_text)
+    full_text = re.sub(r"\n{3,}", "\n\n", full_text).strip() or None
 
     return {
         "platform": detect_platform(url),
@@ -581,7 +615,7 @@ def html_to_raw(html: str, url: str, platform: str | None = None) -> dict | None
     title_tag = soup.find("title")
     title = title_tag.get_text(strip=True) if title_tag else None
     body = soup.find("body")
-    full_text = body.get_text(separator=" ", strip=True) if body else None
+    full_text = body.get_text(separator="\n", strip=True) if body else None
     return {
         "platform": "UNKNOWN",
         "listing_id": f"unknown:{_short_hash(url)}",
@@ -691,8 +725,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="One or more .html or .json files (platform guessed from filename; content auto-detected)")
     p.add_argument("--ebay-api", metavar="FILE",
                    help="eBay API JSON response file (FindingAPI or Browse API); for generic JSON use --html-file")
-    p.add_argument("--out", metavar="FILE", default="benchmark.jsonl",
-                   help="Output JSONL file (default: benchmark.jsonl)")
+    p.add_argument("--out", metavar="FILE", default="data/benchmark/benchmark.jsonl",
+                   help="Output JSONL file (default: data/benchmark/benchmark.jsonl)")
     p.add_argument("--format", choices=["stage2", "stage1"], default="stage2",
                    help="Output fixture format (default: stage2)")
     p.add_argument("--fetch-delay", type=float, default=2.0, metavar="SECONDS",

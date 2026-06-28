@@ -36,7 +36,14 @@
       "vram_capacity": null,
       "stated_condition": "Pristine condition",
       "shipping_or_pickup_signal": "PICKUP_ONLY",
-      "missing_information": [],
+      "missing_information": {
+        "gpu": false,
+        "vram": false,
+        "cpu": false,
+        "ram": false,
+        "storage": false,
+        "condition": false
+      },
       "total_system_ram": "64GB",
       "egpu_model": null,
       "touchscreen_digitizer": null

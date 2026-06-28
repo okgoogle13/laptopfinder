@@ -1,7 +1,7 @@
 {
   "handoff_packet": {
     "source_platform": "EBAY_AU",
-    "listing_title": "ASUS ROG Strix Scar 18 Gaming Laptop – RTX 4090",
+    "listing_title": "ASUS ROG Strix Scar 18 Gaming Laptop \u2013 RTX 4090",
     "listing_price_aud": 4200.0,
     "listing_url_or_identifier": "saved_pages/ebay_rtx4090.html",
     "inferred_component_category": "SYSTEM",
@@ -11,7 +11,7 @@
     "inferred_condition_hint": "Pristine",
     "discovery_flags": []
   },
-  "full_listing_text": "ASUS ROG Strix Scar 18 Gaming Laptop – RTX 4090 Brand: ASUS\n        Model: ROG Strix Scar 18\n        GPU: NVIDIA GeForce RTX 4090 Laptop GPU\n        VRAM: 16 GB GDDR6 Selling my pristine condition ASUS ROG Strix Scar 18 gaming laptop. It has the flagship NVIDIA RTX 4090 card, 32GB of RAM, and a 2TB SSD. Works perfectly. No scratches, practically brand new. Pickup only from Preston VIC, cash on pickup.",
+  "full_listing_text": "ASUS ROG Strix Scar 18 Gaming Laptop \u2013 RTX 4090 Brand: ASUS\n        Model: ROG Strix Scar 18\n        GPU: NVIDIA GeForce RTX 4090 Laptop GPU\n        VRAM: 16 GB GDDR6 Selling my pristine condition ASUS ROG Strix Scar 18 gaming laptop. It has the flagship NVIDIA RTX 4090 card, 32GB of RAM, and a 2TB SSD. Works perfectly. No scratches, practically brand new. Pickup only from Preston VIC, cash on pickup.",
   "_meta": {
     "seller_name_or_identifier": "established_computer_reseller_au",
     "seller_rating_or_profile_signal": "99.5% Positive Feedback",
@@ -21,7 +21,7 @@
     "metadata": {
       "source_platform": "EBAY_AU",
       "listing_url_or_identifier": "saved_pages/ebay_rtx4090.html",
-      "listing_title": "ASUS ROG Strix Scar 18 Gaming Laptop – RTX 4090",
+      "listing_title": "ASUS ROG Strix Scar 18 Gaming Laptop \u2013 RTX 4090",
       "listing_price_aud": 4200.0,
       "seller_name_or_identifier": "established_computer_reseller_au",
       "seller_rating_or_profile_signal": "99.5% Positive Feedback"
@@ -33,10 +33,20 @@
       "gpu": "RTX 4090",
       "ram": "32GB",
       "storage": "2TB",
-      "vram_capacity": "16 GB",
+      "vram_capacity": {
+        "semantic_value": 16.0,
+        "verbatim_quote": "16 GB"
+      },
       "stated_condition": "pristine condition",
       "shipping_or_pickup_signal": "PICKUP_ONLY",
-      "missing_information": [],
+      "missing_information": {
+        "gpu": false,
+        "vram": false,
+        "cpu": true,
+        "ram": false,
+        "storage": false,
+        "condition": false
+      },
       "total_system_ram": null,
       "egpu_model": null,
       "touchscreen_digitizer": null

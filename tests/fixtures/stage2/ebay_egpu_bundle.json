@@ -28,10 +28,20 @@
       "gpu": "GTX 1650",
       "ram": "32GB",
       "storage": "1TB SSD",
-      "vram_capacity": "16GB",
+      "vram_capacity": {
+        "semantic_value": 16.0,
+        "verbatim_quote": "16GB"
+      },
       "stated_condition": "Excellent",
       "shipping_or_pickup_signal": "BOTH",
-      "missing_information": [],
+      "missing_information": {
+        "gpu": false,
+        "vram": false,
+        "cpu": true,
+        "ram": false,
+        "storage": false,
+        "condition": false
+      },
       "total_system_ram": null,
       "egpu_model": "XG Mobile RTX 4090",
       "touchscreen_digitizer": null

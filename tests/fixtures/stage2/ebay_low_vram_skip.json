@@ -1,0 +1,57 @@
+{
+  "handoff_packet": {
+    "source_platform": "EBAY_AU",
+    "listing_title": "MSI Thin 15 i5 16GB RTX 4050 Gaming Laptop - Good Condition",
+    "listing_price_aud": 950.0,
+    "listing_url_or_identifier": "ebay-au:v987654321",
+    "inferred_component_category": "SYSTEM",
+    "inferred_model_hint": "MSI Thin 15",
+    "inferred_gpu_hint": "RTX 4050",
+    "inferred_vram_hint": "6GB",
+    "inferred_condition_hint": "good",
+    "discovery_flags": []
+  },
+  "full_listing_text": "MSI Thin 15 i5, 16GB DDR4, RTX 4050 6GB GDDR6, 512GB SSD. Condition: Good, normal wear. Pickup Reservoir VIC. Asking $950.",
+  "analysis_output": {
+    "metadata": {
+      "source_platform": "EBAY_AU",
+      "listing_url_or_identifier": "ebay-au:v987654321",
+      "listing_title": "MSI Thin 15 i5 16GB RTX 4050 Gaming Laptop - Good Condition",
+      "listing_price_aud": 950.0,
+      "seller_name_or_identifier": "ebay-seller:private_seller",
+      "seller_rating_or_profile_signal": "15 feedback, 100% positive"
+    },
+    "extracted_data": {
+      "exact_model_name": "MSI Thin 15",
+      "component_category": "SYSTEM",
+      "cpu": "i5",
+      "gpu": "RTX 4050",
+      "ram": "16GB",
+      "storage": "512GB SSD",
+      "vram_capacity": {
+        "semantic_value": 6.0,
+        "verbatim_quote": "6GB GDDR6"
+      },
+      "stated_condition": "Good",
+      "shipping_or_pickup_signal": "PICKUP_ONLY",
+      "missing_information": {
+        "gpu": false,
+        "vram": false,
+        "cpu": false,
+        "ram": false,
+        "storage": false,
+        "condition": false
+      },
+      "total_system_ram": null,
+      "egpu_model": null,
+      "touchscreen_digitizer": null
+    },
+    "analysis": {
+      "risk_score": 1.5,
+      "risk_flags": [],
+      "stated_pickup_location": "Reservoir",
+      "confidence": 0.95,
+      "seller_classification": "PRIVATE_NEW_OR_UNKNOWN"
+    }
+  }
+}

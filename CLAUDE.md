@@ -29,7 +29,7 @@ make pipeline STAGE1=tests/fixtures/stage1/ebay_rtx4090_laptop.json STAGE2=tests
 make live SOURCE=feed.txt
 
 # Run benchmark scraper against saved HTML pages
-python -m laptopfinder.scrape_benchmark --html-dir saved_pages/ --out benchmark.jsonl
+python -m laptopfinder.scrape_benchmark --html-dir saved_pages/ --out data/benchmark/benchmark.jsonl
 ```
 
 **Environment:** uses `.venv` (uv-managed). Always invoke Python as `.venv/bin/python` or `.venv/bin/pytest`, not the system Python. Copy `.env.example` → `.env` and fill in `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `PERPLEXITY_API_KEY` before running the live pipeline.
@@ -42,18 +42,23 @@ The pipeline has two offline-testable stages plus a decision engine, all driven 
 Validates raw LLM output (a JSON array of candidates) against `schemas/stage1.discovery.schema.json` and enforces the **hint/fact firewall**: Stage 1 candidates may only carry `inferred_*` prefixed fields. Any fact-shaped key (`gpu`, `vram_capacity`, etc.) is rejected immediately. This is a hard constraint — Stage 1 must never promote a hint to a fact.
 
 **Stage 1A — Handoff**  
-A human or agent assembles the selected candidate's hints into a handoff packet (validated against `schemas/stage1a.handoff.schema.json`). This packet is the only thing that crosses into Stage 2; Stage 1 output is never passed directly.
+A human or agent assembles the selected candidate's hints into a handoff packet (validated against `schemas/stage1a.handoff.schema.json`). Enforces strict enum values `["GPU", "CPU", "RAM", "SYSTEM", "OTHER"]` for `inferred_component_category`. This packet is the only thing that crosses into Stage 2; Stage 1 output is never passed directly.
 
 **Stage 2 — Analysis** (`core.py: run_stage2`)  
-Validates the handoff packet + full listing text + LLM analysis output. Enforces the **grounding firewall**: every fact in `extracted_data` must appear verbatim (word-boundary regex match) in `full_listing_text`. Ungrounded facts cause an immediate `ValueError`. Missing data → `null`; never fabricate from category or price.
+Validates the handoff packet + full listing text + LLM analysis output. Enforces the **grounding firewall**: every fact in `extracted_data` must appear verbatim (word-boundary regex match) in `full_listing_text`. Ungrounded facts cause an immediate `ValueError`.
+- `vram_capacity` is a discriminated object `{semantic_value: number, verbatim_quote: string}|null` rather than a flat string.
+- `missing_information` is a discriminated object of 6 boolean flags (`gpu`, `vram`, `cpu`, `ram`, `storage`, `condition`) indicating if each core component attribute is missing.
+- Missing data → `null`; never fabricate from category or price.
 
 **Decision Engine** (`decide.py: decide`)  
 Reads a validated Stage 2 analysis and `config/static_reference_layer.json` to compute a `SHORTLIST` / `MONITOR` / `SKIP` recommendation. Decision logic in priority order:
 1. Watch-list GPU → `MONITOR` (too new/unreleased)
-2. Risk gate failure (risk_score + optional Radeon penalty > 3.0, or too many missing fields) → `SKIP`
+2. Risk gate failure (risk_score > 3.0, or too many missing fields) → `SKIP`
 3. UMA platform (Apple Silicon Max/Ultra, Strix Halo) with system RAM ≥ 64GB → `SHORTLIST`
 4. Target GPU/model match, or eGPU bundle, or VRAM ≥ 16GB → `SHORTLIST`
 5. Otherwise → `SKIP`
+
+Radeon mobile GPUs surface a buyer disclosure note (`radeon_ecosystem_disclosure`) but are NOT penalized at the risk gate — evaluated at the same risk_score ≤ 3.0 threshold as all other listings.
 
 Also computes a `llm_index_score` (0–100): capacity points (max 60) + GPU generation points (max 25) + seller reward/risk modifier (~±20) − uncapped deductions. The score is informational and never gates `recommended_action`.
 
