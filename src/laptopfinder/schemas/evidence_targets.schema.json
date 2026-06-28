@@ -1,59 +1,76 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Hardware Target Specifications",
-  "description": "Inferred workload profiles and provisional bounding boxes for hardware search.",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://laptopfinder.local/schemas/evidence_targets.schema.json",
+  "title": "Evidence-Derived Hardware Targets",
+  "description": "Provisional hardware target ranges inferred from aggregated telemetry evidence.",
   "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "system_memory_gb",
+    "vram_gb",
+    "storage_gb",
+    "platform_tradeoffs",
+    "confidence_notes"
+  ],
   "properties": {
-    "primary_workload": { "type": "string" },
-    "bottleneck_indicators": { "type": "array", "items": { "type": "string" } },
-    "toolchain_requirements": { "type": "array", "items": { "type": "string" } },
-    "target_spec_ranges": {
-      "type": "object",
-      "properties": {
-        "system_memory_gb": {
-          "type": "object",
-          "properties": {
-            "provisional_min": { "type": "number" },
-            "provisional_max": { "type": "number" }
-          },
-          "required": ["provisional_min", "provisional_max"]
-        },
-        "vram_gb": {
-          "type": "object",
-          "properties": {
-            "provisional_min": { "type": "number" },
-            "provisional_max": { "type": "number" }
-          },
-          "required": ["provisional_min", "provisional_max"]
-        },
-        "storage_gb": {
-          "type": "object",
-          "properties": {
-            "provisional_min": { "type": "number" },
-            "provisional_max": { "type": "number" }
-          },
-          "required": ["provisional_min", "provisional_max"]
-        }
-      },
-      "required": ["system_memory_gb", "vram_gb", "storage_gb"],
-      "additionalProperties": false
+    "system_memory_gb": {
+      "$ref": "#/$defs/range_triplet"
+    },
+    "vram_gb": {
+      "$ref": "#/$defs/range_triplet"
+    },
+    "storage_gb": {
+      "$ref": "#/$defs/storage_range"
     },
     "platform_tradeoffs": {
-      "type": "object",
-      "properties": {
-        "apple_unified": { "type": "string" },
-        "discrete_gpu": { "type": "string" }
+      "type": "array",
+      "description": "Short, soft-language tradeoff notes about Apple unified memory vs discrete GPU platforms and related buying considerations.",
+      "items": {
+        "type": "string",
+        "minLength": 1
       },
-      "required": ["apple_unified", "discrete_gpu"],
-      "additionalProperties": false
+      "minItems": 1,
+      "maxItems": 10
+    },
+    "confidence_notes": {
+      "type": ["string", "null"],
+      "description": "Brief note summarizing what evidence is strong, thin, noisy, or provisional."
     }
   },
-  "required": [
-    "primary_workload",
-    "bottleneck_indicators",
-    "toolchain_requirements",
-    "target_spec_ranges",
-    "platform_tradeoffs"
-  ],
-  "additionalProperties": false
+  "$defs": {
+    "range_triplet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "recommended", "stretch"],
+      "properties": {
+        "min": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "recommended": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stretch": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "storage_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "recommended"],
+      "properties": {
+        "min": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "recommended": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
 }

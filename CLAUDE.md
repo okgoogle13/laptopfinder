@@ -30,6 +30,12 @@ make live SOURCE=feed.txt
 
 # Run benchmark scraper against saved HTML pages
 python -m laptopfinder.scrape_benchmark --html-dir saved_pages/ --out data/benchmark/benchmark.jsonl
+
+# Evidence pipeline — normalize telemetry files in data/evidence/raw/ and append to aggregated.jsonl
+make evidence-run
+
+# Evidence pipeline dry-run — parse and append but skip archiving and handoff generation
+make evidence-run-dry
 ```
 
 **Environment:** uses `.venv` (uv-managed). Always invoke Python as `.venv/bin/python` or `.venv/bin/pytest`, not the system Python. Copy `.env.example` → `.env` and fill in `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `PERPLEXITY_API_KEY` before running the live pipeline.
@@ -45,7 +51,11 @@ Validates raw LLM output (a JSON array of candidates) against `schemas/stage1.di
 A human or agent assembles the selected candidate's hints into a handoff packet (validated against `schemas/stage1a.handoff.schema.json`). Enforces strict enum values `["GPU", "CPU", "RAM", "SYSTEM", "OTHER"]` for `inferred_component_category`. This packet is the only thing that crosses into Stage 2; Stage 1 output is never passed directly.
 
 **Stage 2 — Analysis** (`core.py: run_stage2`)  
-Validates the handoff packet + full listing text + LLM analysis output. Enforces the **grounding firewall**: every fact in `extracted_data` must appear verbatim (word-boundary regex match) in `full_listing_text`. Ungrounded facts cause an immediate `ValueError`.
+Validates the handoff packet + full listing text + LLM analysis output. Two firewalls run in sequence:
+1. **Data integrity check**: listing title and full text are matched against `data_integrity.exclusion_regex` in `static_reference_layer.json`. Parts-only / salvaged chassis listings raise `ValueError` immediately.
+2. **Grounding firewall**: every fact in `extracted_data` must appear verbatim (word-boundary regex match) in `full_listing_text`. Ungrounded facts cause an immediate `ValueError`.
+
+Schema notes:
 - `vram_capacity` is a discriminated object `{semantic_value: number, verbatim_quote: string}|null` rather than a flat string.
 - `missing_information` is a discriminated object of 6 boolean flags (`gpu`, `vram`, `cpu`, `ram`, `storage`, `condition`) indicating if each core component attribute is missing.
 - Missing data → `null`; never fabricate from category or price.
@@ -55,18 +65,26 @@ Reads a validated Stage 2 analysis and `config/static_reference_layer.json` to c
 1. Watch-list GPU → `MONITOR` (too new/unreleased)
 2. Risk gate failure (risk_score > 3.0, or too many missing fields) → `SKIP`
 3. UMA platform (Apple Silicon Max/Ultra, Strix Halo) with system RAM ≥ 64GB → `SHORTLIST`
-4. Target GPU/model match, or eGPU bundle, or VRAM ≥ 16GB → `SHORTLIST`
+4. eGPU bundle, VRAM ≥ 16GB, or **touchscreen exception** (VRAM ≥ 12GB + `touchscreen_digitizer` present) → `SHORTLIST`
 5. Otherwise → `SKIP`
 
 Radeon mobile GPUs surface a buyer disclosure note (`radeon_ecosystem_disclosure`) but are NOT penalized at the risk gate — evaluated at the same risk_score ≤ 3.0 threshold as all other listings.
 
-Also computes a `llm_index_score` (0–100): capacity points (max 60) + GPU generation points (max 25) + seller reward/risk modifier (~±20) − uncapped deductions. The score is informational and never gates `recommended_action`.
+Also computes a `llm_index_score` (0–100): capacity points (max 60) + GPU generation points (max 25) + seller reward/risk modifier (~±20) − uncapped deductions. The score is informational and never gates `recommended_action`. All thresholds driving these rules (`standard_mobile_min_gb`, `touchscreen_exception_min_gb`, `uma_unified_min_gb`) live in `vram_gating_logic` inside `static_reference_layer.json`.
+
+**Evidence Pipeline** (`src/laptopfinder/runners/evidence_pipeline.py`)  
+A secondary sub-pipeline that derives hardware spec requirements from real macOS workload telemetry rather than static config. Workflow:
+1. Drop telemetry files (screenshots or terminal logs) into `data/evidence/raw/`
+2. `make evidence-run` → Gemini parses each file against `GEMINI_EVIDENCE_SCHEMA`, appends to `data/evidence/aggregated.jsonl`, archives originals
+3. At ≥ 5 records → generates `data/evidence/claude_handoff.txt` using `prompts/claude_evidence_analyzer.txt`
+4. Human pastes handoff into Claude Pro and saves the JSON response as `data/evidence/targets.json`
+5. `targets.json` (validated against `schemas/evidence_targets.schema.json`) feeds into `static_reference_layer.json` or a runtime override
 
 **Benchmark Scraper** (`src/laptopfinder/scrape_benchmark.py`)  
-Converts saved HTML pages or JSON API payloads from eBay AU / FB Marketplace / Gumtree into Stage 2 fixture format (`handoff_packet + full_listing_text + analysis_output stub`). CSS selectors are best-guess — verify against real saved pages before trusting output. See `memory/projects/scrape_benchmark.md` for full caveats. Input modes: `--html-dir`, `--html-file`, `--urls`, `--ebay-api`. Platform auto-detected from filename prefix or URL hostname.
+Converts saved HTML pages or JSON API payloads from eBay AU / FB Marketplace / Gumtree into Stage 2 fixture format (`handoff_packet + full_listing_text + analysis_output stub`). CSS selectors are best-guess — verify against real saved pages before trusting output. Input modes: `--html-dir`, `--html-file`, `--urls`, `--ebay-api`. Platform auto-detected from filename prefix or URL hostname.
 
 **Static Reference Layer** (`config/static_reference_layer.json`)  
-The single source of truth for all scoring weights, VRAM tier thresholds, target GPU/model lists, watch lists, UMA chip patterns, Radeon mobile GPUs, eGPU enclosure names, and risk gate limits. Change scoring/thresholds here, not in Python source. `decide.py` loads it at runtime via `load_ref()`.
+The single source of truth for all scoring weights, VRAM tier thresholds, target GPU/model lists, watch lists, UMA chip patterns, Radeon mobile GPUs, eGPU enclosure names, risk gate limits, geolocation filters, and the data integrity exclusion regex. Change scoring/thresholds here, not in Python source. `decide.py` loads it at runtime via `load_ref()`.
 
 **Live Pipeline Runners** (`src/laptopfinder/runners/`)  
 - `comet.py` — Gemini 3.1 Pro via `google-genai`; runs the `prompts/comet_discovery_agent.txt` prompt to produce Stage 1 JSON
@@ -92,4 +110,4 @@ This project is developed using **Antigravity IDE** as the visual environment wi
 
 ## Current sprint
 
-Building the ground-truth benchmark dataset to validate the decision engine against real listings. See `memory/context/sprint.md` for the full implementation sequence and `TASKS.md` for the task list.
+Building the evidence-based target pipeline to derive VRAM/RAM spec ranges from real macOS workload telemetry. See `memory/project/sprint.md` for the full implementation sequence and `TASKS.md` for the task list.

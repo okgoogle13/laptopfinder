@@ -1,44 +1,119 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://laptopfinder.local/schemas/evidence_normalized.schema.json",
   "title": "Normalized Evidence Record",
-  "description": "Atomic observation of macOS telemetry at a specific point in time.",
+  "description": "Normalized macOS telemetry evidence extracted from a single raw artifact.",
   "type": "object",
-  "properties": {
-    "event_timestamp": { "type": "string", "format": "date-time" },
-    "source_file": { "type": "string" },
-    "data_confidence": { "type": "string", "enum": ["high", "medium", "low"] },
-    "observed_telemetry": {
-      "type": "object",
-      "properties": {
-        "memory_pressure_state": { "type": ["string", "null"] },
-        "physical_memory_gb": { "type": ["number", "null"] },
-        "app_memory_gb": { "type": ["number", "null"] },
-        "wired_memory_gb": { "type": ["number", "null"] },
-        "compressed_memory_gb": { "type": ["number", "null"] },
-        "cached_files_gb": { "type": ["number", "null"] },
-        "swap_used_gb": { "type": ["number", "null"] }
-      },
-      "required": [
-        "memory_pressure_state",
-        "swap_used_gb",
-        "physical_memory_gb",
-        "app_memory_gb",
-        "wired_memory_gb",
-        "compressed_memory_gb",
-        "cached_files_gb"
-      ],
-      "additionalProperties": false
-    },
-    "active_processes": { "type": "array", "items": { "type": "string" } },
-    "uncertainty_flags": { "type": "array", "items": { "type": "string" } }
-  },
+  "additionalProperties": false,
   "required": [
     "event_timestamp",
     "source_file",
+    "scenario_label",
+    "source_kind",
+    "collection_notes",
     "data_confidence",
     "observed_telemetry",
     "active_processes",
     "uncertainty_flags"
   ],
-  "additionalProperties": false
+  "properties": {
+    "event_timestamp": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "ISO 8601 timestamp if present in the artifact or provided metadata."
+    },
+    "source_file": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Filename of the raw evidence artifact, if known."
+    },
+    "scenario_label": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Short workload label such as idle_browser, antigravity_gemini_coding, or browser_plus_local_llm."
+    },
+    "source_kind": {
+      "type": "string",
+      "enum": ["terminal_log", "screenshot_ocr", "mixed"],
+      "description": "Primary origin of the raw evidence artifact."
+    },
+    "collection_notes": {
+      "type": ["string", "null"],
+      "description": "Short human-supplied context about the capture session."
+    },
+    "data_confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low"],
+      "description": "Overall confidence in the record based on completeness and ambiguity."
+    },
+    "observed_telemetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "memory_pressure_state",
+        "physical_memory_gb",
+        "app_memory_gb",
+        "wired_memory_gb",
+        "compressed_memory_gb",
+        "cached_files_gb",
+        "swap_used_gb"
+      ],
+      "properties": {
+        "memory_pressure_state": {
+          "type": "string",
+          "enum": ["Normal", "Warning", "Critical", "Unknown"],
+          "description": "Observed or conservatively inferred macOS memory pressure state."
+        },
+        "physical_memory_gb": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "description": "Installed physical RAM in GB."
+        },
+        "app_memory_gb": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "description": "Approximate app or process memory in GB, if supported by the artifact."
+        },
+        "wired_memory_gb": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "description": "Wired memory in GB."
+        },
+        "compressed_memory_gb": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "description": "Compressed memory in GB."
+        },
+        "cached_files_gb": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "description": "Cached files or file cache in GB."
+        },
+        "swap_used_gb": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "description": "Current swap used in GB."
+        }
+      }
+    },
+    "active_processes": {
+      "type": "array",
+      "description": "Short list of notable visible processes relevant to the workload.",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "maxItems": 12,
+      "uniqueItems": true
+    },
+    "uncertainty_flags": {
+      "type": "array",
+      "description": "Short machine-readable notes explaining ambiguity, conversion, OCR noise, or missing fields.",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    }
+  }
 }

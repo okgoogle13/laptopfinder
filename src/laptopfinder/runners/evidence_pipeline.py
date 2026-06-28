@@ -1,8 +1,14 @@
 import argparse
 import json
+import os
 import shutil
-from datetime import datetime, timezone
 from pathlib import Path
+
+from dotenv import load_dotenv
+from google import genai
+from google.genai import types
+
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 DATA_DIR = BASE_DIR / "data" / "evidence"
@@ -13,24 +19,150 @@ HANDOFF_FILE = DATA_DIR / "claude_handoff.txt"
 PROMOTION_THRESHOLD = 5
 
 
-def run_gemini_parser(file_path: Path) -> dict:
-    return {
-        "event_timestamp": datetime.now(timezone.utc).isoformat(),
-        "source_file": file_path.name,
-        "data_confidence": "high",
-        "observed_telemetry": {
-            "memory_pressure_state": "red",
-            "physical_memory_gb": 16.0,
-            "app_memory_gb": 12.1,
-            "wired_memory_gb": 3.2,
-            "compressed_memory_gb": 1.1,
-            "cached_files_gb": 0.8,
-            "swap_used_gb": 4.5,
+# Gemini-specific projection of evidence_normalized.schema.json.
+# Uses {"nullable": true} instead of JSON Schema's {"type": ["string", "null"]}
+# because Gemini's response_schema does not support type-array nullability.
+# Keys are kept in sync via test_gemini_schema_keys_match_canonical().
+GEMINI_EVIDENCE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "event_timestamp":   {"type": "string",  "nullable": True},
+        "source_file":       {"type": "string",  "nullable": True},
+        "scenario_label":    {"type": "string",  "nullable": True},
+        "source_kind": {
+            "type": "string",
+            "enum": ["terminal_log", "screenshot_ocr", "mixed"]
         },
-        "active_processes": ["Docker", "Terminal"],
-        "uncertainty_flags": ["STUB: real Gemini call not yet wired"],
-    }
+        "collection_notes":  {"type": "string",  "nullable": True},
+        "data_confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+        },
+        "observed_telemetry": {
+            "type": "object",
+            "properties": {
+                "memory_pressure_state": {
+                    "type": "string",
+                    "enum": ["Normal", "Warning", "Critical", "Unknown"]
+                },
+                "physical_memory_gb":   {"type": "number", "nullable": True},
+                "app_memory_gb":        {"type": "number", "nullable": True},
+                "wired_memory_gb":      {"type": "number", "nullable": True},
+                "compressed_memory_gb": {"type": "number", "nullable": True},
+                "cached_files_gb":      {"type": "number", "nullable": True},
+                "swap_used_gb":         {"type": "number", "nullable": True}
+            },
+            "required": [
+                "memory_pressure_state",
+                "physical_memory_gb",
+                "app_memory_gb",
+                "wired_memory_gb",
+                "compressed_memory_gb",
+                "cached_files_gb",
+                "swap_used_gb"
+            ]
+        },
+        "active_processes":   {"type": "array", "items": {"type": "string"}},
+        "uncertainty_flags":  {"type": "array", "items": {"type": "string"}}
+    },
+    "required": [
+        "event_timestamp",
+        "source_file",
+        "scenario_label",
+        "source_kind",
+        "collection_notes",
+        "data_confidence",
+        "observed_telemetry",
+        "active_processes",
+        "uncertainty_flags"
+    ]
+}
 
+def build_telemetry_prompt(
+    file_path: Path,
+    scenario_label: str | None = None,
+    source_kind: str = "terminal_log",
+    collection_notes: str | None = None,
+) -> str:
+    header = "\n".join([
+        f"SCENARIO: {scenario_label or ''}",
+        f"SOURCE_FILE: {file_path.name}",
+        f"SOURCE_KIND: {source_kind}",
+        f"COLLECTION_NOTES: {collection_notes or ''}",
+    ])
+    suffix = file_path.suffix.lower()
+    if suffix in ['.png', '.jpg', '.jpeg', '.webp']:
+        return f"{header}\n\n--- BEGIN RAW ARTIFACT ---\n[IMAGE ATTACHED]\n--- END RAW ARTIFACT ---"
+        
+    raw_text = file_path.read_text(encoding="utf-8", errors="replace")
+    return (
+        f"{header}\n\n"
+        "--- BEGIN RAW ARTIFACT ---\n"
+        f"{raw_text}\n"
+        "--- END RAW ARTIFACT ---"
+    )
+
+def run_gemini_parser(
+    file_path: Path,
+    scenario_label: str | None = None,
+    source_kind: str | None = None,
+    collection_notes: str | None = None,
+) -> dict:
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY is not set. Check your .env file.")
+        
+    client = genai.Client(api_key=api_key)
+    
+    prompt_path = BASE_DIR / "prompts" / "gemini_evidence_parser.txt"
+    if not prompt_path.exists():
+        raise FileNotFoundError(f"Prompt not found at {prompt_path}")
+        
+    with open(prompt_path, "r", encoding="utf-8") as f:
+        system_prompt = f.read()
+
+    suffix = file_path.suffix.lower()
+    if source_kind is None:
+        source_kind = "screenshot_ocr" if suffix in ['.png', '.jpg', '.jpeg', '.webp'] else "terminal_log"
+        
+    artifact_text = build_telemetry_prompt(
+        file_path=file_path,
+        scenario_label=scenario_label,
+        source_kind=source_kind,
+        collection_notes=collection_notes,
+    )
+    
+    parts = [types.Part.from_text(text=artifact_text)]
+    
+    if suffix in ['.png', '.jpg', '.jpeg', '.webp']:
+        mime_type = "image/png"
+        if suffix in ['.jpg', '.jpeg']:
+            mime_type = "image/jpeg"
+        elif suffix == '.webp':
+            mime_type = "image/webp"
+            
+        with open(file_path, "rb") as f:
+            file_bytes = f.read()
+        
+        parts.append(
+            types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+        )
+        
+    response = client.models.generate_content(
+        model="gemini-3.1-pro-preview",
+        contents=[
+            types.Content(role="user", parts=parts)
+        ],
+        config=types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            response_mime_type="application/json",
+            response_schema=GEMINI_EVIDENCE_SCHEMA,
+            temperature=0.0
+        )
+    )
+    
+    record = json.loads(response.text)
+    return record
 
 def generate_claude_handoff(aggregated_data: list) -> None:
     prompt_file = BASE_DIR / "prompts" / "claude_evidence_analyzer.txt"
@@ -45,7 +177,6 @@ def generate_claude_handoff(aggregated_data: list) -> None:
         f"{json.dumps(aggregated_data, indent=2)}\n"
     )
     HANDOFF_FILE.write_text(payload, encoding="utf-8")
-
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evidence Pipeline runner")
@@ -70,7 +201,7 @@ def main() -> None:
 
     with DB_FILE.open("a", encoding="utf-8") as db:
         for file in raw_files:
-            print(f"  Parsing {file.name} with Gemini (stub)...")
+            print(f"  Parsing {file.name} with Gemini...")
             try:
                 record = run_gemini_parser(file)
                 db.write(json.dumps(record) + "\n")
@@ -104,7 +235,6 @@ def main() -> None:
             print("================================\n")
     else:
         print(f"Awaiting {PROMOTION_THRESHOLD - records_total} more record(s) before inference.")
-
 
 if __name__ == "__main__":
     main()
