@@ -1,0 +1,38 @@
+{
+  "event_timestamp": null,
+  "source_file": "session_top_2026-06-29_03",
+  "scenario_label": "",
+  "source_kind": "terminal_log",
+  "collection_notes": "Idle state with many processes loaded, potentially background tasks running.",
+  "data_confidence": "medium",
+  "observed_telemetry": {
+    "memory_pressure_state": "Unknown",
+    "physical_memory_gb": 8.0,
+    "app_memory_gb": 3.342,
+    "wired_memory_gb": 2.237,
+    "compressed_memory_gb": 2.398,
+    "cached_files_gb": null,
+    "swap_used_gb": null,
+    "cpu_telemetry": {
+      "cpu_user_pct": 6.36,
+      "cpu_sys_pct": 7.99,
+      "cpu_idle_pct": 85.64,
+      "cpu_cores_active": 0.86,
+      "load_pattern": "idle"
+    },
+    "gpu_telemetry": null,
+    "inference_telemetry": null
+  },
+  "active_processes": [
+    "Bitwarden",
+    "WindowServer",
+    "Antigravity",
+    "Finder",
+    "Comet"
+  ],
+  "uncertainty_flags": [
+    "swap_not_visible",
+    "gpu_telemetry_missing",
+    "memory_pressure_not_visible"
+  ]
+}

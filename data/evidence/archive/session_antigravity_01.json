@@ -1,0 +1,38 @@
+{
+  "event_timestamp": null,
+  "source_file": "session_top_2026-06-29_01",
+  "scenario_label": "antigravity_active",
+  "source_kind": "terminal_log",
+  "collection_notes": "IDE/editor + AI coding assistant bursts, visible CPU usage. Top output included.",
+  "data_confidence": "medium",
+  "observed_telemetry": {
+    "memory_pressure_state": "Unknown",
+    "physical_memory_gb": 8.0,
+    "app_memory_gb": 3.409,
+    "wired_memory_gb": 2.238,
+    "compressed_memory_gb": 2.326,
+    "cached_files_gb": null,
+    "swap_used_gb": null,
+    "cpu_telemetry": {
+      "cpu_user_pct": 9.86,
+      "cpu_sys_pct": 7.89,
+      "cpu_idle_pct": 82.23,
+      "cpu_cores_active": 1.07,
+      "load_pattern": "idle"
+    },
+    "gpu_telemetry": null,
+    "inference_telemetry": null
+  },
+  "active_processes": [
+    "Bitwarden",
+    "WindowServer",
+    "Antigravity",
+    "Finder",
+    "Comet"
+  ],
+  "uncertainty_flags": [
+    "swap_not_visible",
+    "gpu_telemetry_missing",
+    "memory_pressure_not_visible"
+  ]
+}

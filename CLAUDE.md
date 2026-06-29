@@ -75,10 +75,12 @@ Also computes a `llm_index_score` (0–100): capacity points (max 60) + GPU gene
 **Evidence Pipeline** (`src/laptopfinder/runners/evidence_pipeline.py`)  
 A secondary sub-pipeline that derives hardware spec requirements from real macOS workload telemetry rather than static config. Workflow:
 1. Drop telemetry files (screenshots or terminal logs) into `data/evidence/raw/`
-2. `make evidence-run` → Gemini parses each file against `GEMINI_EVIDENCE_SCHEMA`, appends to `data/evidence/aggregated.jsonl`, archives originals
-3. At ≥ 5 records → generates `data/evidence/claude_handoff.txt` using `prompts/claude_evidence_analyzer.txt`
-4. Human pastes handoff into Claude Pro and saves the JSON response as `data/evidence/targets.json`
-5. `targets.json` (validated against `schemas/evidence_targets.schema.json`) feeds into `static_reference_layer.json` or a runtime override
+2. `make evidence-run` → generates Gemini prompts in `data/evidence/prompts_for_gemini/`
+3. Human pastes each prompt into the Gemini web UI and saves the resulting JSON files to `data/evidence/parsed/`
+4. `make evidence-run` → parses files from `parsed/`, appends to `data/evidence/aggregated.jsonl`, and archives originals.
+5. At ≥ 5 records → generates `data/evidence/claude_handoff.txt` using `prompts/claude_evidence_analyzer.txt`
+6. Human pastes handoff into Claude Pro and saves the JSON response as `data/evidence/targets.json`
+7. `targets.json` (validated against `schemas/evidence_targets.schema.json`) feeds into `static_reference_layer.json` or a runtime override
 
 **Benchmark Scraper** (`src/laptopfinder/scrape_benchmark.py`)  
 Converts saved HTML pages or JSON API payloads from eBay AU / FB Marketplace / Gumtree into Stage 2 fixture format (`handoff_packet + full_listing_text + analysis_output stub`). CSS selectors are best-guess — verify against real saved pages before trusting output. Input modes: `--html-dir`, `--html-file`, `--urls`, `--ebay-api`. Platform auto-detected from filename prefix or URL hostname.

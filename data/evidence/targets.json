@@ -1,0 +1,54 @@
+{
+  "system_memory_gb": {
+    "min": 32,
+    "recommended": 64,
+    "stretch": 96
+  },
+  "vram_gb": {
+    "min": 12,
+    "recommended": 16,
+    "stretch": 24
+  },
+  "storage_gb": {
+    "min": 512,
+    "recommended": 1024
+  },
+  "platform_tradeoffs": [
+    "A year-wide macOS log audit (Browser_GPU_Memory_365d.log) reveals severe unified memory contention: com.apple.WebKit.GPU logged 412 critical memory pressure events and 85,430 non-critical pressure relief events under active workloads.",
+    "Process thrashing is highly active: runningboardd continually asserts Jetsam Boosts to keep the WebKit.GPU process active, driven heavily by background tasks (Google Drive triggered 40,150 boost events; QuickLook Thumbnails triggered 35,220 boost events).",
+    "Under these conditions, a 32 GB system memory tier is a strict floor; at this capacity, the system survives without hard Jetsam kills but suffers performance degradation from swap and relief cycles during concurrent IDE, browser, and background sync activity.",
+    "A 64 GB target is recommended to completely eliminate memory relief cycles and swap reliance, ensuring active IDE/agents are isolated from background Google Drive and QuickLook demands.",
+    "Apple unified memory suits this profile well by dynamically allocating memory between CPU and GPU, but the entire pool must be sized to 64 GB to avoid GPU-side relief cycles forcing active IDE and agent tasks into compressed memory or swap.",
+    "Discrete GPU platforms (AMD, NVIDIA) require a minimum discrete VRAM target of 12 GB (recommended 16 GB) to avoid WebKit.GPU memory exhaustion, with system RAM planned independently at 32 GB or higher to avoid CPU-side bottlenecks."
+  ],
+  "confidence_notes": "Confidence is significantly bolstered by the addition of year-wide log audits (Browser_GPU_Memory_365d.log, OOM_Symptoms_365d.log) and Perplexity's telemetry analysis, which confirm chronic memory pressure (412 critical events, 85,430 non-critical relief cycles) and background process thrashing (40,150 Google Drive boosts, 35,220 QuickLook boosts). CPU telemetry (3 medium-confidence records) shows low active utilization (0.85-1.07 cores active, 82-86% idle) due to memory compression and swap delays rather than compute limits, confirming RAM is the primary bottleneck. GPU and local inference telemetry remain the weakest dimensions as local-model workloads are not yet measured.",
+  "cpu_tier": {
+    "core_count_min": 4,
+    "single_thread_priority": true,
+    "sustained_load": true,
+    "rationale": "While observed cpu_cores_active in top logs is low (0.85-1.07) due to memory bottlenecking, the concurrent process profile (WindowServer, Antigravity IDE, browser, Google Drive, QuickLook) requires at least 4 physical cores to support sustained multitasking and prevent core contention once RAM limits are resolved."
+  },
+  "platform_classes": [
+    {
+      "vendor": "Apple",
+      "unified_or_discrete": "unified",
+      "memory_target_gb": 64,
+      "throughput_target_tok_s": null,
+      "caveats": "Metal-only inference; unified memory serves both CPU and GPU. A 64 GB target is comfortable to isolate active IDE/agents from background Google Drive and QuickLook memory demands; 32 GB serves as a strict floor but may still experience pressure relief cycles."
+    },
+    {
+      "vendor": "AMD",
+      "unified_or_discrete": "discrete",
+      "memory_target_gb": 16,
+      "throughput_target_tok_s": null,
+      "caveats": "ROCm support is model/driver dependent; verify compatibility. Discrete VRAM is a hard ceiling (size to 16 GB recommended, 12 GB minimum). System RAM must be planned independently at 32 GB or higher."
+    },
+    {
+      "vendor": "NVIDIA",
+      "unified_or_discrete": "discrete",
+      "memory_target_gb": 16,
+      "throughput_target_tok_s": null,
+      "caveats": "CUDA ecosystem; discrete VRAM is a hard ceiling (size to 16 GB recommended, 12 GB minimum). System RAM must be planned independently at 32 GB or higher to avoid CPU-side bottlenecks."
+    }
+  ]
+}

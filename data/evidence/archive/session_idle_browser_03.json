@@ -1,0 +1,29 @@
+{
+  "event_timestamp": null,
+  "source_file": "macos_unified_log_03",
+  "scenario_label": "idle_browser",
+  "source_kind": "terminal_log",
+  "collection_notes": "Extracted from macOS unified log. WebKit.GPU critical memory pressure event. Sparse on numeric telemetry.",
+  "data_confidence": "medium",
+  "observed_telemetry": {
+    "memory_pressure_state": "Unknown",
+    "physical_memory_gb": null,
+    "app_memory_gb": null,
+    "wired_memory_gb": null,
+    "compressed_memory_gb": null,
+    "cached_files_gb": null,
+    "swap_used_gb": null,
+    "cpu_telemetry": null,
+    "gpu_telemetry": null,
+    "inference_telemetry": null
+  },
+  "active_processes": [],
+  "uncertainty_flags": [
+    "app_memory_not_visible",
+    "compressed_memory_not_visible",
+    "swap_not_visible",
+    "cpu_telemetry_missing",
+    "gpu_telemetry_missing",
+    "memory_pressure_not_visible"
+  ]
+}

@@ -1,4 +1,4 @@
-.PHONY: test lint decide pipeline live
+.PHONY: test lint decide pipeline live evidence-run evidence-run-dry evidence-reset
 
 test:
 	.venv/bin/python -m pytest tests/ -v
@@ -25,8 +25,6 @@ live:
 	@test -n "$(SOURCE)" || (echo "ERROR: Set SOURCE=<path to raw text file>" && exit 1)
 	.venv/bin/python -m laptopfinder.core run-live --source-text $(SOURCE)
 
-.PHONY: evidence-run evidence-run-dry
-
 evidence-run:
 	@echo "Running Evidence Pipeline..."
 	uv run python src/laptopfinder/runners/evidence_pipeline.py
@@ -34,3 +32,7 @@ evidence-run:
 evidence-run-dry:
 	@echo "Running Evidence Pipeline (dry-run — no archiving, no handoff generation)..."
 	uv run python src/laptopfinder/runners/evidence_pipeline.py --dry-run
+
+evidence-reset:
+	@echo "Resetting Evidence Pipeline (truncates aggregated.jsonl)..."
+	uv run python src/laptopfinder/runners/evidence_pipeline.py --reset

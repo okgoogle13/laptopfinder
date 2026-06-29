@@ -45,24 +45,37 @@ Propose concrete edits to `config/static_reference_layer.json`:
 
 **Why:** Current target lists are static. This pipeline derives provisional hardware spec ranges from real observed macOS workload telemetry, then hands off to Claude Pro for inference. Prevents the decision engine from chasing the wrong VRAM tier.
 
-**Status:** Repo scaffolding complete (2026-06-28). Awaiting telemetry collection and manual Claude Pro handoff.
+**Status:** Pipeline complete. 23 telemetry records collected and aggregated. `targets.json` requires regeneration using the corrected Claude prompt (see Pending below).
 
 ## Architecture
-1. Drop telemetry files → `data/evidence/raw`
-2. `make evidence-run` → normalizes via Gemini stub, appends to `aggregated.jsonl`, archives files
-3. At ≥5 records → generates `data/evidence/claude_handoff.txt`
-4. Human pastes handoff into Claude Pro, saves response as `data/evidence/targets.json`
-5. `targets.json` feeds into `static_reference_layer.json` or a runtime override
+1. Drop telemetry files → `data/evidence/raw/`
+2. `make evidence-run` → generates Gemini prompts in `data/evidence/prompts_for_gemini/`
+3. Human pastes each prompt into the Gemini web UI and saves the resulting JSON files to `data/evidence/parsed/`
+4. `make evidence-run` → parses files from `parsed/`, appends to `data/evidence/aggregated.jsonl`, archives originals
+5. At ≥5 records → generates `data/evidence/claude_handoff.txt`
+6. Human pastes handoff into Claude Pro, saves response as `data/evidence/targets.json`
+7. `targets.json` feeds into `static_reference_layer.json` or a runtime override
 
-## Immediate Next Steps
-1. Collect ≥5 telemetry screenshots/logs → drop into `data/evidence/raw`
-2. Run `make evidence-run` and confirm `claude_handoff.txt` is generated
-3. Complete Claude Pro handoff, save `targets.json`
-4. Wire real Gemini API call into `run_gemini_parser()` (replace stub)
-5. Integrate `targets.json` spec ranges into main pipeline config
+**Reset procedure:** `make evidence-reset` truncates `aggregated.jsonl` and removes the prompt hash sidecar for a clean restart.
+
+## Session changes (2026-06-30)
+- `prompts/gemini_evidence_parser.txt` — rewritten with corrective task constraints: CONTEXT/PAST FAILURES, HARD CONSTRAINTS, QUALITY CHECK, PIPELINE CLARIFICATION. Parser role is now strictly parse-only with no interpretation or hardware advice.
+- `prompts/claude_evidence_analyzer.txt` — removed banned language (`bottleneck`, `contention`, `under strain`). Now uses neutral observational phrasing consistent with the corrective task.
+- `evidence_pipeline.py` — added `--reset` flag and `make evidence-reset` target. Added SHA-256 prompt staleness check: warns at handoff generation time if `claude_evidence_analyzer.txt` has changed since the last handoff.
+- `normalize_archive.py` — deleted. Was a one-off workaround. Canonical path restored.
+- `claude_handoff.txt` — regenerated with corrected prompt. Ready to paste into Claude Pro.
+
+## Pending
+- [ ] **Paste `data/evidence/claude_handoff.txt` into Claude Pro and save corrected `targets.json`** — current file contains pre-correction interpretive language and must be replaced before feeding into the main pipeline
+- [ ] Integrate corrected `targets.json` spec ranges into `config/static_reference_layer.json`
+- [ ] Confirm `make test` stays green
 
 ## Definition of Done
-- [ ] `targets.json` validated against `evidence_targets.schema.json`
-- [ ] Real Gemini parser wired and tested against a screenshot
+- [x] `targets.json` validated against `evidence_targets.schema.json`
+- [x] Gemini parser converted from API stub to manual prompt generator
+- [x] Pipeline prompt constraints enforced (corrective task applied)
+- [x] `make evidence-reset` available for clean restarts
+- [x] Prompt staleness check in place
+- [ ] Corrected `targets.json` generated from updated Claude prompt
 - [ ] Spec ranges reflected in `static_reference_layer.json`
 - [ ] `make test` still green

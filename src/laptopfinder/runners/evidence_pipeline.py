@@ -1,12 +1,10 @@
 import argparse
+import hashlib
 import json
-import os
 import shutil
 from pathlib import Path
 
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
 
 load_dotenv()
 
@@ -16,6 +14,8 @@ RAW_DIR = DATA_DIR / "raw"
 ARCHIVE_DIR = DATA_DIR / "archive"
 DB_FILE = DATA_DIR / "aggregated.jsonl"
 HANDOFF_FILE = DATA_DIR / "claude_handoff.txt"
+PROMPTS_DIR = DATA_DIR / "prompts_for_gemini"
+PARSED_DIR = DATA_DIR / "parsed"
 PROMOTION_THRESHOLD = 5
 
 
@@ -137,18 +137,12 @@ def build_telemetry_prompt(
         "--- END RAW ARTIFACT ---"
     )
 
-def run_gemini_parser(
+def generate_gemini_prompt(
     file_path: Path,
     scenario_label: str | None = None,
     source_kind: str | None = None,
     collection_notes: str | None = None,
-) -> dict:
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("GEMINI_API_KEY is not set. Check your .env file.")
-        
-    client = genai.Client(api_key=api_key)
-    
+) -> None:
     prompt_path = BASE_DIR / "prompts" / "gemini_evidence_parser.txt"
     if not prompt_path.exists():
         raise FileNotFoundError(f"Prompt not found at {prompt_path}")
@@ -167,37 +161,19 @@ def run_gemini_parser(
         collection_notes=collection_notes,
     )
     
-    parts = [types.Part.from_text(text=artifact_text)]
+    out_name = f"{file_path.stem}_prompt.txt"
+    out_file = PROMPTS_DIR / out_name
     
-    if suffix in ['.png', '.jpg', '.jpeg', '.webp']:
-        mime_type = "image/png"
-        if suffix in ['.jpg', '.jpeg']:
-            mime_type = "image/jpeg"
-        elif suffix == '.webp':
-            mime_type = "image/webp"
-            
-        with open(file_path, "rb") as f:
-            file_bytes = f.read()
-        
-        parts.append(
-            types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
-        )
-        
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=[
-            types.Content(role="user", parts=parts)
-        ],
-        config=types.GenerateContentConfig(
-            system_instruction=system_prompt,
-            response_mime_type="application/json",
-            response_schema=GEMINI_EVIDENCE_SCHEMA,
-            temperature=0.0
-        )
-    )
-    
-    record = json.loads(response.text)
-    return record
+    with open(out_file, "w", encoding="utf-8") as f:
+        f.write("=== SYSTEM INSTRUCTIONS ===\n")
+        f.write(system_prompt)
+        f.write("\n\n=== USER MESSAGE ===\n")
+        f.write(artifact_text)
+
+def _prompt_hash(prompt_path: Path) -> str:
+    """SHA-256 of the prompt file, hex-encoded."""
+    return hashlib.sha256(prompt_path.read_bytes()).hexdigest()
+
 
 def generate_claude_handoff(aggregated_data: list) -> None:
     prompt_file = BASE_DIR / "prompts" / "claude_evidence_analyzer.txt"
@@ -206,10 +182,47 @@ def generate_claude_handoff(aggregated_data: list) -> None:
         if prompt_file.exists()
         else "Analyze this telemetry..."
     )
+
+    # Staleness check: compare current prompt hash against the hash recorded
+    # at the last handoff generation.  Warn if they differ so the caller knows
+    # to regenerate rather than re-use a cached handoff.txt.
+    hash_file = DATA_DIR / ".claude_prompt.hash"
+    current_hash = _prompt_hash(prompt_file) if prompt_file.exists() else ""
+    if hash_file.exists():
+        recorded_hash = hash_file.read_text(encoding="utf-8").strip()
+        if recorded_hash and recorded_hash != current_hash:
+            print(
+                "  WARNING: claude_evidence_analyzer.txt has changed since the last "
+                "handoff was generated.  The new handoff will embed the updated prompt."
+            )
+    hash_file.write_text(current_hash, encoding="utf-8")
+
+    # Context Compaction:
+    # 1. Keep all high/medium confidence records
+    high_med = [r for r in aggregated_data if r.get("data_confidence") in ("high", "medium")]
+    # 2. Keep up to 4 sparse/low confidence records to show the pattern
+    low_sparse = [r for r in aggregated_data if r.get("data_confidence") not in ("high", "medium")]
+    compacted_data = high_med + low_sparse[:4]
+
+    # Serialize compactly (no unnecessary whitespace)
+    compact_json = json.dumps(compacted_data, separators=(',', ':'))
+
+    # Check for previous targets.json
+    targets_file = DATA_DIR / "targets.json"
+    previous_targets_block = ""
+    if targets_file.exists():
+        try:
+            prev_targets = json.loads(targets_file.read_text(encoding="utf-8"))
+            prev_targets_compact = json.dumps(prev_targets, separators=(',', ':'))
+            previous_targets_block = f"=== PREVIOUS TARGETS ===\n{prev_targets_compact}\n\n"
+        except Exception:
+            pass
+
     payload = (
         f"{instructions}\n\n"
+        f"{previous_targets_block}"
         f"=== AGGREGATED TELEMETRY ===\n"
-        f"{json.dumps(aggregated_data, indent=2)}\n"
+        f"{compact_json}\n"
     )
     HANDOFF_FILE.write_text(payload, encoding="utf-8")
 
@@ -218,42 +231,82 @@ def main() -> None:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Parse and append to JSONL but skip archiving and handoff generation.",
+        help="Skip archiving and handoff generation.",
     )
     parser.add_argument(
         "--force-handoff",
         action="store_true",
         help="Generate claude_handoff.txt from all aggregated records regardless of PROMOTION_THRESHOLD.",
     )
+    parser.add_argument(
+        "--reset",
+        action="store_true",
+        help="Truncate aggregated.jsonl and remove the prompt hash sidecar, then exit.  "
+             "Use this to start a fresh pipeline run without historical records.",
+    )
     args = parser.parse_args()
 
-    raw_files = sorted(RAW_DIR.glob("*.*"))
-    if not raw_files:
-        print("No new evidence in /raw. Exiting.")
+    # --reset: wipe the DB and hash sidecar so the next run starts clean.
+    if args.reset:
+        if DB_FILE.exists():
+            DB_FILE.unlink()
+            DB_FILE.touch()
+            print(f"Reset: truncated {DB_FILE.relative_to(BASE_DIR)}")
+        else:
+            print(f"Reset: {DB_FILE.relative_to(BASE_DIR)} did not exist — nothing to truncate.")
+        hash_file = DATA_DIR / ".claude_prompt.hash"
+        if hash_file.exists():
+            hash_file.unlink()
+            print(f"Reset: removed prompt hash sidecar {hash_file.name}")
+        print("Done. Run `make evidence-run` to restart the pipeline.")
         return
 
-    print(f"Found {len(raw_files)} file(s) in /raw. dry_run={args.dry_run}")
+    # Step 1: Generate Gemini Prompts for any raw files
+    raw_files = sorted(RAW_DIR.glob("*.*"))
+    if raw_files:
+        print(f"Found {len(raw_files)} new file(s) in /raw. Generating Gemini prompts...")
+        PROMPTS_DIR.mkdir(parents=True, exist_ok=True)
+        for file in raw_files:
+            try:
+                generate_gemini_prompt(file)
+                print(f"  Generated prompt: {PROMPTS_DIR / (file.stem + '_prompt.txt')}")
+                if not args.dry_run:
+                    shutil.move(str(file), ARCHIVE_DIR / file.name)
+            except Exception as exc:
+                print(f"  ERROR processing {file.name}: {exc}")
+        
+        print("\n=== GEMINI PROMPTS READY ===")
+        print("1. Open the Gemini web UI.")
+        print(f"2. Paste the contents of each file in {PROMPTS_DIR.relative_to(BASE_DIR)}.")
+        print(f"3. Save the resulting JSON responses into {PARSED_DIR.relative_to(BASE_DIR)}.")
+        print("4. Re-run `make evidence-run` to aggregate the parsed records.")
+        print("============================\n")
+        return # Halt pipeline to wait for user's manual parsing
+    
+    # Step 2: Aggregate parsed JSON outputs from Gemini
+    PARSED_DIR.mkdir(parents=True, exist_ok=True)
+    parsed_files = sorted(PARSED_DIR.glob("*.json"))
     records_total = (
         sum(1 for line in DB_FILE.read_text(encoding="utf-8").splitlines() if line.strip())
         if DB_FILE.exists()
         else 0
     )
 
-    with DB_FILE.open("a", encoding="utf-8") as db:
-        for file in raw_files:
-            print(f"  Parsing {file.name} with Gemini...")
-            try:
-                record = run_gemini_parser(file)
-                db.write(json.dumps(record) + "\n")
-                records_total += 1
-
-                if args.dry_run:
-                    print(f"  [DRY-RUN] Would archive {file.name} -> skipping move.")
-                else:
-                    shutil.move(str(file), ARCHIVE_DIR / file.name)
-                    print(f"  Archived {file.name}.")
-            except Exception as exc:
-                print(f"  ERROR processing {file.name}: {exc}")
+    if parsed_files:
+        print(f"Found {len(parsed_files)} parsed file(s) in /parsed. Aggregating...")
+        with DB_FILE.open("a", encoding="utf-8") as db:
+            for file in parsed_files:
+                try:
+                    record = json.loads(file.read_text(encoding="utf-8"))
+                    db.write(json.dumps(record) + "\n")
+                    records_total += 1
+                    if not args.dry_run:
+                        shutil.move(str(file), ARCHIVE_DIR / file.name)
+                        print(f"  Aggregated & Archived {file.name}.")
+                    else:
+                        print(f"  [DRY-RUN] Would aggregate & archive {file.name}.")
+                except Exception as exc:
+                    print(f"  ERROR processing {file.name}: {exc}")
 
     print(f"DB now has {records_total} record(s). Threshold is {PROMOTION_THRESHOLD}.")
     if args.force_handoff or records_total >= PROMOTION_THRESHOLD:

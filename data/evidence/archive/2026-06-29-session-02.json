@@ -1,0 +1,45 @@
+{
+  "event_timestamp": null,
+  "source_file": "2026-06-29-session-02.log",
+  "scenario_label": "heavy_multitask",
+  "source_kind": "terminal_log",
+  "collection_notes": "Running agents concurrently",
+  "data_confidence": "medium",
+  "observed_telemetry": {
+    "memory_pressure_state": "Unknown",
+    "physical_memory_gb": 8.0,
+    "app_memory_gb": 3.346,
+    "wired_memory_gb": 2.237,
+    "compressed_memory_gb": 2.396,
+    "cached_files_gb": null,
+    "swap_used_gb": null,
+    "cpu_telemetry": {
+      "cpu_user_pct": 6.36,
+      "cpu_sys_pct": 7.75,
+      "cpu_idle_pct": 85.87,
+      "cpu_cores_active": 0.85,
+      "load_pattern": "idle"
+    },
+    "gpu_telemetry": null,
+    "inference_telemetry": null
+  },
+  "active_processes": [
+    "Bitwarden",
+    "WindowServer",
+    "Antigravity",
+    "Finder",
+    "Comet",
+    "Comet",
+    "Comet",
+    "claude.exe",
+    "Antigravity",
+    "Comet",
+    "Google",
+    "Google"
+  ],
+  "uncertainty_flags": [
+    "swap_not_visible",
+    "gpu_telemetry_missing",
+    "memory_pressure_not_visible"
+  ]
+}

@@ -1,39 +1,44 @@
 # TASKS — laptopfinder
-
 ## Status key: [ ] pending · [~] in progress · [x] done
 
 ---
 
 ## ACTIVE: Evidence-Based Target Pipeline (June 2026)
 
-**Goal:** Collect macOS telemetry, normalize it via Gemini, and produce `targets.json` via a manual Claude Pro handoff — then feed those targets into the main pipeline.
+**Goal:** Collect macOS telemetry, normalize it, and produce `targets.json` via a manual Claude Pro handoff — then feed those targets into the main pipeline.
 
-### Setup (done this session)
+### Setup (done)
 - [x] Create `data/evidence/raw`, `archive`, `aggregated.jsonl`
 - [x] Write `src/laptopfinder/schemas/evidence_normalized.schema.json`
 - [x] Write `src/laptopfinder/schemas/evidence_targets.schema.json`
 - [x] Write `prompts/gemini_evidence_parser.txt`
 - [x] Write `prompts/claude_evidence_analyzer.txt`
-- [x] Write `src/laptopfinder/runners/evidence_pipeline.py` (Gemini stub + handoff generator)
-- [x] Add `evidence-run` / `evidence-run-dry` targets to Makefile
+- [x] Write `src/laptopfinder/runners/evidence_pipeline.py` (prompt generator + handoff generator)
+- [x] Add `evidence-run` / `evidence-run-dry` / `evidence-reset` targets to Makefile
 - [x] Verify: `py_compile`, `__init__.py`, Makefile grep, dry-run empty-dir all pass
 
-### Next: Collect Evidence (manual)
-- [ ] Drop ≥5 telemetry files (screenshots or log exports from Activity Monitor) into `data/evidence/raw`
-- [ ] Run `make evidence-run` to normalize and append to `aggregated.jsonl`
-- [ ] Confirm `claude_handoff.txt` was generated in `data/evidence/`
+### Collect Evidence (done — 23 logs archived)
+- [x] Drop ≥5 telemetry files into `data/evidence/raw`
+- [x] Generate Gemini prompts via `make evidence-run`
+- [x] Parse all 23 archive logs locally (no API) → saved to `data/evidence/parsed/`
+- [x] Run `make evidence-run` to append 23 records to `aggregated.jsonl` and archive parsed JSONs
+- [x] Confirm `claude_handoff.txt` was generated in `data/evidence/`
 
-### Next: Claude Pro Handoff (manual)
-- [ ] Open Claude Pro, paste contents of `data/evidence/claude_handoff.txt`
-- [ ] Save Claude's JSON response as `data/evidence/targets.json`
-- [ ] Validate `targets.json` against `evidence_targets.schema.json`
+### Claude Pro Handoff (partially done — targets.json is STALE)
+- [x] `claude_handoff.txt` generated with corrected `claude_evidence_analyzer.txt` prompt
+- [ ] **PENDING: Paste current `data/evidence/claude_handoff.txt` into Claude Pro**
+- [ ] **PENDING: Save Claude's JSON response as `data/evidence/targets.json` (current file is pre-correction)**
+- [ ] **PENDING: Validate new `targets.json` against `evidence_targets.schema.json`**
 
-### Next: Wire Gemini Parser (code)
-- [ ] Replace stub in `run_gemini_parser()` with real `google-genai` call using `gemini_evidence_parser.txt`
-- [ ] Test against a real screenshot: confirm all telemetry fields populate or null correctly
-- [ ] Add `uncertainty_flags` assertions in a new test fixture
+### Pipeline improvements (done this session — 2026-06-30)
+- [x] Corrected `prompts/gemini_evidence_parser.txt` — added CONTEXT/PAST FAILURES, HARD CONSTRAINTS, QUALITY CHECK, PIPELINE CLARIFICATION, SUMMARY blocks to enforce parse-only role
+- [x] Corrected `prompts/claude_evidence_analyzer.txt` — removed banned language (`bottleneck`, `contention`, `under strain`); replaced with neutral observational phrasing
+- [x] Added `make evidence-reset` (`--reset` flag): truncates `aggregated.jsonl` + removes `.claude_prompt.hash` sidecar for clean restarts
+- [x] Added prompt staleness check: `generate_claude_handoff()` hashes `claude_evidence_analyzer.txt` and warns if the handoff embeds a stale version of the prompt
+- [x] Deleted `normalize_archive.py` — one-off workaround; canonical path is `raw/ → make evidence-run → prompts_for_gemini/ → parsed/ → make evidence-run`
 
 ### Next: Integrate targets.json into main pipeline
+- [ ] Paste `claude_handoff.txt` into Claude Pro; save corrected `targets.json`
 - [ ] Load `targets.json` spec ranges into `config/static_reference_layer.json` or as a runtime override
 - [ ] Confirm `make test` stays green after integration
 
