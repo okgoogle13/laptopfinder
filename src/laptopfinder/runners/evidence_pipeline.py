@@ -50,7 +50,42 @@ GEMINI_EVIDENCE_SCHEMA = {
                 "wired_memory_gb":      {"type": "number", "nullable": True},
                 "compressed_memory_gb": {"type": "number", "nullable": True},
                 "cached_files_gb":      {"type": "number", "nullable": True},
-                "swap_used_gb":         {"type": "number", "nullable": True}
+                "swap_used_gb":         {"type": "number", "nullable": True},
+                "cpu_telemetry": {
+                    "type": "object", "nullable": True,
+                    "properties": {
+                        "cpu_user_pct":     {"type": "number",  "nullable": True},
+                        "cpu_sys_pct":      {"type": "number",  "nullable": True},
+                        "cpu_idle_pct":     {"type": "number",  "nullable": True},
+                        "cpu_cores_active": {"type": "number",  "nullable": True},
+                        "load_pattern":     {"type": "string",  "nullable": True,
+                                             "enum": ["spiky", "sustained", "idle"]}
+                    }
+                },
+                "gpu_telemetry": {
+                    "type": "object", "nullable": True,
+                    "properties": {
+                        "gpu_residency_pct": {"type": "number",  "nullable": True},
+                        "gpu_freq_mhz":      {"type": "number",  "nullable": True},
+                        "gpu_power_mw":      {"type": "number",  "nullable": True},
+                        "cpu_die_temp_c":    {"type": "number",  "nullable": True},
+                        "fan_rpm":           {"type": "number",  "nullable": True},
+                        "throttle_observed": {"type": "boolean", "nullable": True}
+                    }
+                },
+                "inference_telemetry": {
+                    "type": "object", "nullable": True,
+                    "properties": {
+                        "model_name":               {"type": "string",  "nullable": True},
+                        "model_params_b":           {"type": "number",  "nullable": True},
+                        "model_quant":              {"type": "string",  "nullable": True},
+                        "context_length":           {"type": "integer", "nullable": True},
+                        "tokens_per_sec_short_ctx": {"type": "number",  "nullable": True},
+                        "tokens_per_sec_long_ctx":  {"type": "number",  "nullable": True},
+                        "model_peak_rss_gb":        {"type": "number",  "nullable": True},
+                        "gpu_used_for_inference":   {"type": "boolean", "nullable": True}
+                    }
+                }
             },
             "required": [
                 "memory_pressure_state",
@@ -149,7 +184,7 @@ def run_gemini_parser(
         )
         
     response = client.models.generate_content(
-        model="gemini-3.1-pro-preview",
+        model="gemini-2.5-flash",
         contents=[
             types.Content(role="user", parts=parts)
         ],
@@ -185,6 +220,11 @@ def main() -> None:
         action="store_true",
         help="Parse and append to JSONL but skip archiving and handoff generation.",
     )
+    parser.add_argument(
+        "--force-handoff",
+        action="store_true",
+        help="Generate claude_handoff.txt from all aggregated records regardless of PROMOTION_THRESHOLD.",
+    )
     args = parser.parse_args()
 
     raw_files = sorted(RAW_DIR.glob("*.*"))
@@ -216,7 +256,7 @@ def main() -> None:
                 print(f"  ERROR processing {file.name}: {exc}")
 
     print(f"DB now has {records_total} record(s). Threshold is {PROMOTION_THRESHOLD}.")
-    if records_total >= PROMOTION_THRESHOLD:
+    if args.force_handoff or records_total >= PROMOTION_THRESHOLD:
         all_data = [
             json.loads(line)
             for line in DB_FILE.read_text(encoding="utf-8").splitlines()

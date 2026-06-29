@@ -10,7 +10,9 @@
     "vram_gb",
     "storage_gb",
     "platform_tradeoffs",
-    "confidence_notes"
+    "confidence_notes",
+    "cpu_tier",
+    "platform_classes"
   ],
   "properties": {
     "system_memory_gb": {
@@ -35,6 +37,35 @@
     "confidence_notes": {
       "type": ["string", "null"],
       "description": "Brief note summarizing what evidence is strong, thin, noisy, or provisional."
+    },
+    "cpu_tier": {
+      "type": "object",
+      "description": "Recommended CPU tier derived from observed load shape.",
+      "additionalProperties": false,
+      "required": ["core_count_min", "single_thread_priority", "rationale"],
+      "properties": {
+        "core_count_min":        { "type": "integer", "minimum": 1 },
+        "single_thread_priority": { "type": "boolean" },
+        "sustained_load":        { "type": ["boolean", "null"] },
+        "rationale":             { "type": "string", "minLength": 1 }
+      }
+    },
+    "platform_classes": {
+      "type": "array",
+      "description": "Vendor-neutral GPU/compute class recommendations. One entry per vendor.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["vendor", "unified_or_discrete", "memory_target_gb", "throughput_target_tok_s", "caveats"],
+        "properties": {
+          "vendor":                   { "enum": ["Apple", "AMD", "NVIDIA"] },
+          "unified_or_discrete":      { "enum": ["unified", "discrete"] },
+          "memory_target_gb":         { "type": "integer", "minimum": 0 },
+          "throughput_target_tok_s":  { "type": ["number", "null"] },
+          "caveats":                  { "type": "string", "minLength": 1 }
+        }
+      }
     }
   },
   "$defs": {

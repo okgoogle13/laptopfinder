@@ -98,8 +98,7 @@ Generate 8–10 realistic Australian marketplace listing texts (raw DOM/copy-pas
 
 For each test case provide:
 - A realistic listing title and body text (Australian English, seller shorthand, platform-specific formatting)
-- The target pipeline stage (Stage 1, Stage 2, or Decision Engine)
-- The specific failure mode it tests (e.g., "verbatim grounding breaks on Unicode dash in VRAM spec", "discovery_confidence should be low but GPU is tempting so model inflates it")
+- The target pipeline stage (Stage 1, Stage 2 verbatim grounding breaks on Unicode dash in VRAM spec", "discovery_confidence should be low but GPU is tempting so model inflates it")
 - Expected correct behavior vs. likely actual behavior
 
 Categories to cover:

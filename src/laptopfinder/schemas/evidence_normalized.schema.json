@@ -93,6 +93,50 @@
           "type": ["number", "null"],
           "minimum": 0,
           "description": "Current swap used in GB."
+        },
+        "cpu_telemetry": {
+          "type": ["object", "null"],
+          "description": "CPU load shape derived from top -l output.",
+          "properties": {
+            "cpu_user_pct":    { "type": ["number", "null"], "description": "User-space CPU % across all cores." },
+            "cpu_sys_pct":     { "type": ["number", "null"], "description": "Kernel-space CPU % across all cores." },
+            "cpu_idle_pct":    { "type": ["number", "null"], "description": "Idle CPU % across all cores." },
+            "cpu_cores_active": {
+              "type": ["number", "null"],
+              "description": "Derived: (100 - idle_pct) * logical_core_count / 100. Default 4 cores for 2017 iMac."
+            },
+            "load_pattern": {
+              "type": ["string", "null"],
+              "enum": ["spiky", "sustained", "idle", null],
+              "description": "Characterisation of load shape over the capture window."
+            }
+          }
+        },
+        "gpu_telemetry": {
+          "type": ["object", "null"],
+          "description": "GPU activity and thermal signals from powermetrics --samplers gpu_power,smc.",
+          "properties": {
+            "gpu_residency_pct": { "type": ["number", "null"], "description": "GPU HW active residency %." },
+            "gpu_freq_mhz":      { "type": ["number", "null"], "description": "GPU HW active frequency in MHz." },
+            "gpu_power_mw":      { "type": ["number", "null"], "description": "GPU power draw in mW." },
+            "cpu_die_temp_c":    { "type": ["number", "null"], "description": "CPU die temperature in Celsius (SMC)." },
+            "fan_rpm":           { "type": ["number", "null"], "description": "Fan speed in RPM (SMC)." },
+            "throttle_observed": { "type": ["boolean", "null"], "description": "True if thermal throttle or frequency cap detected." }
+          }
+        },
+        "inference_telemetry": {
+          "type": ["object", "null"],
+          "description": "Local LLM inference economics. Populate only for llm_local_inference scenario.",
+          "properties": {
+            "model_name":               { "type": ["string", "null"] },
+            "model_params_b":           { "type": ["number", "null"], "description": "Parameter count in billions." },
+            "model_quant":              { "type": ["string", "null"], "description": "Quantisation string, e.g. Q4_K_M." },
+            "context_length":           { "type": ["integer", "null"] },
+            "tokens_per_sec_short_ctx": { "type": ["number", "null"], "description": "tok/s at short context (~512 tokens)." },
+            "tokens_per_sec_long_ctx":  { "type": ["number", "null"], "description": "tok/s at long context (~4096 tokens)." },
+            "model_peak_rss_gb":        { "type": ["number", "null"], "description": "Peak resident set size of inference process in GB." },
+            "gpu_used_for_inference":   { "type": ["boolean", "null"], "description": "True if Metal or GPU backend was active." }
+          }
         }
       }
     },
