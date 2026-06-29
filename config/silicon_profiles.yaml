@@ -1,0 +1,72 @@
+# silicon_profiles.yaml
+# Defines the three equal-weight GPU paradigms supported by laptopfinder.
+# No paradigm is a default — selection is driven by workload_classifier output.
+
+paradigms:
+  apple_silicon_uma:
+    label: "Apple Silicon (Unified Memory)"
+    memory_type: UMA
+    memory_bandwidth_range_GBps: [100, 400]  # M3 Pro → M4 Max
+    vram_concept: unified_memory_pool
+    driver_maturity: high
+    software_ecosystem:
+      llm_inference: excellent  # llama.cpp Metal, MLX, ollama
+      cuda_exclusive_libs: none
+      rocm: none
+      notes: "Best for text-centric LLM inference and macOS-native workflows."
+    au_market_availability: high
+    reference_devices:
+      - "MacBook Pro 14 M4 Pro (24GB)"
+      - "MacBook Pro 16 M4 Max (64GB)"
+      - "MacBook Air M4 (16/32GB)"
+
+  amd_strix_halo_uma:
+    label: "AMD Strix Halo (Unified Memory)"
+    memory_type: UMA
+    memory_bandwidth_range_GBps: [160, 256]  # LPDDR5X 7500 MT/s
+    vram_concept: unified_memory_pool
+    driver_maturity: medium  # ROCm maturing on Linux; Windows via DirectML
+    software_ecosystem:
+      llm_inference: good   # llama.cpp HIP, ollama, LM Studio
+      cuda_exclusive_libs: none
+      rocm: partial  # Linux ROCm 6.x, Windows DirectML
+      notes: "Best for Windows/Linux LLM inference with large memory pool (up to 128GB)."
+    au_market_availability: medium
+    reference_devices:
+      - "Lenovo Legion 7a Gen 10 (Strix Halo, 64GB)"
+      - "Lenovo Yoga Pro 7a (Strix Halo, 64GB)"
+      - "ASUS ProArt PX13 (Strix Halo)"
+      - "ASUS ROG Flow Z13 2025"
+      - "MSI Prestige 16 AI Evo (Strix Halo)"
+
+  discrete_cuda:
+    label: "NVIDIA Discrete GPU (CUDA)"
+    memory_type: GDDR6X
+    memory_bandwidth_range_GBps: [272, 576]  # RTX 4060 → RTX 4090 laptop
+    vram_concept: discrete_vram
+    driver_maturity: very_high
+    software_ecosystem:
+      llm_inference: good  # limited by VRAM ceiling (8–16GB typical laptop)
+      cuda_exclusive_libs: full
+      rocm: none
+      notes: "Required only for CUDA-exclusive workflows (fine-tuning, custom kernels). VRAM ceiling limits large model inference."
+    au_market_availability: high
+    reference_devices:
+      - "ASUS ProArt Studiobook 16 (RTX 4070)"
+      - "Razer Blade 16 (RTX 4090)"
+      - "Framework 16 (RX 7700S)"
+
+  discrete_rocm:
+    label: "AMD Discrete GPU (ROCm)"
+    memory_type: GDDR6
+    memory_bandwidth_range_GBps: [224, 288]  # RX 7600M → RX 7700S
+    vram_concept: discrete_vram
+    driver_maturity: medium
+    software_ecosystem:
+      llm_inference: good  # llama.cpp HIP backend
+      cuda_exclusive_libs: none
+      rocm: full
+      notes: "Good for open-source LLM inference on Linux. Limited Windows ROCm support."
+    au_market_availability: low
+    reference_devices:
+      - "Framework 16 (RX 7700S, 8GB)"
