@@ -3,7 +3,7 @@
     "target_gpus_role": "Reference list for scoring hints (+5 generation points if GPU matched) and search keyword generation. NOT a routing gate. Any listing with vram_gb >= min_vram_to_shortlist_gb is eligible for shortlisting regardless of target_gpus membership.",
     "target_models_role": "Scoring hint list (+3 points if chassis matched). Not a whitelist. A target_model listing with poor risk_score is not shortlisted.",
     "radeon_path": "Radeon mobile GPUs are evaluated on the same VRAM threshold as NVIDIA. ROCm ecosystem risk is surfaced as a buyer disclosure note (see radeon_ecosystem_disclosure), not added to risk_score.",
-    "apple_silicon_path": "Apple Silicon UMA platforms are routed via uma_platforms rules with a score ceiling of 75. Mac Studio (64GB+) is in scope for this pipeline.",
+    "apple_silicon_path": "Apple Silicon UMA platforms are routed via uma_platforms rules. Score ceiling removed 2026-06-30 — UMA platforms now compete at the full 0–100 llm_index_score scale.",
     "watch_list_promotion": "A watch_list entry is promoted to target_gpus when its graduation_condition is confirmed by the Perplexity research agent. Promotion requires manual review.",
     "min_vram_applies_to_uma": "min_vram_to_shortlist_gb applies to discrete VRAM only. UMA platforms (Apple Silicon, Strix Halo) use uma_platforms.min_total_ram_gb_to_shortlist instead. Do not apply both thresholds to the same listing.",
     "unknown_gpu_behaviour": "A GPU not found in target_gpus, radeon_mobile_gpus, or gpu_generation_by_name scores 0 generation points. It is NOT penalised and does NOT trigger missing-field deductions. The listing proceeds on VRAM tier score alone.",
@@ -56,6 +56,7 @@
       "graduate_vram_gb": null
     }
   ],
+  "_comment_target_gpus": "This list is scoped to training/diffusion/CUDA workloads and scoring hints. It is NOT used for text-centric inference ranking — that uses score_text_llm_candidate() with scoring_weights.yaml profiles.",
   "target_gpus": {
     "RTX 3080 Ti": {"vram_gb": 16},
     "RTX 4090": {"vram_gb": 16},
@@ -101,10 +102,11 @@
   "min_vram_to_flag_gb": 12,
   "apple_silicon": {
     "routing": "CONDITIONAL",
-    "score_ceiling": 75,
+    "score_ceiling": null,
+    "_comment_score_ceiling": "Ceiling removed 2026-06-30 — UMA platforms now compete at full 0–100 scale. Raw Mac Studio 128GB score ~89 (extreme=60 + AppleSilicon=20 + seller − deductions).",
     "eligible": ["Mac Studio 64GB", "Mac Studio 128GB"],
     "excluded": ["Mac Mini 32GB"],
-    "note": "Apple Silicon UMA platforms are evaluated via uma_platforms rules. Score ceiling of 75 reflects UMA bandwidth constraints vs discrete VRAM for multi-user inference. Desktop form factors (Mac Studio) are in scope for this pipeline."
+    "note": "Apple Silicon UMA platforms are evaluated via uma_platforms rules. Desktop form factors (Mac Studio) are in scope for this pipeline."
   },
   "uma_platforms": {
     "min_total_ram_gb_to_shortlist": 64,
@@ -148,6 +150,7 @@
       "high": 40,
       "extreme": 60
     },
+    "_comment_rdna3_score": "RDNA3=15 vs Ada=20 is a software-ecosystem maturity discount (ROCm/Vulkan friction), not a performance ceiling. Revisit as ROCm/Vulkan support matures — consider raising to 17–18 by Q4 2026.",
     "gpu_generation_points": {
       "Blackwell": 25,
       "Ada Lovelace": 20,

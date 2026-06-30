@@ -1,0 +1,37 @@
+paradigms:
+  apple_silicon_uma:
+    description: Apple M-series SoC with unified LPDDR5x memory
+    inference_stack: [MLX, "llama.cpp+Metal", Ollama]
+    ecosystem_maturity: high
+    thermals: passive_or_quiet
+
+  amd_strix_halo_uma:
+    description: AMD Ryzen AI Max (Strix Halo) with unified LPDDR5x memory
+    inference_stack: [Vulkan, "llama.cpp+Vulkan", ROCm, Ollama]
+    ecosystem_maturity: emerging
+    thermals: active_moderate
+
+  discrete_cuda:
+    description: Dedicated NVIDIA GPU with GDDR6/6X VRAM
+    inference_stack: [CUDA, "llama.cpp+CUDA", Ollama, TensorRT]
+    ecosystem_maturity: dominant
+    thermals: active_high
+
+  discrete_rocm:
+    description: Dedicated AMD Radeon GPU with GDDR6 VRAM
+    inference_stack: [ROCm, Vulkan, "llama.cpp+ROCm", Ollama]
+    ecosystem_maturity: partial
+    thermals: active_high
+
+text_centric_llm_inference:
+  preferred_paradigms: [apple_silicon_uma, amd_strix_halo_uma]
+  avoid_paradigms: [discrete_cuda, discrete_rocm]
+  rationale: >
+    Text-centric LLM inference is memory-bandwidth-bound. Unified memory
+    eliminates the PCIe bottleneck and allows the full system RAM pool to
+    be used as model context. CUDA/ROCm hardware constrains model size to
+    discrete VRAM capacity and should not be the default recommendation
+    for text-only workloads.
+  exceptions:
+    - training_or_diffusion
+    - cuda_locked_software_stack

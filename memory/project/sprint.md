@@ -1,8 +1,35 @@
 ---
-name: pipeline-audit-sprint
-description: Active sprint — June 2026 pipeline audit to expand hardware coverage based on real AU market data
+name: alternative-silicon-sprint
+description: Active sprint — June 2026 alternative-silicon scoring layer + pipeline audit
 metadata:
   type: project
+---
+
+# Alternative-Silicon Scoring Layer — June 2026 (COMPLETE)
+
+**Why:** UMA platforms (Apple Silicon, Strix Halo) were artificially capped at 75 points, making them appear weaker than discrete GPU laptops for text-centric inference workloads where they are actually superior. The scoring layer now reflects real inference capability.
+
+**Status:** Complete 2026-06-30. 108 tests green.
+
+## Changes shipped
+
+- `config/silicon_profiles.yaml` — paradigm definitions + workload preferences
+- `config/scoring_weights.yaml` — per-workload weight profiles (text_llm_default, training_or_diffusion)
+- `data/hardware_taxonomy.json` — 4 representative hardware entries by paradigm
+- `prompts/system_context.md` — agent system instructions (paradigm-first)
+- `prompts/bias_guard_prompt.md` — bias self-check rubric for CUDA inclusion
+- `research/alternative_silicon_dossier_june2026.md` — synthesised AU market research
+- `src/laptopfinder/decide.py` — `Paradigm` type, `_classify_paradigm()`, `load_scoring_weights()`, `score_text_llm_candidate()`, `workload` param on `decide()`, UMA ceiling removed
+- `config/static_reference_layer.json` — `score_ceiling: null`, policy comments added
+- `tests/test_decide.py` — 2 ceiling tests fixed, 3 new test classes (108 tests)
+- `tests/test_prompts.py` — prompt content sanity checks
+- `CLAUDE.md` / `AGENTS.md` — architecture and invariants updated
+
+## Sprint 2 (pending)
+
+- Watchlist extraction pipeline (eBay AU, Gumtree, FB Marketplace)
+- Prompt discovery updates (paradigm-first language + watchlist URL patterns)
+
 ---
 
 # Pipeline Audit — June 2026

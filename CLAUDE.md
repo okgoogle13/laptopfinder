@@ -70,7 +70,9 @@ Reads a validated Stage 2 analysis and `config/static_reference_layer.json` to c
 
 Radeon mobile GPUs surface a buyer disclosure note (`radeon_ecosystem_disclosure`) but are NOT penalized at the risk gate — evaluated at the same risk_score ≤ 3.0 threshold as all other listings.
 
-Also computes a `llm_index_score` (0–100): capacity points (max 60) + GPU generation points (max 25) + seller reward/risk modifier (~±20) − uncapped deductions. The score is informational and never gates `recommended_action`. All thresholds driving these rules (`standard_mobile_min_gb`, `touchscreen_exception_min_gb`, `uma_unified_min_gb`) live in `vram_gating_logic` inside `static_reference_layer.json`.
+Also computes a `llm_index_score` (0–100): capacity points (max 60) + GPU generation points (max 25) + seller reward/risk modifier (~±20) − uncapped deductions. The score is informational and never gates `recommended_action`. All thresholds driving these rules (`standard_mobile_min_gb`, `touchscreen_exception_min_gb`, `uma_unified_min_gb`) live in `vram_gating_logic` inside `static_reference_layer.json`. The UMA score ceiling (formerly 75) was removed 2026-06-30 — Apple Silicon and Strix Halo UMA platforms now compete at the full 0–100 scale.
+
+`decide()` accepts an optional `workload` parameter. When `workload="text_llm"`, discrete CUDA/ROCm candidates that would otherwise SHORTLIST are routed to SKIP with a `paradigm_note` explaining the UMA alternative.
 
 **Evidence Pipeline** (`src/laptopfinder/runners/evidence_pipeline.py`)  
 A secondary sub-pipeline that derives hardware spec requirements from real macOS workload telemetry rather than static config. Workflow:
@@ -88,6 +90,18 @@ Converts saved HTML pages or JSON API payloads from eBay AU / FB Marketplace / G
 **Static Reference Layer** (`config/static_reference_layer.json`)  
 The single source of truth for all scoring weights, VRAM tier thresholds, target GPU/model lists, watch lists, UMA chip patterns, Radeon mobile GPUs, eGPU enclosure names, risk gate limits, geolocation filters, and the data integrity exclusion regex. Change scoring/thresholds here, not in Python source. `decide.py` loads it at runtime via `load_ref()`.
 
+**Silicon Profiles** (`config/silicon_profiles.yaml`)  
+Paradigm definitions (`apple_silicon_uma`, `amd_strix_halo_uma`, `discrete_cuda`, `discrete_rocm`) and workload preferences for `text_centric_llm_inference`. Read by agents and prompts; not loaded at runtime by `decide.py`.
+
+**Scoring Weights** (`config/scoring_weights.yaml`)  
+Per-workload weight profiles for `score_text_llm_candidate()`. Profiles: `text_llm_default`, `training_or_diffusion`. Per-paradigm ecosystem and thermal multipliers live here, not in Python.
+
+**Hardware Taxonomy** (`data/hardware_taxonomy.json`)  
+Representative hardware entries by paradigm (bandwidth_gbps, ram_gb, inference_stack). Input to `score_text_llm_candidate()` via `batch_decide()`.
+
+**Research Dossier** (`research/alternative_silicon_dossier_june2026.md`)  
+Synthesised alternative silicon findings (AU market, June 2026). Source for agent and prompt grounding.
+
 **Live Pipeline Runners** (`src/laptopfinder/runners/`)  
 - `comet.py` — Gemini 3.1 Pro via `google-genai`; runs the `prompts/comet_discovery_agent.txt` prompt to produce Stage 1 JSON
 - `aistudio.py` — Gemini 3.1 Pro via AI Studio; runs `prompts/ai_studio_runtime.txt` for Stage 2 analysis
@@ -103,6 +117,8 @@ The single source of truth for all scoring weights, VRAM tier thresholds, target
 - **Stage 2 fixture format:** each file contains `handoff_packet`, `full_listing_text`, and `analysis_output` at the top level. `run_stage2_from_fixture` unwraps these.
 - **Missing data → null.** Never infer specs from category or price averages. If the listing text doesn't state it, the field is null.
 - **Karpathy-style Python.** Flat structures, no deep OOP, no custom exceptions. Schema constraints replace Python validation.
+- **`score_text_llm_candidate()` is taxonomy-driven.** It operates on `data/hardware_taxonomy.json` entries, not Stage 2 analysis dicts. Per-paradigm scores come from `config/scoring_weights.yaml`, not Python literals.
+- **UMA ceiling removed.** `apple_silicon.score_ceiling` is `null` in the SRL. Do not re-add a ceiling — UMA platforms compete at full 0–100 `llm_index_score` scale.
 
 ## Tooling context
 
@@ -112,4 +128,9 @@ This project is developed using **Antigravity IDE** as the visual environment wi
 
 ## Current sprint
 
-Building the evidence-based target pipeline to derive VRAM/RAM spec ranges from real macOS workload telemetry. See `memory/project/sprint.md` for the full implementation sequence and `TASKS.md` for the task list.
+Alternative-silicon scoring layer complete (2026-06-30). UMA ceiling removed. `_classify_paradigm()`, `load_scoring_weights()`, `score_text_llm_candidate()`, and `workload` param added to `decide()`. Config files: `silicon_profiles.yaml`, `scoring_weights.yaml`, `hardware_taxonomy.json`. Prompts: `system_context.md`, `bias_guard_prompt.md`. Research: `alternative_silicon_dossier_june2026.md`.
+
+Pending (Sprint 2): watchlist extraction pipeline, prompt discovery updates.
+Pending (human gate): paste `data/evidence/claude_handoff.txt` into Claude Pro → save as `data/evidence/targets.json` → integrate into SRL.
+
+See `memory/project/sprint.md` and `TASKS.md` for item-level tracking.

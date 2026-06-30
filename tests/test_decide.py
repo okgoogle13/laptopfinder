@@ -177,7 +177,7 @@ class TestDecide:
             "vram_gb", "vram_tier", "is_target", "is_watch_only",
             "risk_gate_passed", "recommended_action", "reasons",
             "is_uma_platform", "uma_ram_gb", "is_radeon_mobile", "has_egpu_bundle",
-            "llm_index_score",
+            "llm_index_score", "paradigm", "paradigm_note",
         }
 
     def test_touchscreen_exception_shortlisted(self):
@@ -453,11 +453,11 @@ class TestLlmIndexScoreIntegration:
 
     def test_uma_extreme_tier_scores_highest(self):
         """Mac Studio 128GB (extreme=60) + Apple Silicon (20) + ESTABLISHED_RESELLER
-        on EBAY_AU (13) − risk 1.0 deduction (4) = 89 raw, clamped to UMA
-        score_ceiling of 75."""
+        on EBAY_AU (13) − risk 1.0 deduction (4) = 89 raw.
+        Ceiling removed 2026-06-30; raw score now ~89, no longer capped at 75."""
         analysis = load_fixture("ebay_uma_mac_studio.json")["analysis_output"]
         result = decide(analysis, REF)
-        assert result["llm_index_score"] == 75
+        assert result["llm_index_score"] > 75
 
     def test_radeon_mobile_score(self):
         """RX 7900M 16GB (mid=25) + RDNA3 (15) + PRIVATE_NEW_OR_UNKNOWN on
@@ -481,8 +481,6 @@ class TestLlmIndexScoreIntegration:
         analysis["analysis"]["risk_score"] = 0.0
         result = decide(analysis, REF)
         assert result["llm_index_score"] <= 100
-        # UMA platforms are additionally capped at apple_silicon.score_ceiling (75).
-        assert result["llm_index_score"] <= REF["apple_silicon"]["score_ceiling"]
 
     def test_score_is_additive_not_blocking(self):
         """A SKIP-routed listing (failed risk gate) still gets a computed score —
@@ -534,3 +532,83 @@ class TestLlmIndexScoreIntegration:
         # Score: entry(15) + gen_0_for_RX6700M(0) + ESTABLISHED_RESELLER+EBAY_AU(13)
         # − risk 0.5*4(2) + model_hint(+3) = 29
         assert result["llm_index_score"] == 29
+
+
+class TestParadigmClassification:
+    from laptopfinder.decide import _classify_paradigm
+
+    def _analysis(self, gpu=None, model=None, cpu=None):
+        return {
+            "extracted_data": {
+                "gpu": gpu,
+                "exact_model_name": model,
+                "cpu": cpu,
+                "vram_capacity": None,
+                "total_system_ram": None,
+                "missing_information": {},
+            },
+            "analysis": {"risk_score": 1.0, "risk_flags": [], "seller_classification": "PRIVATE_NEW_OR_UNKNOWN", "confidence": 0.9, "stated_pickup_location": None},
+            "metadata": {"source_platform": "EBAY_AU", "listing_url": None, "ships_from_overseas": False},
+        }
+
+    def test_apple_silicon_uma(self):
+        from laptopfinder.decide import _classify_paradigm
+        result = _classify_paradigm(self._analysis(cpu="M4 Max"), REF)
+        assert result == "apple_silicon_uma"
+
+    def test_strix_halo_uma(self):
+        from laptopfinder.decide import _classify_paradigm
+        result = _classify_paradigm(self._analysis(cpu="Ryzen AI Max 395"), REF)
+        assert result == "amd_strix_halo_uma"
+
+    def test_discrete_cuda(self):
+        from laptopfinder.decide import _classify_paradigm
+        result = _classify_paradigm(self._analysis(gpu="RTX 4090"), REF)
+        assert result == "discrete_cuda"
+
+    def test_discrete_rocm(self):
+        from laptopfinder.decide import _classify_paradigm
+        result = _classify_paradigm(self._analysis(gpu="RX 7900M"), REF)
+        assert result == "discrete_rocm"
+
+    def test_no_gpu_no_model_defaults_to_cuda(self):
+        from laptopfinder.decide import _classify_paradigm
+        result = _classify_paradigm(self._analysis(), REF)
+        assert result == "discrete_cuda"
+
+
+class TestTextLlmScoring:
+    def test_apple_uma_beats_discrete_cuda_for_text(self):
+        from laptopfinder.decide import load_scoring_weights, score_text_llm_candidate
+        weights = load_scoring_weights("text_llm_default")
+        apple = {"paradigm": "apple_silicon_uma", "bandwidth_gbps": 400, "ram_gb": 64}
+        cuda = {"paradigm": "discrete_cuda", "bandwidth_gbps": 576, "ram_gb": 16}
+        assert score_text_llm_candidate(apple, weights) > score_text_llm_candidate(cuda, weights)
+
+    def test_strix_uma_beats_discrete_cuda_for_text(self):
+        from laptopfinder.decide import load_scoring_weights, score_text_llm_candidate
+        weights = load_scoring_weights("text_llm_default")
+        strix = {"paradigm": "amd_strix_halo_uma", "bandwidth_gbps": 215, "ram_gb": 64}
+        cuda = {"paradigm": "discrete_cuda", "bandwidth_gbps": 576, "ram_gb": 16}
+        assert score_text_llm_candidate(strix, weights) > score_text_llm_candidate(cuda, weights)
+
+    def test_workload_text_llm_skips_discrete_shortlist(self):
+        analysis = load_fixture("ebay_facts_grounded.json")["analysis_output"]
+        result = decide(analysis, REF, workload="text_llm")
+        assert result["recommended_action"] == "SKIP"
+        assert result["paradigm_note"] is not None
+
+    def test_workload_none_preserves_shortlist(self):
+        analysis = load_fixture("ebay_facts_grounded.json")["analysis_output"]
+        result = decide(analysis, REF, workload=None)
+        assert result["recommended_action"] == "SHORTLIST"
+        assert result["paradigm_note"] is None
+
+
+class TestUmaScoreCeiling:
+    def test_uma_extreme_tier_scores_above_old_ceiling(self):
+        """Ceiling removed 2026-06-30: Mac Studio 128GB raw score ~89 > 75."""
+        analysis = load_fixture("ebay_uma_mac_studio.json")["analysis_output"]
+        result = decide(analysis, REF)
+        assert result["llm_index_score"] > 75
+        assert result["llm_index_score"] <= 100

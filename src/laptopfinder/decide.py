@@ -6,7 +6,13 @@ Reads a validated Stage 2 analysis and returns SHORTLIST / MONITOR / SKIP.
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
+
+import yaml
+
+Paradigm = Literal["apple_silicon_uma", "amd_strix_halo_uma", "discrete_cuda", "discrete_rocm"]
+
+_SCORING_WEIGHTS_PATH = Path(__file__).resolve().parents[2] / "config" / "scoring_weights.yaml"
 
 _REF_PATH = Path(__file__).resolve().parents[2] / "config" / "static_reference_layer.json"
 
@@ -114,6 +120,48 @@ def _has_egpu_bundle(model: str | None, egpu_model: str | None, ref: dict) -> bo
     return any(enclosure.lower() in haystack for enclosure in ref.get("egpu_enclosures", []))
 
 
+def _classify_paradigm(analysis: dict, ref: dict) -> Paradigm:
+    extracted = analysis.get("extracted_data") or {}
+    gpu = extracted.get("gpu") or ""
+    model = extracted.get("exact_model_name") or ""
+    cpu = extracted.get("cpu") or ""
+    if _is_uma_platform(model, cpu, ref):
+        if any(kw.lower() in (model + cpu).lower() for kw in ("Strix", "Ryzen AI Max")):
+            return "amd_strix_halo_uma"
+        return "apple_silicon_uma"
+    if _is_radeon_mobile(gpu, ref):
+        return "discrete_rocm"
+    return "discrete_cuda"
+
+
+def load_scoring_weights(profile: str = "text_llm_default") -> dict:
+    with _SCORING_WEIGHTS_PATH.open() as f:
+        return yaml.safe_load(f)["profiles"][profile]
+
+
+def score_text_llm_candidate(candidate: dict, weights: dict) -> float:
+    """Score a hardware_taxonomy.json entry for text-centric LLM inference.
+
+    candidate keys: paradigm, bandwidth_gbps, ram_gb
+    weights: loaded from scoring_weights.yaml profile
+    """
+    bw_score = min(candidate["bandwidth_gbps"] / weights.get("bw_baseline_gbps", 400.0), 1.0)
+    ram_score = min(candidate["ram_gb"] / weights.get("ram_baseline_gb", 128.0), 1.0)
+    paradigm = candidate["paradigm"]
+    ecosystem = weights["paradigm_ecosystem_scores"][paradigm]
+    thermals = weights["paradigm_thermals_scores"][paradigm]
+    penalty = weights.get("discrete_text_llm_penalty", 1.0)
+    raw = (
+        bw_score * weights["memory_bandwidth_weight"]
+        + ram_score * weights["total_memory_capacity_weight"]
+        + ecosystem * weights["software_ecosystem_weight"]
+        + thermals * weights["thermals_noise_power_weight"]
+    ) * 100.0
+    if paradigm in ("discrete_cuda", "discrete_rocm"):
+        raw *= penalty
+    return round(raw, 2)
+
+
 def _passes_risk_gate(analysis: dict, ref: dict, risk_penalty: float = 0.0) -> bool:
     """True if risk score (plus any ecosystem penalty) and missing fields are within limits."""
     cfg = ref.get("shortlist_override", {})
@@ -219,18 +267,10 @@ def calculate_llm_index_score(
                 raw += 3
                 break
 
-    score = max(0, min(100, raw))
-
-    # UMA score ceiling — reflects UMA bandwidth constraints vs discrete VRAM.
-    if is_uma:
-        ceiling = ref.get("apple_silicon", {}).get("score_ceiling")
-        if ceiling is not None:
-            score = min(score, ceiling)
-
-    return score
+    return max(0, min(100, raw))
 
 
-def decide(analysis: dict, ref: dict | None = None) -> dict:
+def decide(analysis: dict, ref: dict | None = None, workload: str | None = None) -> dict:
     """Return a decision dict for a validated Stage 2 analysis."""
     if ref is None:
         ref = load_ref()
@@ -311,6 +351,16 @@ def decide(analysis: dict, ref: dict | None = None) -> dict:
         else:
             reasons.append(f"VRAM too low or unknown (got {vram}GB, need {min_vram}GB+)")
 
+    paradigm = _classify_paradigm(analysis, ref)
+    paradigm_note = None
+    if workload == "text_llm" and paradigm in ("discrete_cuda", "discrete_rocm") and action == "SHORTLIST":
+        action = "SKIP"
+        paradigm_note = (
+            f"Paradigm '{paradigm}' is not recommended for text-centric inference "
+            "(VRAM cap limits context size vs UMA alternatives). "
+            "Evaluate Apple Silicon UMA or Strix Halo UMA instead."
+        )
+
     return {
         "vram_gb": vram,
         "vram_tier": tier,
@@ -324,4 +374,6 @@ def decide(analysis: dict, ref: dict | None = None) -> dict:
         "is_radeon_mobile": radeon_match,
         "has_egpu_bundle": has_egpu,
         "llm_index_score": llm_index_score,
+        "paradigm": paradigm,
+        "paradigm_note": paradigm_note,
     }

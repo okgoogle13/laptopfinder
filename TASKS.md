@@ -3,6 +3,25 @@
 
 ---
 
+## COMPLETE: Alternative-Silicon Scoring Layer (2026-06-30)
+
+- [x] A1: Create `config/silicon_profiles.yaml` — paradigm definitions + workload preferences
+- [x] A2: Create `config/scoring_weights.yaml` — per-workload weight profiles
+- [x] A3: Create `data/hardware_taxonomy.json` — 4 representative hardware entries
+- [x] A4: Create `prompts/system_context.md` — agent paradigm-first instructions
+- [x] A5: Create `prompts/bias_guard_prompt.md` — bias self-check rubric
+- [x] A6: Create `research/alternative_silicon_dossier_june2026.md` — synthesised research
+- [x] A7: Modify `decide.py` — Paradigm type, `_classify_paradigm`, `load_scoring_weights`, `score_text_llm_candidate`, `workload` param, UMA ceiling removed
+- [x] A8: Modify `config/static_reference_layer.json` — `score_ceiling: null`, policy comments
+- [x] A10: Update `tests/test_decide.py` (2 ceiling tests fixed + 3 new classes) + create `tests/test_prompts.py`
+- [x] D1: Update `CLAUDE.md` / `AGENTS.md` — architecture + invariants
+- [x] D2: Update `memory/project/sprint.md`
+- [x] D3: Update `TASKS.md`
+
+**A9 (targets.json integration) blocked on human gate — see Evidence Pipeline below.**
+
+---
+
 ## ACTIVE: Evidence-Based Target Pipeline (June 2026)
 
 **Goal:** Collect macOS telemetry, normalize it, and produce `targets.json` via a manual Claude Pro handoff — then feed those targets into the main pipeline.

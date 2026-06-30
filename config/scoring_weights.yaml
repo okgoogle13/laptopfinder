@@ -1,0 +1,43 @@
+profiles:
+  text_llm_default:
+    memory_bandwidth_weight: 0.40
+    total_memory_capacity_weight: 0.35
+    software_ecosystem_weight: 0.15
+    thermals_noise_power_weight: 0.10
+    paradigm_ecosystem_scores:
+      apple_silicon_uma: 1.0
+      amd_strix_halo_uma: 0.7
+      discrete_cuda: 0.8
+      discrete_rocm: 0.6
+    paradigm_thermals_scores:
+      apple_silicon_uma: 1.0
+      amd_strix_halo_uma: 0.7
+      discrete_cuda: 0.5
+      discrete_rocm: 0.4
+    # Multiplier applied to discrete paradigms — not a hard exclusion
+    discrete_text_llm_penalty: 0.85
+
+  training_or_diffusion:
+    memory_bandwidth_weight: 0.20
+    total_memory_capacity_weight: 0.20
+    software_ecosystem_weight: 0.35
+    thermals_noise_power_weight: 0.10
+    paradigm_ecosystem_scores:
+      apple_silicon_uma: 0.7
+      amd_strix_halo_uma: 0.5
+      discrete_cuda: 1.0
+      discrete_rocm: 0.7
+    paradigm_thermals_scores:
+      apple_silicon_uma: 1.0
+      amd_strix_halo_uma: 0.7
+      discrete_cuda: 0.5
+      discrete_rocm: 0.4
+    discrete_text_llm_penalty: 1.0
+
+global_constraints:
+  min_ram_gb_for_serious_llm: 64
+  prefer_unified_memory: true
+  avoid_discrete_gpu_default: true
+  # Normalisation references — M1 Max bandwidth and 128GB RAM cap
+  bw_baseline_gbps: 400.0
+  ram_baseline_gb: 128.0

@@ -1,0 +1,34 @@
+[
+  {
+    "model": "Mac Studio M1 Max 64GB",
+    "paradigm": "apple_silicon_uma",
+    "ram_gb": 64,
+    "bandwidth_gbps": 400,
+    "inference_stack": ["MLX", "llama.cpp+Metal", "Ollama"],
+    "notes": "Reference platform for text-centric inference. 400 GB/s unified bandwidth, passive cooling."
+  },
+  {
+    "model": "MacBook Pro 16 M2 Max 96GB",
+    "paradigm": "apple_silicon_uma",
+    "ram_gb": 96,
+    "bandwidth_gbps": 400,
+    "inference_stack": ["MLX", "llama.cpp+Metal", "Ollama"],
+    "notes": "Mobile UMA reference. Same 400 GB/s peak. Thermal throttle under sustained load."
+  },
+  {
+    "model": "GMKtec EVO-X2 (Ryzen AI Max 395) 64GB",
+    "paradigm": "amd_strix_halo_uma",
+    "ram_gb": 64,
+    "bandwidth_gbps": 215,
+    "inference_stack": ["llama.cpp+Vulkan", "Ollama", "ROCm"],
+    "notes": "Strix Halo mini-PC. 215 GB/s peak via LPDDR5x. ROCm/Vulkan ecosystem still maturing."
+  },
+  {
+    "model": "Alienware m18 RX 7900M",
+    "paradigm": "discrete_rocm",
+    "ram_gb": 64,
+    "bandwidth_gbps": 576,
+    "inference_stack": ["llama.cpp+ROCm", "Ollama"],
+    "notes": "Discrete RDNA3 mobile. 16GB VRAM hard limit despite high bandwidth. Active high-TDP cooling."
+  }
+]
