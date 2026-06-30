@@ -124,27 +124,33 @@ Sparse artifacts:
   - Add `artifact_too_sparse` and `system_memory_fields_missing`.
 
 Multi-event / long-term macOS Unified Logs:
-- If the artifact is a year‑wide or multi‑event log covering many timestamps (e.g. `Browser_GPU_Memory_365d.log`, `OOM_Symptoms_365d.log`, `Jetsam_Kills_365d.log`, `RunningBoard_MemoryStatus_365d.log`, `RAM_Crashes_365d.log`):
-  - `scenario_label`: `"system_log_audit"` (unless specified otherwise in header).
-  - `source_kind`: `"terminal_log"`.
-  - `event_timestamp`: ISO 8601 timestamp of the very last log line if present, else null.
-  - `data_confidence`: `"low"` due to long span and lack of single point‑in‑time whole‑system memory totals.
-  - `memory_pressure_state`:
-    - `"Critical"` if any log lines contain `"system vm pressure critical: 1"`, `"critical=1"`, or `"Critical Memory Pressure"`.
-    - `"Warning"` if memory pressure relief events or warnings are present but no critical events.
-    - `"Normal"` if memory pressure is monitored but no warning/critical events are found.
-    - `"Unknown"` if the log is empty or contains no memory pressure information.
-  - `physical_memory_gb`, `app_memory_gb`, `wired_memory_gb`, `compressed_memory_gb`, `cached_files_gb`: null.
-  - `swap_used_gb`: If a line like  
-    `Memory pressure relief: Total: ... res+swap = A/B/C` is present, extract B (current swap used) or A (resident + swap) in bytes and convert to GB. If no relief line, null.
-  - `cpu_telemetry`, `gpu_telemetry`, `inference_telemetry`: null.
-  - `active_processes`: extract unique names of main processes mentioned in the log, especially owners of Jetsam Boosts/assertions (e.g., `com.apple.WebKit.GPU`, `Google Drive`, `quicklook.thumbnail`, `ThumbnailsAgent`, `AssetCache`, `findmylocateagent`). Limit to top 12 most frequent.
-  - `uncertainty_flags` must include:  
-    `long_term_log`, `no_whole_system_memory_totals`, `multi_day_log_no_single_timestamp`.  
-    Also add:
-    - `jetsam_boosts_observed` if RunningBoard / Jetsam Boost / Foreground Assertions are present.
-    - `oom_polling_observed` if CFNetwork OOM symptom polling is present.
-    - `empty_log_file` if file contains only headers and no log entries.
+- Qualitative Nature of macOS Unified Logs:
+  - macOS unified log events (e.g. `log show` output) are treated as qualitative pattern evidence rather than numeric telemetry sources.
+  - Their main purpose is to populate `scenario_label`, `memory_pressure_state` (when explicitly stated), `active_processes`, and relevant `uncertainty_flags` (e.g. Jetsam boosts, oom polling, cache evictions).
+  - If the raw unified-log message does not contain clear numeric memory metrics (GB/MB values for swap, compressed memory, or per-process RSS), leave numeric telemetry fields like `physical_memory_gb`, `app_memory_gb`, `compressed_memory_gb`, and `swap_used_gb` as `null` rather than guessing.
+  - Use `uncertainty_flags` to mark these events as qualitative-only, with tags such as `long_term_log`, `no_whole_system_memory_totals`, and `memory_pressure_not_visible` when appropriate.
+- Parsing Guidelines:
+  - If the artifact is a year‑wide or multi‑event log covering many timestamps (e.g. `Browser_GPU_Memory_365d.log`, `OOM_Symptoms_365d.log`, `Jetsam_Kills_365d.log`, `RunningBoard_MemoryStatus_365d.log`, `RAM_Crashes_365d.log`):
+    - `scenario_label`: `"system_log_audit"` (unless specified otherwise in header).
+    - `source_kind`: `"terminal_log"`.
+    - `event_timestamp`: ISO 8601 timestamp of the very last log line if present, else null.
+    - `data_confidence`: `"low"` due to long span and lack of single point‑in‑time whole‑system memory totals.
+    - `memory_pressure_state`:
+      - `"Critical"` if any log lines contain `"system vm pressure critical: 1"`, `"critical=1"`, or `"Critical Memory Pressure"`.
+      - `"Warning"` if memory pressure relief events or warnings are present but no critical events.
+      - `"Normal"` if memory pressure is monitored but no warning/critical events are found.
+      - `"Unknown"` if the log is empty or contains no memory pressure information.
+    - `physical_memory_gb`, `app_memory_gb`, `wired_memory_gb`, `compressed_memory_gb`, `cached_files_gb`: null.
+    - `swap_used_gb`: If a line like  
+      `Memory pressure relief: Total: ... res+swap = A/B/C` is present, extract B (current swap used) or A (resident + swap) in bytes and convert to GB. If no relief line, null.
+    - `cpu_telemetry`, `gpu_telemetry`, `inference_telemetry`: null.
+    - `active_processes`: extract unique names of main processes mentioned in the log, especially owners of Jetsam Boosts/assertions (e.g., `com.apple.WebKit.GPU`, `Google Drive`, `quicklook.thumbnail`, `ThumbnailsAgent`, `AssetCache`, `findmylocateagent`). Limit to top 12 most frequent.
+    - `uncertainty_flags` must include:  
+      `long_term_log`, `no_whole_system_memory_totals`, `multi_day_log_no_single_timestamp`.  
+      Also add:
+      - `jetsam_boosts_observed` if RunningBoard / Jetsam Boost / Foreground Assertions are present.
+      - `oom_polling_observed` if CFNetwork OOM symptom polling is present.
+      - `empty_log_file` if file contains only headers and no log entries.
 
 `cpu_telemetry` (from `top -l` output inside `observed_telemetry`):
 - `cpu_user_pct`: from `CPU usage: <N>% user`.

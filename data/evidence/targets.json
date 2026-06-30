@@ -14,19 +14,21 @@
     "recommended": 1024
   },
   "platform_tradeoffs": [
-    "A year-wide macOS log audit (Browser_GPU_Memory_365d.log) reveals severe unified memory contention: com.apple.WebKit.GPU logged 412 critical memory pressure events and 85,430 non-critical pressure relief events under active workloads.",
-    "Process thrashing is highly active: runningboardd continually asserts Jetsam Boosts to keep the WebKit.GPU process active, driven heavily by background tasks (Google Drive triggered 40,150 boost events; QuickLook Thumbnails triggered 35,220 boost events).",
-    "Under these conditions, a 32 GB system memory tier is a strict floor; at this capacity, the system survives without hard Jetsam kills but suffers performance degradation from swap and relief cycles during concurrent IDE, browser, and background sync activity.",
-    "A 64 GB target is recommended to completely eliminate memory relief cycles and swap reliance, ensuring active IDE/agents are isolated from background Google Drive and QuickLook demands.",
-    "Apple unified memory suits this profile well by dynamically allocating memory between CPU and GPU, but the entire pool must be sized to 64 GB to avoid GPU-side relief cycles forcing active IDE and agent tasks into compressed memory or swap.",
-    "Discrete GPU platforms (AMD, NVIDIA) require a minimum discrete VRAM target of 12 GB (recommended 16 GB) to avoid WebKit.GPU memory exhaustion, with system RAM planned independently at 32 GB or higher to avoid CPU-side bottlenecks."
+    "Six medium-confidence terminal_log snapshots on an 8 GB system show compressed_memory_gb consistently at 2.33–2.40 GB (approximately 70% of app_memory_gb of 3.34–3.41 GB), indicating active memory compression even during idle and moderate workloads; this is a direct numeric signal that the current 8 GB pool is too small for the observed process set.",
+    "CPU load_pattern reports as 'idle' with cpu_cores_active of 0.85–1.07 across all recorded scenarios, including heavy_multitask and antigravity_active; this is consistent with CPUs stalling on memory compression and decompression overhead rather than being compute-limited, and suggests effective CPU throughput will improve once RAM pressure is resolved.",
+    "Seven medium-confidence idle_browser macos_unified_log records capture WebKit.GPU Critical memory pressure events across four distinct timestamps on 2026-06-28 (06:09, 08:35, 10:05, 14:59); four additional heavy_multitask records on 2026-06-28 to 2026-06-29 show system-wide Critical pressure from Google Drive, WebKit.GPU, and Finder without any local LLM inference running, confirming browser and sync-driven GPU memory contention is a baseline condition.",
+    "Jetsam_Kills_365d.log and RAM_Crashes_365d.log are both empty over the past year; no hard process terminations or RAM crashes have occurred, indicating the 8 GB system manages pressure through compression and minor swap activity rather than catastrophic failure — but this does not indicate RAM is sufficient, only that degradation is tolerated rather than causing visible failures.",
+    "A 32 GB system memory floor is provisionally supported by the observed compression burden, recurring critical pressure events, and the concurrent process set (Antigravity IDE, multiple Comet agents, Claude, Google Drive, WebKit.GPU); at 32 GB the active workloads should fit without compression-induced stalls in most scenarios, though relief cycles may still occur during peak background sync activity.",
+    "A 64 GB recommended target is unchanged: it provides headroom to isolate foreground workloads (IDE, agents, browser) from persistent background services (Google Drive, WebKit.GPU, QuickLook), eliminating the relief-cycle overhead visible in current logs and leaving room for heavier local models or larger context windows in future workloads.",
+    "Apple unified memory at 64 GB covers both CPU and GPU memory demands from a single pool, removing WebKit.GPU contention as a discrete bottleneck; 32 GB is a strict floor but may still incur GPU-side pressure relief cycles during concurrent browser and IDE use as observed in current logs.",
+    "Discrete GPU platforms (AMD, NVIDIA) provisionally require a minimum of 12 GB VRAM (recommended 16 GB) to reduce WebKit.GPU exhaustion risk during multitasking; system RAM should be planned independently at 32 GB or higher to avoid CPU-side bottlenecks from background process contention."
   ],
-  "confidence_notes": "Confidence is significantly bolstered by the addition of year-wide log audits (Browser_GPU_Memory_365d.log, OOM_Symptoms_365d.log) and Perplexity's telemetry analysis, which confirm chronic memory pressure (412 critical events, 85,430 non-critical relief cycles) and background process thrashing (40,150 Google Drive boosts, 35,220 QuickLook boosts). CPU telemetry (3 medium-confidence records) shows low active utilization (0.85-1.07 cores active, 82-86% idle) due to memory compression and swap delays rather than compute limits, confirming RAM is the primary bottleneck. GPU and local inference telemetry remain the weakest dimensions as local-model workloads are not yet measured.",
+  "confidence_notes": "Second-pass analysis over the same 23-record corpus finds no new telemetry evidence to move any numeric floor, recommended, or stretch value. RAM dimension remains the best-supported: six medium-confidence terminal_log records consistently show a ~70% compression ratio on 8 GB across idle and active scenarios; the macos_unified_log series (records 12–23) adds seven idle_browser Critical WebKit.GPU pressure events and four heavy_multitask Critical pressure events (Google Drive + WebKit.GPU + Finder combos), all without local LLM inference, independently corroborating the Browser_GPU_Memory_365d.log year-wide pattern. The empty Jetsam_Kills_365d.log and RAM_Crashes_365d.log remain meaningful: no hard process kills have occurred over the past year, indicating tolerance of degradation through compression rather than catastrophic failure, but this does not weaken the 32 GB floor. The sample_telemetry.log record (16 GB, Normal, Chrome + WindowServer) confirms 16 GB is workable for light browser use but provides no IDE or agent scenario signal. CPU dimension is weakly supported: all records with cpu_telemetry report load_pattern 'idle' and cpu_cores_active 0.85–1.07, most likely reflecting memory-compression stall rather than true CPU idle; core_count_min of 4 remains a planning assumption. GPU and local inference dimensions remain unsupported by direct measurement: no gpu_telemetry or inference_telemetry is present in any record; VRAM targets are grounded in WebKit.GPU pressure event frequency only. The single most useful follow-up measurement would be a vm_stat or memory_pressure capture with swap visibility enabled during a heavy_multitask session — specifically capturing swap_used_gb and compressed_memory_gb simultaneously — to quantify swap magnitude and confirm whether it correlates with the CPU stalling pattern observed in terminal_log records.",
   "cpu_tier": {
     "core_count_min": 4,
     "single_thread_priority": true,
     "sustained_load": true,
-    "rationale": "While observed cpu_cores_active in top logs is low (0.85-1.07) due to memory bottlenecking, the concurrent process profile (WindowServer, Antigravity IDE, browser, Google Drive, QuickLook) requires at least 4 physical cores to support sustained multitasking and prevent core contention once RAM limits are resolved."
+    "rationale": "All medium-confidence records with cpu_telemetry report load_pattern 'idle' and cpu_cores_active of 0.85–1.07 even under antigravity_active and heavy_multitask scenario labels, consistent with memory-compression stall suppressing apparent CPU utilization. The concurrent process set (WindowServer, Antigravity IDE, multiple Comet agents, claude.exe, Google Drive) and the burst pattern of IDE and agent activity support single_thread_priority and planning for sustained_load once RAM bottlenecking is resolved; core_count_min of 4 is a conservative planning floor in the absence of unthrottled CPU telemetry."
   },
   "platform_classes": [
     {
@@ -34,21 +36,21 @@
       "unified_or_discrete": "unified",
       "memory_target_gb": 64,
       "throughput_target_tok_s": null,
-      "caveats": "Metal-only inference; unified memory serves both CPU and GPU. A 64 GB target is comfortable to isolate active IDE/agents from background Google Drive and QuickLook memory demands; 32 GB serves as a strict floor but may still experience pressure relief cycles."
+      "caveats": "Metal-only inference; unified memory serves both CPU and GPU from a single pool. A 64 GB target is provisionally recommended to isolate IDE, agents, and browser from persistent background Google Drive and WebKit.GPU memory demands; 32 GB serves as a strict floor but may still incur GPU-side pressure relief cycles during concurrent browser and multitask workloads as documented in current logs."
     },
     {
       "vendor": "AMD",
       "unified_or_discrete": "discrete",
       "memory_target_gb": 16,
       "throughput_target_tok_s": null,
-      "caveats": "ROCm support is model/driver dependent; verify compatibility. Discrete VRAM is a hard ceiling (size to 16 GB recommended, 12 GB minimum). System RAM must be planned independently at 32 GB or higher."
+      "caveats": "ROCm support is model/driver dependent; verify compatibility before purchase. Discrete VRAM is a hard ceiling — provisionally size to 16 GB (12 GB minimum) to reduce WebKit.GPU exhaustion risk during multitasking. System RAM must be planned independently at 32 GB or higher."
     },
     {
       "vendor": "NVIDIA",
       "unified_or_discrete": "discrete",
       "memory_target_gb": 16,
       "throughput_target_tok_s": null,
-      "caveats": "CUDA ecosystem; discrete VRAM is a hard ceiling (size to 16 GB recommended, 12 GB minimum). System RAM must be planned independently at 32 GB or higher to avoid CPU-side bottlenecks."
+      "caveats": "CUDA ecosystem; discrete VRAM is a hard ceiling — provisionally size to 16 GB (12 GB minimum) to reduce WebKit.GPU exhaustion risk. System RAM must be planned independently at 32 GB or higher to avoid CPU-side bottlenecks from background process contention."
     }
   ]
 }

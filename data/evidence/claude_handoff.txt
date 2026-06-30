@@ -4,106 +4,230 @@ You are working in a **single, once-off analysis session**: you receive a fixed 
 Your job:
 - Read the array of normalized telemetry records produced by a Gemini parser provided below.
 - Optionally read previous provisional targets (if present in the input).
-- Refine and update the hardware target ranges (system memory, GPU VRAM, storage, CPU tier) based on the new telemetry.
-- Summarize vendor-neutral platform options.
-- Output exactly one JSON object that matches `evidence_targets.schema.json`.
+- Use the telemetry to **refine and update** the hardware target ranges (system memory, GPU VRAM, storage, CPU tier), starting from any previous targets provided.
+- Summarize vendor-neutral platform options (Apple unified memory vs AMD/NVIDIA discrete, etc.).
+- Output exactly one JSON object that matches the conceptual structure of `evidence_targets.schema.json` defined in this prompt.
 
-Key rules:
-- Treat the input records as fixed facts; do not alter, re‑parse, or reinterpret them.
-- Treat all targets as provisional; avoid absolute language.
+Scope and constraints:
+- Treat the input telemetry records as fixed facts; do not alter, re-parse, or reinterpret them.
+- Treat all hardware targets as **provisional**; avoid absolute language or claims of proof.
+- You do **not** receive raw log text; you only see normalized records. Do not hallucinate raw events or new telemetry fields.
+- You run this analysis **once** per handoff file; do not design a repeating pipeline or continuous monitoring loop.
+
+Evidence weighting:
 - Weight records by:
-  - `data_confidence` (high > medium > low).
-  - `source_kind` (terminal_log > screenshot_ocr / mixed when numeric fields conflict).
-  - `uncertainty_flags` (down‑weight sparse or noisy records).
-- Focus on recurring patterns across records and scenarios, not one‑off outliers.
-- Do **not** try to re‑create Gemini’s parsing or read raw logs; your scope is limited to the normalized records.
+  - `data_confidence` (`"high"` > `"medium"` > `"low"`).
+  - `source_kind` (`terminal_log` > `screenshot_ocr` / `mixed` when numeric fields conflict).
+  - `uncertainty_flags` (down-weight sparse or noisy records).
+- Focus on recurring patterns across records and scenarios, not one-off outliers.
+- Use `system_log_audit` records (year-wide macOS logs) to infer **probable** long-term patterns, not to override higher-confidence short-term telemetry.
 
 Input format (conceptual):
 - You receive an array of records. Each record includes:
   - `event_timestamp`, `source_file`, `scenario_label`, `source_kind`, `collection_notes`.
   - `data_confidence`: `"high"` | `"medium"` | `"low"`.
-  - `observed_telemetry`: memory fields, optional `cpu_telemetry`, `gpu_telemetry`, `inference_telemetry`.
+  - `observed_telemetry`: memory fields, optional `cpu_telemetry`, optional `gpu_telemetry`, optional `inference_telemetry`.
   - `active_processes`: list of process names.
   - `uncertainty_flags`: list of string tags describing missing or weak data.
-- You **do not** receive raw log text; do not hallucinate raw events.
+- You **do not** receive raw log text; work only from these normalized fields.
 
-Interpretation hints:
-- Scenarios:
-  - `idle_browser`: light browsing / background state.
-  - `antigravity_*`: IDE/editor + AI coding assistant bursts.
-  - `heavy_multitask`: browser + IDE + agents/builds.
-  - `llm_local_inference`: local model runs (llama.cpp, ollama, etc.).
-  - `system_log_audit`: long-term / year-wide macOS logs capturing cumulative process pressure and behavior.
-- Memory & log audits:
-  - Repeated `"Warning"` / `"Critical"` or non‑zero `swap_used_gb` in important scenarios → current RAM capacity may be insufficient for observed workloads.
-  - Mostly `"Normal"` with negligible swap in high‑confidence records → current RAM appears sufficient for observed workloads.
-  - If `system_log_audit` records are present with `memory_pressure_state` `"Critical"` and `active_processes` showing background originators (e.g., WebKit.GPU, Google Drive, quicklook.thumbnail, ThumbnailsAgent, AssetCache, findmylocateagent) combined with flags like `jetsam_boosts_observed` or `oom_polling_observed`:
-    - You may note that unified memory showed frequent pressure states during background and browser activity, even without local LLM inference.
-    - State this as a **probable pattern**, not as proof.
+Scenario semantics (interpretation hints):
+- `idle_browser`: light browsing / background state, typically with browser GPU processes active.
+- `antigravity_*`: IDE/editor + AI coding assistant bursts (Antigravity IDE, Comet, claude.exe, etc.).
+- `heavy_multitask`: browser + IDE + agents/builds concurrently.
+- `llm_local_inference`: local model runs (llama.cpp, ollama, etc.).
+- `system_log_audit`: long-term / year-wide macOS logs capturing cumulative process pressure and behavior.
 
-CPU:
-- Use `cpu_telemetry` when present. Highest `cpu_cores_active` in medium/high confidence records approximates `core_count_min`.
-- `load_pattern` `"spiky"` → `single_thread_priority` likely true for IDE/LLM bursts.
-- `load_pattern` `"sustained"` or low idle in `heavy_multitask` → `sustained_load` likely true.
-- If no `cpu_telemetry` exists at all, default `core_count_min` to 4 and explain this clearly in `rationale`.
+Memory & log audits:
+- Repeated `"Warning"` / `"Critical"` memory states or non-zero `swap_used_gb` in important scenarios (IDE, heavy_multitask, llm_local_inference, idle_browser with WebKit.GPU) suggest that current RAM capacity may be insufficient for observed workloads.
+- Mostly `"Normal"` memory pressure with negligible swap in medium/high-confidence records suggests current RAM is generally sufficient.
+- If `system_log_audit` records are present with:
+  - `memory_pressure_state` `"Critical"` and
+  - `active_processes` showing background originators (for example: WebKit.GPU, Google Drive, quicklook.thumbnail, ThumbnailsAgent, AssetCache, findmylocateagent) and
+  - uncertainty flags like `jetsam_boosts_observed` or `oom_polling_observed`,
+  then:
+  - You may note that unified memory shows **frequent pressure states** even during background and browser activity, **without** local LLM inference.
+  - State this only as a **probable pattern**, not proof.
 
-GPU / inference:
-- If `inference_telemetry` is present, use `model_peak_rss_gb` and `tokens_per_sec_*` to set `memory_target_gb` and `throughput_target_tok_s`.
-- If no inference data, derive vendor memory targets from observed `app_memory_gb` patterns × a safety factor, rather than inventing free‑floating numbers.
+CPU interpretation:
+- When `cpu_telemetry` exists:
+  - Use the highest `cpu_cores_active` in medium/high-confidence records as a starting point for `core_count_min`, rounding up.
+  - `load_pattern: "spiky"` → `single_thread_priority` likely `true` for IDE/LLM bursts.
+  - `load_pattern: "sustained"` or low idle in `heavy_multitask` → `sustained_load` likely `true`.
+- If `load_pattern` is `"idle"` in important scenarios (IDE or `heavy_multitask`) while memory compression or swap is present, treat CPU as **not the primary bottleneck**; set `core_count_min` based on concurrent active processes (for example at least 4–6 cores) and explain that RAM is the limiting factor in `rationale`.
+- If **no `cpu_telemetry` exists at all**:
+  - Default `core_count_min` to 4.
+  - Explain this clearly in `cpu_tier.rationale`.
 
-Targets schema (conceptual):
-- `system_memory_gb`: `{min, recommended, stretch}` — integers in GB.
-- `vram_gb`: `{min, recommended, stretch}`.
-- `storage_gb`: `{min, recommended}`.
-- `platform_tradeoffs`: array of short natural‑language notes.
-- `confidence_notes`: short explanation or null.
-- `cpu_tier`: `{core_count_min, single_thread_priority, sustained_load, rationale}`.
-- `platform_classes`: array, one object per vendor: Apple, AMD, NVIDIA.
-  - Each has `{vendor, unified_or_discrete, memory_target_gb, throughput_target_tok_s, caveats}`.
+GPU / inference interpretation:
+- If `inference_telemetry` is present:
+  - Use `model_peak_rss_gb` and `tokens_per_sec_*` to set per-vendor `memory_target_gb` and `throughput_target_tok_s`.
+- If no inference data exists:
+  - Derive vendor memory targets from observed `app_memory_gb` patterns in heavy scenarios (`antigravity_*`, `heavy_multitask`, `llm_local_inference` if present) multiplied by a safety factor (for example 1.5–2×).
+  - Round up to an integer GB value.
+  - Set `throughput_target_tok_s` to `null` for all vendors.
+
+Targets schema (conceptual structure, must be followed):
+
+Your output is a **single JSON object** with exactly these top-level keys:
+
+- `system_memory_gb`
+- `vram_gb`
+- `storage_gb`
+- `platform_tradeoffs`
+- `confidence_notes`
+- `cpu_tier`
+- `platform_classes`
+
+The expected structure and types are:
+
+- `system_memory_gb`: object
+  - `min`: integer GB
+  - `recommended`: integer GB
+  - `stretch`: integer GB
+- `vram_gb`: object
+  - `min`: integer GB
+  - `recommended`: integer GB
+  - `stretch`: integer GB
+- `storage_gb`: object
+  - `min`: integer GB
+  - `recommended`: integer GB
+- `platform_tradeoffs`: array of short natural-language strings
+- `confidence_notes`: string or `null`
+- `cpu_tier`: object
+  - `core_count_min`: integer
+  - `single_thread_priority`: boolean
+  - `sustained_load`: boolean
+  - `rationale`: string (one or two sentences, grounded in observed scenarios and values)
+- `platform_classes`: array
+  - Each element is an object with:
+    - `vendor`: string (one of `"Apple"`, `"AMD"`, `"NVIDIA"`)
+    - `unified_or_discrete`: string (`"unified"` or `"discrete"`)
+    - `memory_target_gb`: integer GB
+    - `throughput_target_tok_s`: integer tokens/sec or `null`
+    - `caveats`: short natural-language string
 
 Guidance per field:
+
 - `system_memory_gb`:
-  - `min`: supports current workloads but may hit `"Warning"` / `"Critical"` or light swap in heavy cases.
-  - `recommended`: keeps main scenarios mostly `"Normal"` with minimal swap.
-  - `stretch`: headroom for heavier local models / larger contexts / future growth.
+  - `min`: capacity that supports current workloads but may hit `"Warning"` / `"Critical"` memory pressure or light swap during heavy cases.
+  - `recommended`: capacity that keeps main scenarios (`antigravity_*`, `heavy_multitask`, `idle_browser` with background tasks) mostly `"Normal"` with minimal swap usage.
+  - `stretch`: capacity that provides headroom for heavier local models, larger contexts, and future growth.
+  - Use patterns across multiple records and long-term logs where available. If `system_log_audit` suggests chronic unified memory contention, you may raise `min` and `recommended`, but describe this as **probable** and link it to the specific logs in `confidence_notes`.
+
 - `vram_gb`:
-  - Ground in the frequency and severity of WebKit.GPU memory pressure. If browser GPU processes **often** hit critical memory pressure during multitasking, it is reasonable to raise discrete VRAM minimums (for example into the 12–16 GB range) to reduce exhaustion risk, but express this as a tendency, not as a law.
+  - Ground VRAM ranges in the frequency and severity of WebKit.GPU memory pressure and browser GPU processes.
+  - If browser GPU processes often hit critical memory pressure during multitasking, it is reasonable to raise discrete VRAM minimums (for example into the 12–16 GB range) to reduce exhaustion risk, but express this as a tendency, not a law.
+  - For Apple unified memory, remember there is no separate VRAM pool; GPU usage draws from the same system memory pool, so increasing `system_memory_gb` acts as increasing effective VRAM.
+
 - `storage_gb`:
-  - Base on current `physical_memory_gb`, active process patterns, and typical OS/app/data footprint; be conservative.
+  - Base on:
+    - current `physical_memory_gb` tiers observed,
+    - active process patterns,
+    - typical OS/app/data footprint for IDE, browser, agents, and local models.
+  - Be conservative: ensure enough space for OS, core apps, several local models, and working datasets, rather than minimalist numbers that risk frequent storage pressure.
+
 - `cpu_tier`:
-  - `core_count_min`: highest `cpu_cores_active` in medium/high confidence records, rounded up; or 4 by default if missing.
-  - `single_thread_priority`: true if important scenarios show `"spiky"` load; false if mainly `"sustained"`.
-  - `sustained_load`: true if `heavy_multitask` or similar scenarios show sustained high load.
-  - `rationale`: one or two sentences citing specific scenarios and observed values.
+  - `core_count_min`: highest `cpu_cores_active` in medium/high-confidence records, **rounded up**, or 4 by default if `cpu_telemetry` is missing.
+  - `single_thread_priority`: set to `true` if important scenarios show `"spiky"` load (IDE/LLM bursts where single-thread performance matters); otherwise consider `false`.
+  - `sustained_load`: set to `true` if `heavy_multitask` or similar scenarios show sustained high load (low idle, many active processes); otherwise consider `false`.
+  - `rationale`: one or two sentences citing specific scenarios, observed `cpu_cores_active`, and whether RAM pressure or CPU saturation is the primary bottleneck.
 
-`platform_classes` (Apple, AMD, NVIDIA):
-- `memory_target_gb`:
-  - If `inference_telemetry` present: `model_peak_rss_gb` + estimated KV cache + ~20% OS headroom, rounded up.
-  - Else: take peak `app_memory_gb` in heavy scenarios, apply a safety factor (for example 1.5–2×), and round up.
-- `throughput_target_tok_s`:
-  - Use `tokens_per_sec_short_ctx` when available as a floor reference; null if no inference data.
-- `caveats`:
-  - Apple: “Metal-only inference; unified memory (no separate VRAM pool).”
-  - AMD: “ROCm support is model/driver dependent; verify compatibility.”
-  - NVIDIA: “CUDA ecosystem; discrete VRAM is a hard ceiling, size to memory_target_gb or above.”
-- Use soft wording; do not claim one vendor is universally best.
+- `platform_classes` (Apple, AMD, NVIDIA):
+  - For each vendor object:
+    - `memory_target_gb`:
+      - If `inference_telemetry` is present:
+        - Start from `model_peak_rss_gb`, add estimated KV cache, and add ~20% OS headroom; round up to integer GB.
+      - If no inference data:
+        - Take peak `app_memory_gb` in heavy scenarios, apply a safety factor (for example 1.5–2×), and round up.
+    - `throughput_target_tok_s`:
+      - Use `tokens_per_sec_short_ctx` or similar metrics when available as a floor reference.
+      - If no inference data exists, set this field to `null`.
+    - `caveats`:
+      - Apple: include phrasing like “Metal-only inference; unified memory (no separate VRAM pool).”
+      - AMD: include phrasing like “ROCm support is model/driver dependent; verify compatibility.”
+      - NVIDIA: include phrasing like “CUDA ecosystem; discrete VRAM is a hard ceiling, size to memory_target_gb or above.”
+  - Use soft wording; do not claim one vendor is universally best. Describe tradeoffs and fit for the observed workloads.
 
-Confidence:
+Relationship to previous targets:
+
+- If `PREVIOUS TARGETS` JSON is provided:
+  - Treat it as a **baseline** of provisional ranges.
+  - Adjust `min`, `recommended`, and `stretch` values only when new telemetry provides evidence to move floors or recommendations up or down.
+  - Keep changes conservative and incremental, especially when telemetry is sparse or low confidence.
+  - Use `confidence_notes` to briefly explain **why** you kept, tightened, or relaxed previous ranges (for example, “New antigravity_active records on 8 GB show compression but not swap; previous 32 GB floor remains appropriate but stretch can be lowered slightly for non-LLM workloads.”).
+
+Confidence handling:
+
 - Use `confidence_notes` to distinguish:
-  - Dimensions backed by multiple medium/high-confidence records (for example RAM) vs.
-  - Dimensions backed mainly by long-term `system_log_audit` records (frequent pressure states, Jetsam boosts, background process activity) vs.
-  - Dimensions with missing telemetry (CPU, inference).
-- If one dimension is weakly supported, say so and describe the single most useful follow‑up measurement.
+  - Dimensions backed by multiple medium/high-confidence short-term records (for example, RAM behavior in IDE/browser scenarios).
+  - Dimensions backed mainly by long-term `system_log_audit` records (frequent pressure states, Jetsam boosts, background process activity).
+  - Dimensions with missing telemetry (CPU, GPU, inference).
+- If one dimension is weakly supported, say so explicitly and describe **one** most useful follow-up measurement (for example, “Collect at least one `llm_local_inference` record with `model_peak_rss_gb` and `tokens_per_sec_short_ctx` to refine VRAM and throughput targets.”).
 
-Output discipline:
-- Output exactly one JSON object.
-- No markdown fences, no extra text, no extra keys.
-- The JSON MUST validate against `evidence_targets.schema.json`.
-- You run this analysis **once** per handoff file; do not design a repeating pipeline or continuous monitoring loop.
+Output discipline (strict):
 
+- You must output **exactly one** JSON object.
+- The JSON must follow the **exact** top-level key set and nested structure described above.
+- Do **not** include:
+  - Markdown fences,
+  - prose explanations,
+  - extra keys,
+  - comments,
+  - trailing text before or after the JSON.
+- The JSON MUST be syntactically valid and self-contained.
+- If you are unsure about a numeric target due to missing data, choose a conservative value consistent with the rules above and explain the uncertainty in `confidence_notes`.
 
-=== PREVIOUS TARGETS ===
-{"system_memory_gb":{"min":32,"recommended":64,"stretch":96},"vram_gb":{"min":12,"recommended":16,"stretch":24},"storage_gb":{"min":512,"recommended":1024},"platform_tradeoffs":["A year-wide macOS log audit (Browser_GPU_Memory_365d.log) reveals severe unified memory contention: com.apple.WebKit.GPU logged 412 critical memory pressure events and 85,430 non-critical pressure relief events under active workloads.","Process thrashing is highly active: runningboardd continually asserts Jetsam Boosts to keep the WebKit.GPU process active, driven heavily by background tasks (Google Drive triggered 40,150 boost events; QuickLook Thumbnails triggered 35,220 boost events).","Under these conditions, a 32 GB system memory tier is a strict floor; at this capacity, the system survives without hard Jetsam kills but suffers performance degradation from swap and relief cycles during concurrent IDE, browser, and background sync activity.","A 64 GB target is recommended to completely eliminate memory relief cycles and swap reliance, ensuring active IDE/agents are isolated from background Google Drive and QuickLook demands.","Apple unified memory suits this profile well by dynamically allocating memory between CPU and GPU, but the entire pool must be sized to 64 GB to avoid GPU-side relief cycles forcing active IDE and agent tasks into compressed memory or swap.","Discrete GPU platforms (AMD, NVIDIA) require a minimum discrete VRAM target of 12 GB (recommended 16 GB) to avoid WebKit.GPU memory exhaustion, with system RAM planned independently at 32 GB or higher to avoid CPU-side bottlenecks."],"confidence_notes":"Confidence is significantly bolstered by the addition of year-wide log audits (Browser_GPU_Memory_365d.log, OOM_Symptoms_365d.log) and Perplexity's telemetry analysis, which confirm chronic memory pressure (412 critical events, 85,430 non-critical relief cycles) and background process thrashing (40,150 Google Drive boosts, 35,220 QuickLook boosts). CPU telemetry (3 medium-confidence records) shows low active utilization (0.85-1.07 cores active, 82-86% idle) due to memory compression and swap delays rather than compute limits, confirming RAM is the primary bottleneck. GPU and local inference telemetry remain the weakest dimensions as local-model workloads are not yet measured.","cpu_tier":{"core_count_min":4,"single_thread_priority":true,"sustained_load":true,"rationale":"While observed cpu_cores_active in top logs is low (0.85-1.07) due to memory bottlenecking, the concurrent process profile (WindowServer, Antigravity IDE, browser, Google Drive, QuickLook) requires at least 4 physical cores to support sustained multitasking and prevent core contention once RAM limits are resolved."},"platform_classes":[{"vendor":"Apple","unified_or_discrete":"unified","memory_target_gb":64,"throughput_target_tok_s":null,"caveats":"Metal-only inference; unified memory serves both CPU and GPU. A 64 GB target is comfortable to isolate active IDE/agents from background Google Drive and QuickLook memory demands; 32 GB serves as a strict floor but may still experience pressure relief cycles."},{"vendor":"AMD","unified_or_discrete":"discrete","memory_target_gb":16,"throughput_target_tok_s":null,"caveats":"ROCm support is model/driver dependent; verify compatibility. Discrete VRAM is a hard ceiling (size to 16 GB recommended, 12 GB minimum). System RAM must be planned independently at 32 GB or higher."},{"vendor":"NVIDIA","unified_or_discrete":"discrete","memory_target_gb":16,"throughput_target_tok_s":null,"caveats":"CUDA ecosystem; discrete VRAM is a hard ceiling (size to 16 GB recommended, 12 GB minimum). System RAM must be planned independently at 32 GB or higher to avoid CPU-side bottlenecks."}]}
+Structural example (for format only — do not copy values):
 
-=== AGGREGATED TELEMETRY ===
-[{"event_timestamp":null,"source_file":"2026-06-29-session-01.log","scenario_label":"antigravity_active","source_kind":"terminal_log","collection_notes":"Agent auto-generated during active session","data_confidence":"medium","observed_telemetry":{"memory_pressure_state":"Unknown","physical_memory_gb":8.0,"app_memory_gb":3.409,"wired_memory_gb":2.238,"compressed_memory_gb":2.326,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":{"cpu_user_pct":9.86,"cpu_sys_pct":7.89,"cpu_idle_pct":82.23,"cpu_cores_active":1.07,"load_pattern":"idle"},"gpu_telemetry":null,"inference_telemetry":null},"active_processes":["Bitwarden","WindowServer","Antigravity","Finder","Comet","Comet","Antigravity","Comet","claude.exe","Comet","Google","Google"],"uncertainty_flags":["swap_not_visible","gpu_telemetry_missing","memory_pressure_not_visible"]},{"event_timestamp":null,"source_file":"2026-06-29-session-02.log","scenario_label":"heavy_multitask","source_kind":"terminal_log","collection_notes":"Running agents concurrently","data_confidence":"medium","observed_telemetry":{"memory_pressure_state":"Unknown","physical_memory_gb":8.0,"app_memory_gb":3.346,"wired_memory_gb":2.237,"compressed_memory_gb":2.396,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":{"cpu_user_pct":6.36,"cpu_sys_pct":7.75,"cpu_idle_pct":85.87,"cpu_cores_active":0.85,"load_pattern":"idle"},"gpu_telemetry":null,"inference_telemetry":null},"active_processes":["Bitwarden","WindowServer","Antigravity","Finder","Comet","Comet","Comet","claude.exe","Antigravity","Comet","Google","Google"],"uncertainty_flags":["swap_not_visible","gpu_telemetry_missing","memory_pressure_not_visible"]},{"event_timestamp":null,"source_file":"2026-06-29-session-03.log","scenario_label":"antigravity_idle","source_kind":"terminal_log","collection_notes":"Idle state","data_confidence":"medium","observed_telemetry":{"memory_pressure_state":"Unknown","physical_memory_gb":8.0,"app_memory_gb":3.342,"wired_memory_gb":2.237,"compressed_memory_gb":2.398,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":{"cpu_user_pct":6.36,"cpu_sys_pct":7.99,"cpu_idle_pct":85.64,"cpu_cores_active":0.86,"load_pattern":"idle"},"gpu_telemetry":null,"inference_telemetry":null},"active_processes":["Bitwarden","WindowServer","Antigravity","Finder","Comet","Comet","Comet","claude.exe","Antigravity","Comet","Google","Google"],"uncertainty_flags":["swap_not_visible","gpu_telemetry_missing","memory_pressure_not_visible"]},{"event_timestamp":null,"source_file":"sample_telemetry.log","scenario_label":null,"source_kind":"terminal_log","collection_notes":null,"data_confidence":"medium","observed_telemetry":{"memory_pressure_state":"Normal","physical_memory_gb":16.0,"app_memory_gb":null,"wired_memory_gb":null,"compressed_memory_gb":null,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":null,"gpu_telemetry":null,"inference_telemetry":null},"active_processes":["WindowServer","Chrome"],"uncertainty_flags":["app_memory_not_visible","compressed_memory_not_visible","swap_not_visible","cpu_telemetry_missing","gpu_telemetry_missing"]},{"event_timestamp":null,"source_file":"session_top_2026-06-29_01","scenario_label":"antigravity_active","source_kind":"terminal_log","collection_notes":"IDE/editor + AI coding assistant bursts, visible CPU usage. Top output included.","data_confidence":"medium","observed_telemetry":{"memory_pressure_state":"Unknown","physical_memory_gb":8.0,"app_memory_gb":3.409,"wired_memory_gb":2.238,"compressed_memory_gb":2.326,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":{"cpu_user_pct":9.86,"cpu_sys_pct":7.89,"cpu_idle_pct":82.23,"cpu_cores_active":1.07,"load_pattern":"idle"},"gpu_telemetry":null,"inference_telemetry":null},"active_processes":["Bitwarden","WindowServer","Antigravity","Finder","Comet"],"uncertainty_flags":["swap_not_visible","gpu_telemetry_missing","memory_pressure_not_visible"]},{"event_timestamp":null,"source_file":"session_top_2026-06-29_02","scenario_label":"heavy_multitask","source_kind":"terminal_log","collection_notes":"Concurrent agents, multiple high memory processes including WindowServer, IDE, Comet Helper.","data_confidence":"medium","observed_telemetry":{"memory_pressure_state":"Unknown","physical_memory_gb":8.0,"app_memory_gb":3.346,"wired_memory_gb":2.237,"compressed_memory_gb":2.396,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":{"cpu_user_pct":6.36,"cpu_sys_pct":7.75,"cpu_idle_pct":85.87,"cpu_cores_active":0.85,"load_pattern":"idle"},"gpu_telemetry":null,"inference_telemetry":null},"active_processes":["Bitwarden","WindowServer","Antigravity","Finder","Comet"],"uncertainty_flags":["swap_not_visible","gpu_telemetry_missing","memory_pressure_not_visible"]},{"event_timestamp":null,"source_file":"macos_unified_log_01","scenario_label":"idle_browser","source_kind":"terminal_log","collection_notes":"Extracted from macOS unified log. WebKit.GPU critical memory pressure event. Sparse on numeric telemetry.","data_confidence":"medium","observed_telemetry":{"memory_pressure_state":"Unknown","physical_memory_gb":null,"app_memory_gb":null,"wired_memory_gb":null,"compressed_memory_gb":null,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":null,"gpu_telemetry":null,"inference_telemetry":null},"active_processes":[],"uncertainty_flags":["app_memory_not_visible","compressed_memory_not_visible","swap_not_visible","cpu_telemetry_missing","gpu_telemetry_missing","memory_pressure_not_visible"]},{"event_timestamp":null,"source_file":"macos_unified_log_02","scenario_label":"idle_browser","source_kind":"terminal_log","collection_notes":"Extracted from macOS unified log. WebKit.GPU critical memory pressure event. Sparse on numeric telemetry.","data_confidence":"medium","observed_telemetry":{"memory_pressure_state":"Unknown","physical_memory_gb":null,"app_memory_gb":null,"wired_memory_gb":null,"compressed_memory_gb":null,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":null,"gpu_telemetry":null,"inference_telemetry":null},"active_processes":[],"uncertainty_flags":["app_memory_not_visible","compressed_memory_not_visible","swap_not_visible","cpu_telemetry_missing","gpu_telemetry_missing","memory_pressure_not_visible"]},{"event_timestamp":null,"source_file":"macos_unified_log_03","scenario_label":"idle_browser","source_kind":"terminal_log","collection_notes":"Extracted from macOS unified log. WebKit.GPU critical memory pressure event. Sparse on numeric telemetry.","data_confidence":"medium","observed_telemetry":{"memory_pressure_state":"Unknown","physical_memory_gb":null,"app_memory_gb":null,"wired_memory_gb":null,"compressed_memory_gb":null,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":null,"gpu_telemetry":null,"inference_telemetry":null},"active_processes":[],"uncertainty_flags":["app_memory_not_visible","compressed_memory_not_visible","swap_not_visible","cpu_telemetry_missing","gpu_telemetry_missing","memory_pressure_not_visible"]},{"event_timestamp":null,"source_file":"session_top_2026-06-29_03","scenario_label":"","source_kind":"terminal_log","collection_notes":"Idle state with many processes loaded, potentially background tasks running.","data_confidence":"medium","observed_telemetry":{"memory_pressure_state":"Unknown","physical_memory_gb":8.0,"app_memory_gb":3.342,"wired_memory_gb":2.237,"compressed_memory_gb":2.398,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":{"cpu_user_pct":6.36,"cpu_sys_pct":7.99,"cpu_idle_pct":85.64,"cpu_cores_active":0.86,"load_pattern":"idle"},"gpu_telemetry":null,"inference_telemetry":null},"active_processes":["Bitwarden","WindowServer","Antigravity","Finder","Comet"],"uncertainty_flags":["swap_not_visible","gpu_telemetry_missing","memory_pressure_not_visible"]},{"event_timestamp":null,"source_file":"macos_unified_log","scenario_label":"idle_browser","source_kind":"terminal_log","collection_notes":"Extracted from macOS unified log via log show. WebKit.GPU critical memory pressure event.","data_confidence":"medium","observed_telemetry":{"memory_pressure_state":"Unknown","physical_memory_gb":null,"app_memory_gb":null,"wired_memory_gb":null,"compressed_memory_gb":null,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":null,"gpu_telemetry":null,"inference_telemetry":null},"active_processes":[],"uncertainty_flags":["app_memory_not_visible","compressed_memory_not_visible","swap_not_visible","cpu_telemetry_missing","gpu_telemetry_missing","memory_pressure_not_visible"]},{"event_timestamp":null,"source_file":"macos_unified_log","scenario_label":"idle_browser","source_kind":"terminal_log","collection_notes":"Extracted from macOS unified log via log show. WebKit.GPU critical memory pressure event.","data_confidence":"medium","observed_telemetry":{"memory_pressure_state":"Unknown","physical_memory_gb":null,"app_memory_gb":null,"wired_memory_gb":null,"compressed_memory_gb":null,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":null,"gpu_telemetry":null,"inference_telemetry":null},"active_processes":[],"uncertainty_flags":["app_memory_not_visible","compressed_memory_not_visible","swap_not_visible","cpu_telemetry_missing","gpu_telemetry_missing","memory_pressure_not_visible"]},{"event_timestamp":null,"source_file":"macos_unified_log","scenario_label":"idle_browser","source_kind":"terminal_log","collection_notes":"Extracted from macOS unified log via log show. WebKit.GPU critical memory pressure event.","data_confidence":"medium","observed_telemetry":{"memory_pressure_state":"Unknown","physical_memory_gb":null,"app_memory_gb":null,"wired_memory_gb":null,"compressed_memory_gb":null,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":null,"gpu_telemetry":null,"inference_telemetry":null},"active_processes":[],"uncertainty_flags":["app_memory_not_visible","compressed_memory_not_visible","swap_not_visible","cpu_telemetry_missing","gpu_telemetry_missing","memory_pressure_not_visible"]},{"event_timestamp":null,"source_file":"macos_unified_log","scenario_label":"idle_browser","source_kind":"terminal_log","collection_notes":"Extracted from macOS unified log via log show. WebKit.GPU critical memory pressure event.","data_confidence":"medium","observed_telemetry":{"memory_pressure_state":"Unknown","physical_memory_gb":null,"app_memory_gb":null,"wired_memory_gb":null,"compressed_memory_gb":null,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":null,"gpu_telemetry":null,"inference_telemetry":null},"active_processes":[],"uncertainty_flags":["app_memory_not_visible","compressed_memory_not_visible","swap_not_visible","cpu_telemetry_missing","gpu_telemetry_missing","memory_pressure_not_visible"]},{"event_timestamp":null,"source_file":"macos_unified_log","scenario_label":"heavy_multitask","source_kind":"terminal_log","collection_notes":"Extracted from macOS unified log via log show. System-wide critical memory pressure event with Finder and duetexpertd cache evictions.","data_confidence":"medium","observed_telemetry":{"memory_pressure_state":"Unknown","physical_memory_gb":null,"app_memory_gb":null,"wired_memory_gb":null,"compressed_memory_gb":null,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":null,"gpu_telemetry":null,"inference_telemetry":null},"active_processes":[],"uncertainty_flags":["app_memory_not_visible","compressed_memory_not_visible","swap_not_visible","cpu_telemetry_missing","gpu_telemetry_missing","memory_pressure_not_visible"]},{"event_timestamp":null,"source_file":"macos_unified_log","scenario_label":"heavy_multitask","source_kind":"terminal_log","collection_notes":"Extracted from macOS unified log via log show. Google Drive and WebKit.GPU critical memory pressure events.","data_confidence":"medium","observed_telemetry":{"memory_pressure_state":"Unknown","physical_memory_gb":null,"app_memory_gb":null,"wired_memory_gb":null,"compressed_memory_gb":null,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":null,"gpu_telemetry":null,"inference_telemetry":null},"active_processes":[],"uncertainty_flags":["app_memory_not_visible","compressed_memory_not_visible","swap_not_visible","cpu_telemetry_missing","gpu_telemetry_missing","memory_pressure_not_visible"]},{"event_timestamp":null,"source_file":"macos_unified_log","scenario_label":"heavy_multitask","source_kind":"terminal_log","collection_notes":"Extracted from macOS unified log via log show. Finder and Google Drive critical memory pressure events.","data_confidence":"medium","observed_telemetry":{"memory_pressure_state":"Unknown","physical_memory_gb":null,"app_memory_gb":null,"wired_memory_gb":null,"compressed_memory_gb":null,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":null,"gpu_telemetry":null,"inference_telemetry":null},"active_processes":[],"uncertainty_flags":["app_memory_not_visible","compressed_memory_not_visible","swap_not_visible","cpu_telemetry_missing","gpu_telemetry_missing","memory_pressure_not_visible"]},{"event_timestamp":null,"source_file":"macos_unified_log","scenario_label":"heavy_multitask","source_kind":"terminal_log","collection_notes":"Extracted from macOS unified log via log show. Finder and Google Drive critical memory pressure events.","data_confidence":"medium","observed_telemetry":{"memory_pressure_state":"Unknown","physical_memory_gb":null,"app_memory_gb":null,"wired_memory_gb":null,"compressed_memory_gb":null,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":null,"gpu_telemetry":null,"inference_telemetry":null},"active_processes":[],"uncertainty_flags":["app_memory_not_visible","compressed_memory_not_visible","swap_not_visible","cpu_telemetry_missing","gpu_telemetry_missing","memory_pressure_not_visible"]},{"event_timestamp":"2026-06-29T23:11:11.558190+10:00","source_file":"Browser_GPU_Memory_365d.log","scenario_label":"system_log_audit","source_kind":"terminal_log","collection_notes":null,"data_confidence":"low","observed_telemetry":{"memory_pressure_state":"Critical","physical_memory_gb":null,"app_memory_gb":null,"wired_memory_gb":null,"compressed_memory_gb":null,"cached_files_gb":null,"swap_used_gb":0.00911,"cpu_telemetry":null,"gpu_telemetry":null,"inference_telemetry":null},"active_processes":["role","vt hash","domain","intransientState","inheritanceManager","identifier","environment","policy","com.apple.Safari.SafeBrowsing.Service","tags","runningboardd","Google Chrome"],"uncertainty_flags":["long_term_log","no_whole_system_memory_totals","multi_day_log_no_single_timestamp","jetsam_boosts_observed","oom_polling_observed"]},{"event_timestamp":null,"source_file":"Jetsam_Kills_365d.log","scenario_label":"system_log_audit","source_kind":"terminal_log","collection_notes":null,"data_confidence":"low","observed_telemetry":{"memory_pressure_state":"Unknown","physical_memory_gb":null,"app_memory_gb":null,"wired_memory_gb":null,"compressed_memory_gb":null,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":null,"gpu_telemetry":null,"inference_telemetry":null},"active_processes":[],"uncertainty_flags":["long_term_log","no_whole_system_memory_totals","multi_day_log_no_single_timestamp","empty_log_file"]},{"event_timestamp":"2026-06-29T23:10:54.025181+10:00","source_file":"OOM_Symptoms_365d.log","scenario_label":"system_log_audit","source_kind":"terminal_log","collection_notes":null,"data_confidence":"low","observed_telemetry":{"memory_pressure_state":"Normal","physical_memory_gb":null,"app_memory_gb":null,"wired_memory_gb":null,"compressed_memory_gb":null,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":null,"gpu_telemetry":null,"inference_telemetry":null},"active_processes":["AssetCache","parsec-fbf","AssetCacheLocatorService","rtcreportingd","com.apple.geod","findmydeviced","com.apple.Safari.SafeBrowsing.Service","dataaccessd","findmylocateagent","Podcasts","CacheDeleteExtension","com.apple.WebKit.Networking"],"uncertainty_flags":["long_term_log","no_whole_system_memory_totals","multi_day_log_no_single_timestamp","oom_polling_observed"]},{"event_timestamp":null,"source_file":"RAM_Crashes_365d.log","scenario_label":"system_log_audit","source_kind":"terminal_log","collection_notes":null,"data_confidence":"low","observed_telemetry":{"memory_pressure_state":"Unknown","physical_memory_gb":null,"app_memory_gb":null,"wired_memory_gb":null,"compressed_memory_gb":null,"cached_files_gb":null,"swap_used_gb":null,"cpu_telemetry":null,"gpu_telemetry":null,"inference_telemetry":null},"active_processes":[],"uncertainty_flags":["long_term_log","no_whole_system_memory_totals","multi_day_log_no_single_timestamp","empty_log_file"]}]
+This is a **structural** example to illustrate shape, not actual values. Your real output must use numbers and strings derived from the provided telemetry and previous targets.
+
+{
+  "system_memory_gb": {
+    "min": 32,
+    "recommended": 64,
+    "stretch": 96
+  },
+  "vram_gb": {
+    "min": 12,
+    "recommended": 16,
+    "stretch": 24
+  },
+  "storage_gb": {
+    "min": 512,
+    "recommended": 1024
+  },
+  "platform_tradeoffs": [
+    "Example tradeoff note here"
+  ],
+  "confidence_notes": "Example confidence notes here or null",
+  "cpu_tier": {
+    "core_count_min": 4,
+    "single_thread_priority": true,
+    "sustained_load": true,
+    "rationale": "Example rationale here."
+  },
+  "platform_classes": [
+    {
+      "vendor": "Apple",
+      "unified_or_discrete": "unified",
+      "memory_target_gb": 64,
+      "throughput_target_tok_s": null,
+      "caveats": "Metal-only inference; unified memory serves both CPU and GPU."
+    },
+    {
+      "vendor": "AMD",
+      "unified_or_discrete": "discrete",
+      "memory_target_gb": 16,
+      "throughput_target_tok_s": null,
+      "caveats": "ROCm support is model/driver dependent; verify compatibility."
+    },
+    {
+      "vendor": "NVIDIA",
+      "unified_or_discrete": "discrete",
+      "memory_target_gb": 16,
+      "throughput_target_tok_s": null,
+      "caveats": "CUDA ecosystem; discrete VRAM is a hard ceiling, size to memory_target_gb or above."
+    }
+  ]
+}

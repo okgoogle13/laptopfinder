@@ -24,12 +24,39 @@ EVIDENCE RULES
 CONTEXT (CURRENT PIPELINE)
 
 To perform an effective gap analysis, you must know what hardware is ALREADY targeted by the pipeline:
-* Target GPUs (+5 bonus): RTX 3080 Ti (16GB), RTX 4090 (16GB), RTX 5080 (16GB), RTX A5000 (16GB), RTX A3000 (12GB) [Note: RTX A3000 is only targeted if the laptop has a touchscreen display panel].
+* Target GPUs (discrete, mobile only — +5 scoring bonus): RTX 3080 Ti (16GB), RTX 4090 (16GB), RTX 5080 (16GB), RTX A5000 (16GB), RTX A5500 (16GB), RTX A4500 (16GB), RTX 5000 Ada (16GB), RTX A3000 (12GB) [touchscreen exception only], Quadro RTX 5000 (16GB), Quadro RTX 6000 (24GB).
 * Radeon / ROCm targets: RX 7900M (16GB).
-* UMA targets (64GB+ RAM): Apple M1-M4 Max/Ultra, Ryzen AI Max, Strix Halo.
-* Watch list (MONITOR only): RTX 5090 (24GB), GB200, B200.
-* Target laptop models (+3 bonus): ASUS ROG Zephyrus Duo 16, MSI Titan 18, MSI Raider 17/18, ASUS ROG Strix Scar 18, Lenovo Legion 9i/7i, ThinkPad P16, Alienware 17/18, ZBook Fury, ProArt PX13, Flow Z13.
+* UMA targets (64GB+ unified RAM): Apple M1–M4 Max/Ultra, Ryzen AI Max, Strix Halo.
+* Watch list (MONITOR only, do not recommend purchasing): RTX 5090 (24GB), GB200, B200.
+* Target laptop models (+3 scoring bonus): ASUS ROG Zephyrus Duo 16, MSI Titan 18, MSI Raider 17/18, ASUS ROG Strix Scar 18, Lenovo Legion 9i/7i, ThinkPad P16, Alienware 17/18, ZBook Fury, ProArt PX13, Flow Z13, MacBook Pro 14, MacBook Pro 16.
 * Travel: Base is Northcote, VIC, 120-150 minutes max drive radius.
+
+PIPELINE JSON AUDIT (answer before Section 1)
+
+Before your market scouting, audit the pipeline's existing target GPU list for correctness. Answer the following questions in a short bullet list — one bullet per item — under the heading "## PIPELINE AUDIT":
+
+For each GPU in the target list below, state: (1) does a mobile/laptop form factor exist, (2) is it findable on AU used-market platforms (eBay AU / Gumtree / FB Marketplace), and (3) any corrections or caveats.
+
+GPU entries to audit:
+* RTX 3080 Ti Mobile (16GB) — mobile form factor confirmed?
+* RTX 4090 Mobile (16GB) — confirm this is the laptop SKU, not desktop
+* RTX 5080 Mobile (16GB) — mobile form factor available on AU used market?
+* RTX A5000 Mobile (16GB) — mobile workstation card; confirm AU availability
+* RTX A5500 Mobile (16GB) — mobile workstation card; confirm AU availability
+* RTX A4500 Mobile (16GB) — mobile workstation card; confirm AU availability
+* RTX 5000 Ada Mobile (16GB) — mobile workstation card; confirm AU availability
+* RTX A3000 Mobile (12GB, touchscreen exception) — confirm mobile form factor; confirm touchscreen laptop chassis exist with this GPU
+* RTX A3500 Mobile (12GB) — **MISSING FROM PIPELINE**: does this mobile workstation card exist, and does it appear in touchscreen-equipped laptops on AU used market? If yes, recommend adding as a touchscreen exception.
+* Quadro RTX 5000 Mobile (16GB) — Turing generation; confirm AU used-market supply depth
+* Quadro RTX 6000 Mobile (24GB) — Turing generation; confirm this is a mobile (not desktop) card; confirm AU used-market supply depth
+* RTX 6000 Ada (48GB) — **DESKTOP FLAG**: does a mobile/laptop form factor exist? If desktop-only, flag for removal from pipeline's generation scoring table.
+* L40S (48GB) — **DESKTOP FLAG**: data-centre card; confirm no mobile form factor exists; flag for removal from pipeline's generation scoring table.
+* RX 7900M (16GB) — confirm AU laptop listings; name the chassis models observed.
+
+Also check for gaps:
+* RTX 3090 Mobile (24GB) — in pipeline's generation table but absent from target_gpus; should it be added?
+* RTX 4070 Ti SUPER Mobile (16GB) — absent from all pipeline lists; does it appear on AU used market?
+* RTX A4000 Mobile (16GB) — absent from pipeline; confirm if mobile form factor exists and is available on AU used market.
 
 OUTPUT FORMAT
 
@@ -48,8 +75,10 @@ Use markdown bullet lists, tables, and JSON code blocks exactly as specified bel
 Scan the Australian used-hardware market (June 2026). Search for the following categories and detail your findings:
 
 a) **Undervalued Mobile GPUs**: Identify mobile GPUs with 16GB+ VRAM (or 12GB VRAM if appearing in a laptop featuring an integrated touchscreen/digitizer) appearing in laptop or portable workstation listings that are not the standard RTX 3080 Ti/4090 or RX 7900 lines.
-* Search for mobile workstation cards (such as the RTX A5000 Mobile or 12GB RTX A3000 Mobile) or older enterprise portable hardware.
+* Specifically investigate: RTX A3500 Mobile (12GB, touchscreen exception candidate), RTX A4000 Mobile (16GB), RTX 3090 Mobile (24GB), RTX 4070 Ti SUPER Mobile (16GB).
+* Search for mobile workstation cards (such as RTX A5000/A5500/A4500 Mobile, or 12GB touchscreen-exception cards such as RTX A3000 and RTX A3500) or older enterprise portable hardware.
 * For any candidate you find, specify the exact GPU name, VRAM size, listing platform, precise asking price (AUD), whether it has digitizer/touchscreen support (if 12GB), and whether you recommend it.
+* If a 12GB GPU candidate does NOT have a confirmed touchscreen/digitizer variant on AU market, state this explicitly — it is NOT eligible under pipeline rules.
 
 b) **Underrepresented High-VRAM Laptops**: Find high-VRAM laptop models that are frequently listed in Australia but receive less attention in typical searches.
 * Look for mobile workstations, older flagships, or laptops with bundled eGPU enclosures.
@@ -87,10 +116,13 @@ Present your recommendations in the exact comparison table format below:
 
 Translate your real-world market observations into strategy and search optimizations:
 
-a) **Config Suggestions**: Propose direct JSON additions for our pipeline's target lists based on the deals you uncovered. Output these raw JSON blocks inside standard markdown code blocks. Match these templates exactly:
-* GPUs: `{"GPU_NAME": {"vram_gb": N}}`
+a) **Config Suggestions**: Propose direct JSON additions and removals for our pipeline's target lists based on the audit and deals you uncovered. Output these raw JSON blocks inside standard markdown code blocks. Match these templates exactly:
+* GPU additions: `{"GPU_NAME": {"vram_gb": N}}`
+* GPU removals (desktop-only cards confirmed in audit): list as plain text — "Remove: GPU_NAME — reason"
+* Touchscreen exception additions: `{"GPU_NAME": {"vram_gb": N, "touchscreen_exception": true}}`
 * Laptops: `{"LAPTOP_MODEL": {"gpu": "GPU_NAME"}}`
 * UMA/Mini-PCs: `{"PLATFORM_NAME": {"ram_gb": N}}`
+* If the audit confirms RTX 6000 Ada or L40S have no mobile form factor, explicitly recommend removing them from the pipeline's GPU generation scoring table.
 
 b) **Scoring Adjustments**: Evaluate if the pipeline is scoring components appropriately based on real-world availability.
 * Propose specific scoring reductions for newer generations (like Blackwell) if they are practically impossible to find used.

@@ -126,7 +126,7 @@ def _classify_paradigm(analysis: dict, ref: dict) -> Paradigm:
     model = extracted.get("exact_model_name") or ""
     cpu = extracted.get("cpu") or ""
     if _is_uma_platform(model, cpu, ref):
-        if any(kw.lower() in (model + cpu).lower() for kw in ("Strix", "Ryzen AI Max")):
+        if any(kw.lower() in " ".join(filter(None, [model, cpu])).lower() for kw in ("Strix", "Ryzen AI Max")):
             return "amd_strix_halo_uma"
         return "apple_silicon_uma"
     if _is_radeon_mobile(gpu, ref):
@@ -243,7 +243,6 @@ def calculate_llm_index_score(
     risk/reward (~±20) + target hint bonuses (+5 GPU, +3 model) − deductions (uncapped).
 
     target_gpus/target_models membership adds a small bonus but never gates routing.
-    UMA platforms are capped at apple_silicon.score_ceiling (default 75).
     Clamped to [0, 100] after all adjustments.
     """
     capacity = _capacity_points(tier, ref)

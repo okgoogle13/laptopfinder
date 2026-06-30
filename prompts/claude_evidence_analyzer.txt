@@ -15,6 +15,7 @@ Key rules:
   - `data_confidence` (high > medium > low).
   - `source_kind` (terminal_log > screenshot_ocr / mixed when numeric fields conflict).
   - `uncertainty_flags` (down‑weight sparse or noisy records).
+  - Treat `system_log_audit` and `macos_unified_log_*` records as **qualitative pattern evidence**. When numeric telemetry fields in these records are `null`, treat them as *pattern-only* evidence: they affect `platform_tradeoffs` and `confidence_notes`, but should not, by themselves, move `system_memory_gb` or `vram_gb` floors, recommended, or stretch values.
 - Focus on recurring patterns across records and scenarios, not one‑off outliers.
 - Do **not** try to re‑create Gemini’s parsing or read raw logs; your scope is limited to the normalized records.
 
@@ -27,16 +28,23 @@ Input format (conceptual):
   - `uncertainty_flags`: list of string tags describing missing or weak data.
 - You **do not** receive raw log text; do not hallucinate raw events.
 
+Output JSON keys:
+- The output JSON object must contain exactly these top-level keys: `system_memory_gb`, `vram_gb`, `storage_gb`, `platform_tradeoffs`, `confidence_notes`, `cpu_tier`, and `platform_classes`.
+- Each key must follow the conceptual schema described in this prompt; do not add extra top-level keys or omit any of these required ones.
+
 Interpretation hints:
+
 - Scenarios:
   - `idle_browser`: light browsing / background state.
   - `antigravity_*`: IDE/editor + AI coding assistant bursts.
   - `heavy_multitask`: browser + IDE + agents/builds.
   - `llm_local_inference`: local model runs (llama.cpp, ollama, etc.).
   - `system_log_audit`: long-term / year-wide macOS logs capturing cumulative process pressure and behavior.
+
 - Memory & log audits:
   - Repeated `"Warning"` / `"Critical"` or non‑zero `swap_used_gb` in important scenarios → current RAM capacity may be insufficient for observed workloads.
   - Mostly `"Normal"` with negligible swap in high‑confidence records → current RAM appears sufficient for observed workloads.
+  - Define `system_log_audit` and `macos_unified_log_*` records as **qualitative pattern evidence** rather than quantitative metrics. These qualitative records confirm the frequency and context of memory pressure (e.g. repeated WebKit.GPU critical events in `idle_browser` and `heavy_multitask`). They also identify background-originator processes (such as Google Drive, Finder, AssetCache, QuickLook, etc.) contributing to memory demand.
   - If `system_log_audit` records are present with `memory_pressure_state` `"Critical"` and `active_processes` showing background originators (e.g., WebKit.GPU, Google Drive, quicklook.thumbnail, ThumbnailsAgent, AssetCache, findmylocateagent) combined with flags like `jetsam_boosts_observed` or `oom_polling_observed`:
     - You may note that unified memory showed frequent pressure states during background and browser activity, even without local LLM inference.
     - State this as a **probable pattern**, not as proof.
@@ -45,6 +53,9 @@ CPU:
 - Use `cpu_telemetry` when present. Highest `cpu_cores_active` in medium/high confidence records approximates `core_count_min`.
 - `load_pattern` `"spiky"` → `single_thread_priority` likely true for IDE/LLM bursts.
 - `load_pattern` `"sustained"` or low idle in `heavy_multitask` → `sustained_load` likely true.
+- Interpreting `load_pattern: "idle"`:
+  - If important scenarios (such as `antigravity_*` or `heavy_multitask`) show `cpu_telemetry` with `load_pattern: "idle"` and high `cpu_idle_pct`, while the same records or nearby evidence also show significant memory compression or swap usage, treat CPU as **not** the primary bottleneck.
+  - In these cases, set `core_count_min` based on the concurrent process profile (for example at least 4 physical cores) and use `rationale` to explain that apparent CPU idleness is likely due to RAM pressure and compression overhead rather than lack of compute demand.
 - If no `cpu_telemetry` exists at all, default `core_count_min` to 4 and explain this clearly in `rationale`.
 
 GPU / inference:
@@ -52,43 +63,52 @@ GPU / inference:
 - If no inference data, derive vendor memory targets from observed `app_memory_gb` patterns × a safety factor, rather than inventing free‑floating numbers.
 
 Targets schema (conceptual):
-- `system_memory_gb`: `{min, recommended, stretch}` — integers in GB.
-- `vram_gb`: `{min, recommended, stretch}`.
-- `storage_gb`: `{min, recommended}`.
+
+- `system_memory_gb`: object with `{min, recommended, stretch}` — integers in GB.
+- `vram_gb`: object with `{min, recommended, stretch}` — integers in GB.
+- `storage_gb`: object with `{min, recommended}` — integers in GB.
 - `platform_tradeoffs`: array of short natural‑language notes.
 - `confidence_notes`: short explanation or null.
-- `cpu_tier`: `{core_count_min, single_thread_priority, sustained_load, rationale}`.
+- `cpu_tier`: object `{core_count_min, single_thread_priority, sustained_load, rationale}`.
 - `platform_classes`: array, one object per vendor: Apple, AMD, NVIDIA.
   - Each has `{vendor, unified_or_discrete, memory_target_gb, throughput_target_tok_s, caveats}`.
 
 Guidance per field:
+
 - `system_memory_gb`:
   - `min`: supports current workloads but may hit `"Warning"` / `"Critical"` or light swap in heavy cases.
   - `recommended`: keeps main scenarios mostly `"Normal"` with minimal swap.
   - `stretch`: headroom for heavier local models / larger contexts / future growth.
+
 - `vram_gb`:
   - Ground in the frequency and severity of WebKit.GPU memory pressure. If browser GPU processes **often** hit critical memory pressure during multitasking, it is reasonable to raise discrete VRAM minimums (for example into the 12–16 GB range) to reduce exhaustion risk, but express this as a tendency, not as a law.
+
 - `storage_gb`:
   - Base on current `physical_memory_gb`, active process patterns, and typical OS/app/data footprint; be conservative.
+
 - `cpu_tier`:
   - `core_count_min`: highest `cpu_cores_active` in medium/high confidence records, rounded up; or 4 by default if missing.
   - `single_thread_priority`: true if important scenarios show `"spiky"` load; false if mainly `"sustained"`.
   - `sustained_load`: true if `heavy_multitask` or similar scenarios show sustained high load.
-  - `rationale`: one or two sentences citing specific scenarios and observed values.
+  - `rationale`: one or two sentences citing specific scenarios and observed values (including when apparent idleness is due to RAM pressure).
 
 `platform_classes` (Apple, AMD, NVIDIA):
+
 - `memory_target_gb`:
   - If `inference_telemetry` present: `model_peak_rss_gb` + estimated KV cache + ~20% OS headroom, rounded up.
   - Else: take peak `app_memory_gb` in heavy scenarios, apply a safety factor (for example 1.5–2×), and round up.
+
 - `throughput_target_tok_s`:
   - Use `tokens_per_sec_short_ctx` when available as a floor reference; null if no inference data.
+
 - `caveats`:
   - Apple: “Metal-only inference; unified memory (no separate VRAM pool).”
   - AMD: “ROCm support is model/driver dependent; verify compatibility.”
   - NVIDIA: “CUDA ecosystem; discrete VRAM is a hard ceiling, size to memory_target_gb or above.”
-- Use soft wording; do not claim one vendor is universally best.
+  - Use soft wording; do not claim one vendor is universally best.
 
 Confidence:
+
 - Use `confidence_notes` to distinguish:
   - Dimensions backed by multiple medium/high-confidence records (for example RAM) vs.
   - Dimensions backed mainly by long-term `system_log_audit` records (frequent pressure states, Jetsam boosts, background process activity) vs.
@@ -96,7 +116,10 @@ Confidence:
 - If one dimension is weakly supported, say so and describe the single most useful follow‑up measurement.
 
 Output discipline:
+
 - Output exactly one JSON object.
 - No markdown fences, no extra text, no extra keys.
 - The JSON MUST validate against `evidence_targets.schema.json`.
 - You run this analysis **once** per handoff file; do not design a repeating pipeline or continuous monitoring loop.
+
+***

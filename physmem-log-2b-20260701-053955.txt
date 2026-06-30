@@ -1,0 +1,2 @@
+PhysMem: 7882M used (2427M wired, 2235M compressor), 307M unused.
+PhysMem: 7987M used (2425M wired, 2304M compressor), 203M unused.
