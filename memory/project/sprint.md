@@ -25,10 +25,79 @@ metadata:
 - `tests/test_prompts.py` — prompt content sanity checks
 - `CLAUDE.md` / `AGENTS.md` — architecture and invariants updated
 
-## Sprint 2 (pending)
+## Sprint 2 (active — 2026-07)
 
-- Watchlist extraction pipeline (eBay AU, Gumtree, FB Marketplace)
-- Prompt discovery updates (paradigm-first language + watchlist URL patterns)
+**Goal:** Wire three new pipeline components to make the system data-driven and operationally self-sufficient.  
+**Plan:** `planning/claude-plan.md` (canonical HOW) · `planning/sections/` (agent work units) · `TASKS.md` Sprint 2 (status).
+
+Deliverables:
+- `scripts/inject_config.py` — idempotent marker-based injection of SRL values into prompt sentinel pairs
+- `src/laptopfinder/scrape_live.py` — per-listing Firecrawl scrape to `data/feed_live/`; zero-results guard before live pipeline loop
+- `scripts/render_matrix.py` — sorted Markdown purchase-decision table from manually assembled JSONL shortlist
+
+---
+
+# AU Market Alignment — Config Update (2026-07-01) — COMPLETE
+
+**Why:** Gemma 2 9B telemetry proved 8 GB is critically insufficient (35 MB free RAM, 80 MB/s pageout). Gemini + Perplexity deep research mapped AU secondary/new market pricing and calibrated scoring rules. All findings propagated to config governance layer only — no Python changes.
+
+**Status:** Complete 2026-07-01. 108 tests green (+1 recovered from pre-existing bug fix).
+
+## Changes shipped
+
+### `config/static_reference_layer.json`
+- `target_gpus` — 3 new entries (RTX 3080 Observed_AU, RTX 4080, RTX 5070 Observed_AU); all 13 entries enriched with `platform_class`, `budget_band`, `evidence_type`, AU numeric price min/max
+- `gpu_generation_by_name` — added RTX 3080/4080/5070/5090
+- `watch_list` — RTX 5090 updated (Observed_AU, >7,500 AUD DEFER); RTX 5000 Ada Mobile HOLD; RTX PRO 5000 Blackwell Mobile DEFER added
+- `egpu_enclosures` — added Razer Core X Chroma, Minisforum DEG2
+- `target_models` — added ASUS ProArt P16, Lenovo Legion 7 Pro
+- New top-level keys: `ram_floors` (32/64/96 GB from telemetry), `egpu_interconnect_penalty` (TB3/4 −3 pts, OCuLink/TB5 0 pts), `architecture_adjustments` (Turing vs Ada stub for Sprint 3)
+- **Bug fix**: `standard_mobile_min_gb` corrected 12→16 — was breaking `test_12gb_no_touchscreen_skipped`
+
+### `config/silicon_profiles.yaml`
+- `discrete_cuda.architecture_tiers` — Turing (emulated FA, no FP8, −2 pts), Ada (native FA+FP8), Blackwell (native FA+FP8)
+- `discrete_rocm` — `ecosystem_score: 15`, known S3/LM Studio/Ollama issues, `review_date: 2026-Q4`
+- New top-level `egpu_interconnect` block — TB3/4 vs OCuLink vs TB5 bandwidth + penalty values
+- `text_centric_llm_inference.ram_floors` — 32/64/96 GB derived from telemetry
+
+## Sprint 3 (pending)
+- Wire `architecture_adjustments.turing_vs_ada_same_vram_penalty_pts` into `decide.py` via `_apply_architecture_penalty()`
+- Integrate `targets.json` storage spec (`storage_gb.min: 512`) into SRL
+- Discovery prompt search term expansion — wire the 8 Boolean search strings from §8.1 of the July 2026 market topology report into the discovery prompt
+- Prompt audit: grep `prompts/` for hardcoded VRAM/RAM thresholds that duplicate new config keys
+
+---
+
+# Secondary Market Topology Report Ingestion — 2026-07-01
+
+**Why:** The July 2026 secondary market report (`Secondary-Market Hardware Topologies for Local Large Language Model Inference`) synthesised GRADUATE/HOLD/DEFER verdicts for all AU secondary market hardware, calibrated against the $3,000 AUD used / $5,000 AUD new budget bands and a 150 km Melbourne radius acquisition boundary.
+
+**Status:** Complete 2026-07-01. Config-only changes — no Python touched. Tests should remain green.
+
+## Key findings propagated to config
+
+- **GRADUATE (primary targets):** RTX 3080 Mobile 16GB ($1,200–$2,000 AUD, Ampere SM86, native Flash Attention) and RTX 3080 Ti Mobile 16GB ($1,800–$2,500 AUD). Best VRAM-to-price ratio on AU secondary market.
+- **HOLD (secondary/fallback):** RTX 4090 16GB ($3,500–$4,500 AUD), RTX A4500 16GB ($3,000–$4,000 AUD), RTX 5080 16GB (~$4,697 AUD Gigabyte A16 Pro clearance), RTX 4080 12GB ($2,200–$2,800 AUD, 12GB VRAM ceiling limits 13B viability).
+- **DEFER (hard disqualifiers):** Quadro RTX 5000/6000 (Turing SM75, no native Flash Attention — hard architectural disqualifier), RX 6800M (RDNA2 ROCm volatile — kernel panics during sustained generation, no ExLlamaV2), RTX 5090 Mobile (>$7,500 AUD, 50%+ budget violation, graduation expected late 2028–2029).
+
+## Changes shipped
+
+### `config/static_reference_layer.json`
+- `vram_tiers` — mid max_gb 16→23, high max_gb 24→31 (aligned to report's 4-tier hierarchy)
+- `target_gpus.RTX 3080` — vram_gb corrected 12→16; prices $1,200–$2,000 AUD; market_verdict GRADUATE; architecture note added
+- `target_gpus.RTX 3080 Ti` — prices $1,800–$2,500 AUD; evidence_type Observed_AU; budget_band used_3k; market_verdict GRADUATE
+- `target_gpus.RTX 4080` — prices $2,200–$2,800 AUD; market_verdict HOLD; 12GB ceiling note
+- `target_gpus.RTX 4090` — prices $3,500–$4,500 AUD; evidence_type Observed_AU; market_verdict HOLD
+- `target_gpus.RTX 5080` — price updated to $4,500–$5,000 AUD; market_verdict HOLD; Gigabyte A16 Pro clearance note
+- `target_gpus.RTX A4500` — prices $3,000–$4,000 AUD; evidence_type Observed_AU; market_verdict HOLD; enterprise premium note
+- `target_gpus.Quadro RTX 5000` — market_verdict DEFER; architecture_note (Turing SM75, no Flash Attention)
+- `target_gpus.Quadro RTX 6000` — market_verdict DEFER; architecture_note (Turing SM75)
+- `radeon_mobile_gpus.RX 6800M` — added: vram_gb 12, architecture RDNA2, market_verdict DEFER, ROCm volatility note
+- `watch_list[RTX 5090]` — reason enriched: 2028–2029 graduation timeline, confirmed $7,500+ AUD minimum
+
+### `data/evidence/targets.json`
+- `platform_classes[NVIDIA]` — added `architecture_minimum: "Ampere (SM86)"`, `throughput_target_tok_s: 25`, Turing DEFER rationale
+- `platform_classes[AMD]` — added RDNA2/RDNA3 ecosystem differentiation in caveats
 
 ---
 

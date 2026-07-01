@@ -44,14 +44,17 @@
       "unified_or_discrete": "discrete",
       "memory_target_gb": 16,
       "throughput_target_tok_s": null,
-      "caveats": "ROCm support is model/driver dependent; verify compatibility before purchase. Discrete VRAM is a hard ceiling — provisionally size to 16 GB (12 GB minimum) to reduce WebKit.GPU exhaustion risk during multitasking. System RAM must be planned independently at 32 GB or higher."
+      "architecture_minimum": null,
+      "caveats": "ROCm support is model/driver dependent; verify compatibility before purchase. RDNA2 (RX 6800M) is DEFER — persistent kernel panics during autoregressive generation and absent ExLlamaV2 support. RDNA3 (RX 7900M) has partial support; evaluate at same risk threshold as NVIDIA. Discrete VRAM is a hard ceiling — provisionally size to 16 GB (12 GB minimum). System RAM must be planned independently at 32 GB or higher."
     },
     {
       "vendor": "NVIDIA",
       "unified_or_discrete": "discrete",
       "memory_target_gb": 16,
-      "throughput_target_tok_s": null,
-      "caveats": "CUDA ecosystem; discrete VRAM is a hard ceiling — provisionally size to 16 GB (12 GB minimum) to reduce WebKit.GPU exhaustion risk. System RAM must be planned independently at 32 GB or higher to avoid CPU-side bottlenecks from background process contention."
+      "throughput_target_tok_s": 25,
+      "architecture_minimum": "Ampere (SM86)",
+      "architecture_minimum_reason": "Ampere is the first generation with native Flash Attention support. Turing (SM75) — Quadro RTX 5000/6000 — lacks hardware-accelerated Flash Attention 2; fallback kernels incur severe latency on context windows above 4K. Any pre-Ampere NVIDIA GPU is DEFER regardless of VRAM capacity.",
+      "caveats": "CUDA ecosystem; discrete VRAM is a hard ceiling — size to 16 GB (12 GB minimum). 16 GB target supports 13B Q4 models at 25+ tok/s sustained with 4 GB KV-cache headroom. System RAM must be planned independently at 32 GB or higher to avoid CPU-side bottlenecks from background process contention."
     }
   ]
 }

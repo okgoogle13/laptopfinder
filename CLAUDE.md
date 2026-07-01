@@ -29,13 +29,16 @@ make pipeline STAGE1=tests/fixtures/stage1/ebay_rtx4090_laptop.json STAGE2=tests
 make live SOURCE=feed.txt
 
 # Run benchmark scraper against saved HTML pages
-python -m laptopfinder.scrape_benchmark --html-dir saved_pages/ --out data/benchmark/benchmark.jsonl
+.venv/bin/python -m laptopfinder.scrape_benchmark --html-dir saved_pages/ --out data/benchmark/benchmark.jsonl
 
 # Evidence pipeline — normalize telemetry files in data/evidence/raw/ and append to aggregated.jsonl
 make evidence-run
 
 # Evidence pipeline dry-run — parse and append but skip archiving and handoff generation
 make evidence-run-dry
+
+# Evidence pipeline — reset parsed/archived state for a re-run
+make evidence-reset
 ```
 
 **Environment:** uses `.venv` (uv-managed). Always invoke Python as `.venv/bin/python` or `.venv/bin/pytest`, not the system Python. Copy `.env.example` → `.env` and fill in `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `PERPLEXITY_API_KEY` before running the live pipeline.
@@ -126,11 +129,8 @@ This project is developed using **Antigravity IDE** as the visual environment wi
 
 **MCP:** Antigravity IDE is the host MCP client. Claude Code has native file access and shell execution, but Antigravity handles any MCP connections. Desktop Commander and Filesystem MCP are redundant for this project.
 
-## Current sprint
+**Agent hook config:** maintain hook policy in `config/agent_hooks.json` and sync tool-specific files with `.venv/bin/python scripts/sync_agent_hooks.py`. Do not hand-edit `.claude/settings.json`, `.claude/settings.local.json`, or `.codex/hooks.json` independently.
 
-Alternative-silicon scoring layer complete (2026-06-30). UMA ceiling removed. `_classify_paradigm()`, `load_scoring_weights()`, `score_text_llm_candidate()`, and `workload` param added to `decide()`. Config files: `silicon_profiles.yaml`, `scoring_weights.yaml`, `hardware_taxonomy.json`. Prompts: `system_context.md`, `bias_guard_prompt.md`. Research: `alternative_silicon_dossier_june2026.md`.
+## Sprint tracking
 
-Pending (Sprint 2): watchlist extraction pipeline, prompt discovery updates.
-Pending (human gate): paste `data/evidence/claude_handoff.txt` into Claude Pro → save as `data/evidence/targets.json` → integrate into SRL.
-
-See `memory/project/sprint.md` and `TASKS.md` for item-level tracking.
+See `memory/project/sprint.md` and `TASKS.md` for current item-level tracking.

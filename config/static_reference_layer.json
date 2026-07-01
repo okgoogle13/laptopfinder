@@ -9,16 +9,17 @@
     "unknown_gpu_behaviour": "A GPU not found in target_gpus, radeon_mobile_gpus, or gpu_generation_by_name scores 0 generation points. It is NOT penalised and does NOT trigger missing-field deductions. The listing proceeds on VRAM tier score alone.",
     "egpu_scoring_behaviour": "When an eGPU enclosure is confirmed, score using the eGPU's VRAM tier and GPU generation. Apply radeon_ecosystem_disclosure if the eGPU is an AMD part. The laptop's internal GPU is ignored for scoring purposes.",
     "radeon_gate_behaviour": "The radeon_ecosystem_disclosure flag does NOT affect risk_score or the low-risk gate. Radeon listings are evaluated at the same risk_score <= 3.0 threshold as all other listings.",
-    "conditional_models_behaviour": "conditional_models entries carry machine-readable fields (requires_discrete_gpu, min_vram_gb) that a future decide.py extension can enforce. Currently decide.py does not read conditional_models — a conditional chassis match does NOT grant shortlist eligibility unless the listing independently passes the VRAM threshold gate."
+    "conditional_models_behaviour": "conditional_models entries carry machine-readable fields (requires_discrete_gpu, min_vram_gb) that a future decide.py extension can enforce. Currently decide.py does not read conditional_models — a conditional chassis match does NOT grant shortlist eligibility unless the listing independently passes the VRAM threshold gate.",
+    "orphaned_spec_diagnostic_proposal": "When a listing confirms vram_gb >= 12 or system_ram_gb >= 64 but receives 0 generation points (no match in target_gpus, radeon_mobile_gpus, or gpu_generation_by_name), decide.py may in future log a [UNKNOWN_HIGH_CAPACITY_TARGET] diagnostic record to an undiscovered_hardware.jsonl queue. This would be a diagnostic discovery path, not a routing gate: listings still proceed on VRAM tier score alone."
   },
   "vram_tiers": {
     "entry": {"min_gb": 8, "max_gb": 12},
-    "mid": {"min_gb": 16, "max_gb": 16},
-    "high": {"min_gb": 24, "max_gb": 24},
+    "mid": {"min_gb": 16, "max_gb": 23},
+    "high": {"min_gb": 24, "max_gb": 31},
     "extreme": {"min_gb": 32, "max_gb": 128}
   },
   "vram_gating_logic": {
-    "standard_mobile_min_gb": 12,
+    "standard_mobile_min_gb": 16,
     "touchscreen_exception_min_gb": 12,
     "uma_unified_min_gb": 32
   },
@@ -33,11 +34,30 @@
   "watch_list": [
     {
       "name": "RTX 5090",
-      "reason": "Blackwell mobile; AU retail launched early 2025.",
+      "reason": "Blackwell mobile; AU retail launched early 2026. Current AU retail: $7,500–$9,000+ AUD — minimum 50% budget violation. ASUS ROG Zephyrus GX651AX and GU606AX variants confirmed above cap. No secondary market depreciation until corporate 36-month lease cycle ends (projected late 2028–2029).",
       "routing_behaviour": "MONITOR overrides all positive signals until graduation_condition is confirmed.",
-      "graduation_condition": "AU used-market listings confirmed on eBay AU, FB Marketplace, or Gumtree.",
+      "graduation_condition": "AU used-market listings confirmed at or below 5,000 AUD on eBay AU, FB Marketplace, or Gumtree.",
       "graduate_to": "target_gpus",
-      "graduate_vram_gb": 24
+      "graduate_vram_gb": 24,
+      "evidence_type": "Observed_AU"
+    },
+    {
+      "name": "RTX 5000 Ada Mobile",
+      "reason": "16 GB Ada Lovelace mobile workstation GPU; excellent 9B/13B host. AU used market non-existent until enterprise 36-month lease cycles expire (late 2026–2027).",
+      "routing_behaviour": "MONITOR overrides all positive signals until graduation_condition is confirmed.",
+      "graduation_condition": "AU domestic used listings confirmed on eBay AU, FB Marketplace, or Gumtree.",
+      "graduate_to": "target_gpus",
+      "graduate_vram_gb": 16,
+      "evidence_type": "Inferred_global"
+    },
+    {
+      "name": "RTX PRO 5000 Blackwell Mobile",
+      "reason": "32 GB VRAM mobile workstation (HP ZBook Fury G1i); no AU consumer stock. Desktop variant retails at 8,999+ AUD.",
+      "routing_behaviour": "MONITOR overrides all positive signals until graduation_condition is confirmed.",
+      "graduation_condition": "AU domestic retail or used listing confirmed within 5,000 AUD band.",
+      "graduate_to": "target_gpus",
+      "graduate_vram_gb": 32,
+      "evidence_type": "Theoretical_future"
     },
     {
       "name": "GB200",
@@ -58,16 +78,128 @@
   ],
   "_comment_target_gpus": "This list is scoped to training/diffusion/CUDA workloads and scoring hints. It is NOT used for text-centric inference ranking — that uses score_text_llm_candidate() with scoring_weights.yaml profiles.",
   "target_gpus": {
-    "RTX 3080 Ti": {"vram_gb": 16},
-    "RTX 4090": {"vram_gb": 16},
-    "RTX 5080": {"vram_gb": 16},
-    "RTX A5000": {"vram_gb": 16},
-    "RTX A3000": {"vram_gb": 12},
-    "RTX 5000 Ada": {"vram_gb": 16},
-    "RTX A5500": {"vram_gb": 16},
-    "RTX A4500": {"vram_gb": 16},
-    "Quadro RTX 6000": {"vram_gb": 24},
-    "Quadro RTX 5000": {"vram_gb": 16}
+    "RTX 3080": {
+      "vram_gb": 16,
+      "platform_class": "gaming_laptop",
+      "budget_band": "used_3k",
+      "observed_au_price_min_aud": 1200,
+      "observed_au_price_max_aud": 2000,
+      "evidence_type": "Observed_AU",
+      "market_verdict": "GRADUATE",
+      "note": "16GB variant is the primary target — verify VRAM in listing photos, 8GB variants exist. Ampere SM86: native Flash Attention support. Target chassis: ASUS ROG Strix SCAR 15/17, MSI Vector GP66, Alienware m15 R4."
+    },
+    "RTX 3080 Ti": {
+      "vram_gb": 16,
+      "platform_class": "gaming_laptop",
+      "budget_band": "used_3k",
+      "observed_au_price_min_aud": 1800,
+      "observed_au_price_max_aud": 2500,
+      "evidence_type": "Observed_AU",
+      "market_verdict": "GRADUATE",
+      "note": "Marginal bandwidth/core improvement over RTX 3080 16GB. Target chassis: Razer Blade 15 Advanced, Dell Precision 7670, MSI Titan GT77."
+    },
+    "RTX 4080": {
+      "vram_gb": 12,
+      "platform_class": "gaming_laptop",
+      "budget_band": "watch_floor_12gb",
+      "observed_au_price_min_aud": 2200,
+      "observed_au_price_max_aud": 2800,
+      "evidence_type": "Observed_AU",
+      "market_verdict": "HOLD",
+      "note": "Ada Lovelace SM89 (native FP8 + Flash Attention 2) but 12GB VRAM is a hard ceiling. 13B models trigger system RAM offload. Price premium over RTX 3080 16GB is unjustified for inference. Monitor for sub-$2,000 AUD price drops."
+    },
+    "RTX 4090": {
+      "vram_gb": 16,
+      "platform_class": "gaming_laptop",
+      "budget_band": "watch_stretch_5k",
+      "observed_au_price_min_aud": 3500,
+      "observed_au_price_max_aud": 4500,
+      "evidence_type": "Observed_AU",
+      "market_verdict": "HOLD",
+      "note": "Identical 16GB VRAM to RTX 3080 16GB at $2,000–$2,500 AUD premium. Fallback if found mispriced in local B2B liquidation. Ada Lovelace SM89: FP8 + Flash Attention 2."
+    },
+    "RTX 5070": {
+      "vram_gb": 16,
+      "platform_class": "gaming_laptop",
+      "budget_band": "new_5k",
+      "observed_au_price_min_aud": 3500,
+      "observed_au_price_max_aud": 4500,
+      "evidence_type": "Observed_AU"
+    },
+    "RTX 5080": {
+      "vram_gb": 16,
+      "platform_class": "gaming_laptop",
+      "budget_band": "new_5k",
+      "observed_au_price_min_aud": 4500,
+      "observed_au_price_max_aud": 5000,
+      "evidence_type": "Observed_AU",
+      "market_verdict": "HOLD",
+      "note": "Sporadically obtainable via clearance retail — Gigabyte A16 Pro (~$4,697 AUD, 115W TGP). Low secondary market saturation in Greater Melbourne as of July 2026. Blackwell architecture: GDDR7, 5th-gen Tensor Cores, native Flash Attention 3. TGP throttling at 115W has minimal impact on memory-bandwidth-bound LLM decode."
+    },
+    "RTX A5000": {
+      "vram_gb": 16,
+      "platform_class": "workstation",
+      "evidence_type": "Inferred_global"
+    },
+    "RTX A3000": {
+      "vram_gb": 12,
+      "platform_class": "workstation",
+      "evidence_type": "Inferred_global"
+    },
+    "RTX 5000 Ada": {
+      "vram_gb": 16,
+      "platform_class": "workstation",
+      "evidence_type": "Inferred_global"
+    },
+    "RTX A5500": {
+      "vram_gb": 16,
+      "platform_class": "workstation",
+      "evidence_type": "Inferred_global"
+    },
+    "RTX A4500": {
+      "vram_gb": 16,
+      "platform_class": "workstation",
+      "budget_band": "watch_enterprise",
+      "observed_au_price_min_aud": 3000,
+      "observed_au_price_max_aud": 4000,
+      "evidence_type": "Observed_AU",
+      "market_verdict": "HOLD",
+      "note": "Ampere SM86: 256-bit bus, 512 GB/s. Functionally equivalent to RTX 3080 16GB. Enterprise ISV premium inflates AU used-market price above RTX 4090 levels. Only viable via direct B2B liquidation below $2,500 AUD."
+    },
+    "Quadro RTX 6000": {
+      "vram_gb": 24,
+      "platform_class": "workstation",
+      "evidence_type": "Inferred_global",
+      "market_verdict": "DEFER",
+      "architecture_note": "Turing SM75: no native Flash Attention support. Flash Attention 2 fallback kernels incur severe latency spikes on long-context prompts. 24GB VRAM does not compensate for architectural deficiency in transformer inference."
+    },
+    "Quadro RTX 5000": {
+      "vram_gb": 16,
+      "platform_class": "workstation",
+      "evidence_type": "Inferred_global",
+      "market_verdict": "DEFER",
+      "architecture_note": "Turing SM75: no native Flash Attention support. Despite high VRAM, this is a hard architectural disqualifier for LLM inference. Do not shortlist regardless of price."
+    },
+    "RTX 4000 Ada": {
+      "vram_gb": 20,
+      "platform_class": "workstation",
+      "evidence_type": "Inferred_global"
+    },
+    "RTX 3500 Ada": {
+      "vram_gb": 12,
+      "platform_class": "workstation",
+      "evidence_type": "Inferred_global"
+    },
+    "RTX 3090": {
+      "vram_gb": 24,
+      "platform_class": "desktop_egpu",
+      "evidence_type": "Inferred_global"
+    },
+    "RTX 4060 Ti": {
+      "vram_gb": 16,
+      "platform_class": "desktop_egpu",
+      "evidence_type": "Inferred_global"
+    }
   },
   "target_models": [
     "ASUS ROG Zephyrus Duo 16",
@@ -88,7 +220,21 @@
     "Precision 5690",
     "Framework 16",
     "MacBook Pro 14",
-    "MacBook Pro 16"
+    "MacBook Pro 16",
+    "ASUS ProArt P16",
+    "Lenovo Legion 7 Pro",
+    "Precision 7770",
+    "Precision 7780",
+    "Precision 7760",
+    "ThinkPad P1 Gen 5",
+    "ThinkPad P1 Gen 6",
+    "ThinkPad P1 Gen 7",
+    "ThinkPad P15 Gen 2",
+    "ThinkPad P17 Gen 2",
+    "ProArt Studiobook 16",
+    "ProArt Studiobook Pro 16",
+    "ZBook Studio G9",
+    "ZBook Studio G10"
   ],
   "conditional_models": {
     "Lenovo ThinkPad T16": {
@@ -120,7 +266,13 @@
     ]
   },
   "radeon_mobile_gpus": {
-    "RX 7900M": {"vram_gb": 16}
+    "RX 7900M": {"vram_gb": 16},
+    "RX 6800M": {
+      "vram_gb": 12,
+      "architecture": "RDNA2",
+      "market_verdict": "DEFER",
+      "note": "12GB VRAM at very low AU secondary price ($700–$1,200 AUD). RDNA2 ROCm stack volatile: persistent kernel panics during sustained autoregressive generation, no ExLlamaV2 support, incomplete quantization library coverage. Operational debugging overhead negates capital saving."
+    }
   },
   "radeon_ecosystem_disclosure": {
     "applies_to": "radeon_mobile_gpus",
@@ -130,7 +282,12 @@
   "egpu_enclosures": [
     "XG Mobile",
     "Razer Core",
-    "ROG XG Mobile"
+    "Razer Core X Chroma",
+    "Razer Core X",
+    "ROG XG Mobile",
+    "Minisforum DEG2",
+    "Sonnet Breakaway Box",
+    "Sonnet eGFX"
   ],
   "travel": {
     "mode": "CAR_OK",
@@ -167,8 +324,11 @@
       "RTX 4090": "Ada Lovelace",
       "RTX 6000 Ada": "Ada Lovelace",
       "L40S": "Ada Lovelace",
+      "RTX 3080": "Ampere",
       "RTX 3080 Ti": "Ampere",
       "RTX 3090": "Ampere",
+      "RTX 4080": "Ada Lovelace",
+      "RTX 5070": "Blackwell",
       "RTX A5000": "Ampere",
       "RTX A3000": "Ampere",
       "RX 7900M": "RDNA3",
@@ -176,7 +336,10 @@
       "RTX A5500": "Ampere",
       "RTX A4500": "Ampere",
       "Quadro RTX 6000": "Turing",
-      "Quadro RTX 5000": "Turing"
+      "Quadro RTX 5000": "Turing",
+      "RTX 4000 Ada": "Ada Lovelace",
+      "RTX 3500 Ada": "Ada Lovelace",
+      "RTX 4060 Ti": "Ada Lovelace"
     },
     "seller_classification_points": {
       "RETAILER_WITH_WARRANTY": 15,
@@ -193,5 +356,27 @@
     },
     "deduction_per_missing_field": 3,
     "deduction_per_risk_point": 4
+  },
+  "ram_floors": {
+    "absolute_min_gb": 32,
+    "recommended_for_uma_gb": 64,
+    "stretch_context_gb": 96,
+    "_comment": "Telemetry basis: Gemma 2 9B on 8 GB Mac produced 35 MB free RAM and 80 MB/s pageout during inference alongside IDE + browser. 32 GB is the operational floor for 9B + IDE + browser stack."
+  },
+  "storage_floors": {
+    "min_gb": 512,
+    "recommended_gb": 1024
+  },
+  "egpu_interconnect_penalty": {
+    "thunderbolt_3_4_pts": -3,
+    "oculink_pts": 0,
+    "thunderbolt_5_pts": 0,
+    "zero_penalty_condition": "system_ram_gb >= 32",
+    "_comment": "TB3/4 caps at ~4 GB/s (PCIe 3.0 x4); prefill phase achieves ~20% GPU utilisation. OCuLink (8 GB/s) achieves ~60%. TB5 (10+ GB/s) is effectively native. Penalty applied to llm_index_score for eGPU listings."
+  },
+  "architecture_adjustments": {
+    "turing_vs_ada_same_vram_penalty_pts": -2,
+    "applies_when": "vram_tier_equal AND generation_A == 'Turing' AND generation_B == 'Ada Lovelace'",
+    "_comment": "decide.py does not yet read this key. Wire up in Sprint 3 via _apply_architecture_penalty(). Penalty is additive to the existing gen-points gap (Turing=5 vs Ada=20)."
   }
 }

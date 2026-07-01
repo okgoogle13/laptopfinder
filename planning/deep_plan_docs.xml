@@ -1,0 +1,2380 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+reviews/
+  iteration-1-opus.md
+sections/
+  .prompts/
+    section-01-prerequisites-prompt.md
+    section-02-inject-config-prompt.md
+    section-03-scrape-live-prompt.md
+    section-04-render-matrix-prompt.md
+    section-05-makefile-and-integration-prompt.md
+  index.md
+  section-01-prerequisites.md
+  section-02-inject-config.md
+  section-03-scrape-live.md
+  section-04-render-matrix.md
+  section-05-makefile-and-integration.md
+claude-integration-notes.md
+claude-interview.md
+claude-plan-tdd.md
+claude-plan.md
+claude-research.md
+claude-spec.md
+deep_plan_config.json
+sprint2-spec.md
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="reviews/iteration-1-opus.md">
+# Opus Review
+
+**Model:** claude-opus-4-8
+**Generated:** 2026-07-02T00:00:00Z
+
+---
+
+Overall this is a well-structured, convention-aware plan. The function signatures, test list, and delivery sequence are concrete. However there is one serious architectural flaw in the core "config injection" concept, plus several downstream-interaction gaps that will bite during a real purchase run.
+
+## Critical
+
+**1. Section 2 (inject_config) — the injection mechanism is destructive and runs exactly once, defeating its own purpose.**
+The stated goal is "prompts never drift from the governance layer." But the design replaces the literal token `[INJECT_TARGETS_HERE]` with a rendered GPU block. After the first `make inject-config`, the token is gone. On the next config change, re-running the script finds no token, makes 0 replacements, and the prompt keeps the *stale* injected list forever. So the prompt drifts silently — the exact failure mode the feature exists to prevent. Same problem for `[UMA_MIN_RAM_GB]`, `[UMA_CHIP_PATTERNS]`, `[TARGET_GPU_LIST]`.
+
+This must be marker-based, not token-consuming. Use paired sentinels, e.g.:
+```
+<!-- BEGIN_INJECT:TARGETS -->
+...rendered block...
+<!-- END_INJECT:TARGETS -->
+```
+and have `inject_file` replace the content *between* markers, leaving the markers in place so it is re-runnable and idempotent.
+
+**2. Section 2 — mutating git-tracked prompt files in place creates commit noise and a second source of truth.**
+Every `make inject-config` (and `make scrape-and-live`) rewrites them, producing a git diff. Decide whether injected prompts are generated artifacts (git-ignored) or committed. If committed, `scrape-and-live` should not silently mutate them on every scrape.
+
+## Field/shape mismatches with the actual codebase
+
+**3. Section 2 — `srl["target_gpus"]` is a dict, `srl["watch_list"]` is a list of objects.**
+`target_gpus` names are the dict keys. `watch_list` entries each have a `["name"]` field. `build_substitutions` must handle both shapes. Test fixtures should match the real structure.
+
+**4. Section 4 — render_matrix's expected fields do not come from `decide()`.**
+`decide()` returns `recommended_action` and `llm_index_score` but has no `listing_title`, `gpu`, `price`, or `notes`. The plan should specify where each field originates and provide a helper that joins decide() output with Stage 2 handoff data.
+
+## Downstream interaction gaps
+
+**5. Section 3 — `strip_nav` will corrupt the grounding firewall.**
+The regex `r'(?i)(breadcrumb|cookie|sign in|cart|watchlist).*?\n'` deletes entire lines on substring matches (`cart` hits `cartridge`). Add word boundaries. Also, Firecrawl Markdown emphasis/links (`**bold**`, `[text](url)`) break verbatim word-boundary grounding matches — specify markdown normalization.
+
+**6. Section 3 — multiple listings concatenated into one feed file is batch-fatal.**
+One bad listing (matching `exclusion_regex`) aborts the whole Stage 2 run. Per-listing failures must be isolable.
+
+## Robustness / correctness
+
+**7. Firecrawl API shape is version-fragile.** Recent versions use `scrape_url(url, formats=["markdown"])` and return a response object with `.markdown`, not a dict key. Pin the version in `pyproject.toml`.
+
+**8. `os.environ["FIRECRAWL_API_KEY"]` KeyError.** Handle missing key with a clear error message rather than a bare crash.
+
+**9. No content sanity check.** FB/Gumtree may return login-wall content without raising an exception. Add a minimum-content check (warn/skip if cleaned Markdown is under N chars).
+
+**10. `sort_candidates` crashes on missing `llm_index_score`.** `None` compared to `int` raises `TypeError`. Default missing scores to `-1`.
+
+**11. Unescaped `|` breaks the Markdown table.** Listing titles and notes commonly contain `|`. Escape in `render_table`.
+
+**12. `load_candidates` malformed-line handling unspecified.** One bad JSONL line crashes the whole render. Specify skip-and-warn or fail-fast explicitly.
+
+## Minor
+
+- `build_substitutions(srl, profiles)` — `profiles` is unused in v1. Drop the dead parameter.
+- Construct one `Firecrawl` instance (v1 — NOT `FirecrawlApp`) in `main`, not per-URL.
+- `data/feed_live/` and `data/purchase_matrix.md` should be `.gitignore`d as generated artifacts. (`data/feed_live.txt` is NOT the output — scrape_live writes per-listing files to the directory.)
+- Provenance `<!-- {url} -->` comments may embed tracking query params — consider stripping query strings.
+
+## What's good
+
+- Delivery sequence is sensibly ordered.
+- Consistent adherence to project conventions (flat functions, config-driven, fixture tests).
+- Error-continue behaviour for scraping is the right instinct.
+
+The single most important change is item 1 (marker-based, idempotent injection). Items 5 and 6 are the ones most likely to produce confusing runtime `ValueError`s during an actual purchase run.
+</file>
+
+<file path="sections/.prompts/section-01-prerequisites-prompt.md">
+## Task
+
+Generate content for section `section-01-prerequisites` (filename: `section-01-prerequisites.md`).
+
+## Context Files
+
+Read these files first to understand the full implementation plan:
+
+1. `/Users/okgoogle13/Projects/laptopfinder/planning/claude-plan.md` - Full implementation plan
+2. `/Users/okgoogle13/Projects/laptopfinder/planning/claude-plan-tdd.md` - Test stubs for each section
+3. `/Users/okgoogle13/Projects/laptopfinder/planning/sections/index.md` - Section manifest and descriptions
+
+## Your Section
+
+In `index.md`, locate the `<!-- SECTION_MANIFEST ... -->` block. Find the entry
+for `section-01-prerequisites` to understand what this section should contain.
+
+## Output
+
+Output ONLY the markdown content for this section. No JSON wrapper, no code
+blocks around the output. Just the raw markdown content.
+
+The hook system will automatically write your output to:
+`/Users/okgoogle13/Projects/laptopfinder/planning/sections/section-01-prerequisites.md`
+
+## Content Requirements
+
+The section content must be **completely self-contained**. An implementer should be able to:
+
+1. Read only this section
+2. Create a TODO list
+3. Start implementing immediately
+
+**Include in the content:**
+
+- Tests FIRST (extract relevant tests from `claude-plan-tdd.md`)
+- Implementation details (extract relevant sections from `claude-plan.md`)
+- All necessary background and context
+- File paths for any code to be created/modified
+- Dependencies on other sections (reference only, don't duplicate content)
+- **CRITICAL** Remember that tests and code should only be fully specified if absolutely necessary. Stub definitions and docstrings are fine.
+
+**Do NOT:**
+
+- Reference other documents - copy relevant info into the section
+- Assume the reader has seen the original plan
+- Include content from other sections
+- Leave placeholders or TODOs for the implementer to figure out
+- Write full code implementations - sections are prose with stubs/signatures only when necessary to clarify intent
+
+## Important Notes
+
+- Extract ONLY the content relevant to your assigned section
+- The section should be implementable in isolation (given its dependencies are met)
+- Be thorough - better to include too much context than too little
+- Preserve code formatting and indentation exactly as shown in the source files
+</file>
+
+<file path="sections/.prompts/section-02-inject-config-prompt.md">
+## Task
+
+Generate content for section `section-02-inject-config` (filename: `section-02-inject-config.md`).
+
+## Context Files
+
+Read these files first to understand the full implementation plan:
+
+1. `/Users/okgoogle13/Projects/laptopfinder/planning/claude-plan.md` - Full implementation plan
+2. `/Users/okgoogle13/Projects/laptopfinder/planning/claude-plan-tdd.md` - Test stubs for each section
+3. `/Users/okgoogle13/Projects/laptopfinder/planning/sections/index.md` - Section manifest and descriptions
+
+## Your Section
+
+In `index.md`, locate the `<!-- SECTION_MANIFEST ... -->` block. Find the entry
+for `section-02-inject-config` to understand what this section should contain.
+
+## Output
+
+Output ONLY the markdown content for this section. No JSON wrapper, no code
+blocks around the output. Just the raw markdown content.
+
+The hook system will automatically write your output to:
+`/Users/okgoogle13/Projects/laptopfinder/planning/sections/section-02-inject-config.md`
+
+## Content Requirements
+
+The section content must be **completely self-contained**. An implementer should be able to:
+
+1. Read only this section
+2. Create a TODO list
+3. Start implementing immediately
+
+**Include in the content:**
+
+- Tests FIRST (extract relevant tests from `claude-plan-tdd.md`)
+- Implementation details (extract relevant sections from `claude-plan.md`)
+- All necessary background and context
+- File paths for any code to be created/modified
+- Dependencies on other sections (reference only, don't duplicate content)
+- **CRITICAL** Remember that tests and code should only be fully specified if absolutely necessary. Stub definitions and docstrings are fine.
+
+**Do NOT:**
+
+- Reference other documents - copy relevant info into the section
+- Assume the reader has seen the original plan
+- Include content from other sections
+- Leave placeholders or TODOs for the implementer to figure out
+- Write full code implementations - sections are prose with stubs/signatures only when necessary to clarify intent
+
+## Important Notes
+
+- Extract ONLY the content relevant to your assigned section
+- The section should be implementable in isolation (given its dependencies are met)
+- Be thorough - better to include too much context than too little
+- Preserve code formatting and indentation exactly as shown in the source files
+</file>
+
+<file path="sections/.prompts/section-03-scrape-live-prompt.md">
+## Task
+
+Generate content for section `section-03-scrape-live` (filename: `section-03-scrape-live.md`).
+
+## Context Files
+
+Read these files first to understand the full implementation plan:
+
+1. `/Users/okgoogle13/Projects/laptopfinder/planning/claude-plan.md` - Full implementation plan
+2. `/Users/okgoogle13/Projects/laptopfinder/planning/claude-plan-tdd.md` - Test stubs for each section
+3. `/Users/okgoogle13/Projects/laptopfinder/planning/sections/index.md` - Section manifest and descriptions
+
+## Your Section
+
+In `index.md`, locate the `<!-- SECTION_MANIFEST ... -->` block. Find the entry
+for `section-03-scrape-live` to understand what this section should contain.
+
+## Output
+
+Output ONLY the markdown content for this section. No JSON wrapper, no code
+blocks around the output. Just the raw markdown content.
+
+The hook system will automatically write your output to:
+`/Users/okgoogle13/Projects/laptopfinder/planning/sections/section-03-scrape-live.md`
+
+## Content Requirements
+
+The section content must be **completely self-contained**. An implementer should be able to:
+
+1. Read only this section
+2. Create a TODO list
+3. Start implementing immediately
+
+**Include in the content:**
+
+- Tests FIRST (extract relevant tests from `claude-plan-tdd.md`)
+- Implementation details (extract relevant sections from `claude-plan.md`)
+- All necessary background and context
+- File paths for any code to be created/modified
+- Dependencies on other sections (reference only, don't duplicate content)
+- **CRITICAL** Remember that tests and code should only be fully specified if absolutely necessary. Stub definitions and docstrings are fine.
+
+**Do NOT:**
+
+- Reference other documents - copy relevant info into the section
+- Assume the reader has seen the original plan
+- Include content from other sections
+- Leave placeholders or TODOs for the implementer to figure out
+- Write full code implementations - sections are prose with stubs/signatures only when necessary to clarify intent
+
+## Important Notes
+
+- Extract ONLY the content relevant to your assigned section
+- The section should be implementable in isolation (given its dependencies are met)
+- Be thorough - better to include too much context than too little
+- Preserve code formatting and indentation exactly as shown in the source files
+</file>
+
+<file path="sections/.prompts/section-04-render-matrix-prompt.md">
+## Task
+
+Generate content for section `section-04-render-matrix` (filename: `section-04-render-matrix.md`).
+
+## Context Files
+
+Read these files first to understand the full implementation plan:
+
+1. `/Users/okgoogle13/Projects/laptopfinder/planning/claude-plan.md` - Full implementation plan
+2. `/Users/okgoogle13/Projects/laptopfinder/planning/claude-plan-tdd.md` - Test stubs for each section
+3. `/Users/okgoogle13/Projects/laptopfinder/planning/sections/index.md` - Section manifest and descriptions
+
+## Your Section
+
+In `index.md`, locate the `<!-- SECTION_MANIFEST ... -->` block. Find the entry
+for `section-04-render-matrix` to understand what this section should contain.
+
+## Output
+
+Output ONLY the markdown content for this section. No JSON wrapper, no code
+blocks around the output. Just the raw markdown content.
+
+The hook system will automatically write your output to:
+`/Users/okgoogle13/Projects/laptopfinder/planning/sections/section-04-render-matrix.md`
+
+## Content Requirements
+
+The section content must be **completely self-contained**. An implementer should be able to:
+
+1. Read only this section
+2. Create a TODO list
+3. Start implementing immediately
+
+**Include in the content:**
+
+- Tests FIRST (extract relevant tests from `claude-plan-tdd.md`)
+- Implementation details (extract relevant sections from `claude-plan.md`)
+- All necessary background and context
+- File paths for any code to be created/modified
+- Dependencies on other sections (reference only, don't duplicate content)
+- **CRITICAL** Remember that tests and code should only be fully specified if absolutely necessary. Stub definitions and docstrings are fine.
+
+**Do NOT:**
+
+- Reference other documents - copy relevant info into the section
+- Assume the reader has seen the original plan
+- Include content from other sections
+- Leave placeholders or TODOs for the implementer to figure out
+- Write full code implementations - sections are prose with stubs/signatures only when necessary to clarify intent
+
+## Important Notes
+
+- Extract ONLY the content relevant to your assigned section
+- The section should be implementable in isolation (given its dependencies are met)
+- Be thorough - better to include too much context than too little
+- Preserve code formatting and indentation exactly as shown in the source files
+</file>
+
+<file path="sections/.prompts/section-05-makefile-and-integration-prompt.md">
+## Task
+
+Generate content for section `section-05-makefile-and-integration` (filename: `section-05-makefile-and-integration.md`).
+
+## Context Files
+
+Read these files first to understand the full implementation plan:
+
+1. `/Users/okgoogle13/Projects/laptopfinder/planning/claude-plan.md` - Full implementation plan
+2. `/Users/okgoogle13/Projects/laptopfinder/planning/claude-plan-tdd.md` - Test stubs for each section
+3. `/Users/okgoogle13/Projects/laptopfinder/planning/sections/index.md` - Section manifest and descriptions
+
+## Your Section
+
+In `index.md`, locate the `<!-- SECTION_MANIFEST ... -->` block. Find the entry
+for `section-05-makefile-and-integration` to understand what this section should contain.
+
+## Output
+
+Output ONLY the markdown content for this section. No JSON wrapper, no code
+blocks around the output. Just the raw markdown content.
+
+The hook system will automatically write your output to:
+`/Users/okgoogle13/Projects/laptopfinder/planning/sections/section-05-makefile-and-integration.md`
+
+## Content Requirements
+
+The section content must be **completely self-contained**. An implementer should be able to:
+
+1. Read only this section
+2. Create a TODO list
+3. Start implementing immediately
+
+**Include in the content:**
+
+- Tests FIRST (extract relevant tests from `claude-plan-tdd.md`)
+- Implementation details (extract relevant sections from `claude-plan.md`)
+- All necessary background and context
+- File paths for any code to be created/modified
+- Dependencies on other sections (reference only, don't duplicate content)
+- **CRITICAL** Remember that tests and code should only be fully specified if absolutely necessary. Stub definitions and docstrings are fine.
+
+**Do NOT:**
+
+- Reference other documents - copy relevant info into the section
+- Assume the reader has seen the original plan
+- Include content from other sections
+- Leave placeholders or TODOs for the implementer to figure out
+- Write full code implementations - sections are prose with stubs/signatures only when necessary to clarify intent
+
+## Important Notes
+
+- Extract ONLY the content relevant to your assigned section
+- The section should be implementable in isolation (given its dependencies are met)
+- Be thorough - better to include too much context than too little
+- Preserve code formatting and indentation exactly as shown in the source files
+</file>
+
+<file path="sections/index.md">
+<!-- PROJECT_CONFIG
+runtime: python-uv
+test_command: uv run pytest
+END_PROJECT_CONFIG -->
+
+<!-- SECTION_MANIFEST
+section-01-prerequisites
+section-02-inject-config
+section-03-scrape-live
+section-04-render-matrix
+section-05-makefile-and-integration
+END_MANIFEST -->
+
+# Implementation Sections Index
+
+## Dependency Graph
+
+| Section | Depends On | Blocks | Parallelizable |
+|---------|------------|--------|----------------|
+| section-01-prerequisites | — | all | Yes |
+| section-02-inject-config | 01 | 05 | No |
+| section-03-scrape-live | 01 | 05 | Yes (parallel with 02, 04) |
+| section-04-render-matrix | 01 | 05 | Yes (parallel with 02, 03) |
+| section-05-makefile-and-integration | 02, 03, 04 | — | No |
+
+## Execution Order
+
+1. section-01-prerequisites (no dependencies — setup only)
+2. section-02-inject-config, section-03-scrape-live, section-04-render-matrix (parallel after 01)
+3. section-05-makefile-and-integration (after 02, 03, AND 04)
+
+## Section Summaries
+
+### section-01-prerequisites
+Create `scripts/` directory, add `firecrawl-py` to `pyproject.toml` (pinned version), add `FIRECRAWL_API_KEY` to `.env.example`, update `.gitignore` with generated artifact paths, and manually add `<!-- BEGIN_INJECT:X --> ... <!-- END_INJECT:X -->` sentinel marker pairs to the three target prompt files.
+
+### section-02-inject-config
+Write `scripts/inject_config.py` with `load_srl`, `build_substitutions`, `inject_file`, and `main`. Write `tests/test_inject_config.py` with idempotency, shape-correctness, and edge-case tests. All logic is Karpathy-style: flat functions, no classes, SRL-only config source in v1.
+
+### section-03-scrape-live
+Write `src/laptopfinder/scrape_live.py` (under 50 lines) with `read_urls`, `strip_nav`, `normalise_md`, `fetch_markdown`, and `main`. Uses Firecrawl v1 client (`from firecrawl import Firecrawl`), `fc.scrape(url, formats=["markdown"], wait_for=3000)`, `doc.markdown`. Per-listing output to `data/feed_live/`. Write `tests/test_scrape_live.py` with mocked client — no live HTTP.
+
+### section-04-render-matrix
+Write `scripts/render_matrix.py` with `load_candidates`, `sort_candidates`, `render_table`, and `main`. Handles missing fields, null scores, pipe escaping, malformed JSONL lines. Write `tests/test_render_matrix.py`. No external dependencies beyond stdlib.
+
+### section-05-makefile-and-integration
+Add `inject-config`, `scrape-and-live`, and `render-matrix` targets to the Makefile. Create `data/urls.txt` sample file. Run `make test` to confirm all new and existing tests pass. Run `make inject-config` against real prompt files and verify git diff shows expected content between markers.
+</file>
+
+<file path="sections/section-01-prerequisites.md">
+Now I have all the context needed. Here is the section content:
+
+---
+
+# Section 01 — Prerequisites
+
+**Blocks:** All other sections (02, 03, 04, 05). Complete this before starting any other section.
+
+**No automated tests.** The TDD plan explicitly excludes tests for these setup steps. Verify each item manually.
+
+---
+
+## Overview
+
+This section creates the structural scaffolding required by the three Sprint 2 deliverables:
+
+- `scripts/inject_config.py` (section 02)
+- `src/laptopfinder/scrape_live.py` (section 03)
+- `scripts/render_matrix.py` (section 04)
+
+The work is purely mechanical: install a new dependency, create a directory, update ignore and env files, and insert sentinel markers into three prompt files.
+
+---
+
+## 1. Create the `scripts/` Directory
+
+The `scripts/` directory does not yet exist. Create it with a placeholder to make it git-trackable:
+
+```
+/Users/okgoogle13/Projects/laptopfinder/scripts/.gitkeep
+```
+
+No `__init__.py` is needed — scripts in this directory are invoked directly, not imported as a package.
+
+---
+
+## 2. Install `firecrawl-py`
+
+The Firecrawl client is not yet in `pyproject.toml`. Add it using uv so the version is pinned in `pyproject.toml` and `uv.lock`:
+
+```bash
+cd /Users/okgoogle13/Projects/laptopfinder
+uv add firecrawl-py
+```
+
+Pin to the specific version uv resolves. After running, verify that `pyproject.toml` at `/Users/okgoogle13/Projects/laptopfinder/pyproject.toml` now lists `firecrawl-py` under `[project] dependencies`.
+
+**Critical API shape for section 03** — the v1 client interface (confirm this matches the installed version before section 03 proceeds):
+
+```python
+from firecrawl import Firecrawl          # v1 — NOT FirecrawlApp (deprecated v0)
+fc = Firecrawl(api_key="...")
+doc = fc.scrape(url, formats=["markdown"], wait_for=3000)
+content = doc.markdown                   # attribute, not dict key
+```
+
+If `doc.markdown` raises `AttributeError`, the installed version may be v0. Check `pip show firecrawl-py` and the package changelog to confirm the v1 scrape response shape.
+
+---
+
+## 3. Document `FIRECRAWL_API_KEY` in `.env.example`
+
+File: `/Users/okgoogle13/Projects/laptopfinder/.env.example`
+
+Add one line after the existing `PERPLEXITY_API_KEY` entry:
+
+```
+# Firecrawl API (used by scrape_live for listing page fetch)
+FIRECRAWL_API_KEY="your_firecrawl_api_key_here"
+```
+
+The existing `.env.example` already has `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, and `PERPLEXITY_API_KEY`. Do not remove or reorder those entries.
+
+---
+
+## 4. Update `.gitignore`
+
+File: `/Users/okgoogle13/Projects/laptopfinder/.gitignore`
+
+Add two entries for build artifacts that must not be committed:
+
+```
+# Live scrape output and rendered matrices (generated build artifacts)
+data/feed_live/
+data/purchase_matrix.md
+```
+
+Append these after the existing `restored_conversations/` entry. Both paths are outputs of the Sprint 2 pipeline — they change on every run and must not be tracked in source control.
+
+---
+
+## 5. Add Sentinel Marker Pairs to Prompt Files
+
+This is a **one-time manual edit** to the three prompt files that `inject_config.py` will manage. The sentinel format is:
+
+```
+<!-- BEGIN_INJECT:TOKEN_NAME -->
+...content injected here by inject_config.py...
+<!-- END_INJECT:TOKEN_NAME -->
+```
+
+`inject_config.py` replaces content *between* the markers, leaving the markers in place. The markers must be present before the first run of `make inject-config`.
+
+### 5a. `prompts/comet_discovery_agent.txt`
+
+File: `/Users/okgoogle13/Projects/laptopfinder/prompts/comet_discovery_agent.txt`
+
+Line 8 currently contains:
+
+```
+  [INJECT_TARGETS_HERE]
+```
+
+Replace that exact line with the `TARGETS` sentinel pair (leave surrounding lines unchanged):
+
+```
+<!-- BEGIN_INJECT:TARGETS -->
+<!-- END_INJECT:TARGETS -->
+```
+
+Leave the content between the markers empty — `inject_config.py` will populate it on first run.
+
+### 5b. `prompts/alternative_silicon_gemini.txt`
+
+File: `/Users/okgoogle13/Projects/laptopfinder/prompts/alternative_silicon_gemini.txt`
+
+This file has hardcoded threshold values and chip lists in the `PIPELINE GATE THRESHOLDS` section (lines 9–15 approximately). Add three sentinel pairs at appropriate locations in that section:
+
+- After the UMA minimum RAM sentence, wrap or append a `UMA_MIN_RAM_GB` marker pair so `inject_config.py` can keep that value in sync with `static_reference_layer.json`.
+- Near or after the UMA platform chip list, add a `UMA_CHIP_PATTERNS` marker pair.
+- At a location where the target GPU list is referenced or should be surfaced, add a `TARGET_GPU_LIST` marker pair.
+
+The exact placement is editorial judgement — put each marker pair where a reader would expect to find that value. Keep surrounding prose intact. Leave the content between each pair empty initially.
+
+### 5c. `prompts/alternative_silicon_perplexity.txt`
+
+File: `/Users/okgoogle13/Projects/laptopfinder/prompts/alternative_silicon_perplexity.txt`
+
+Same three sentinel pairs as 5b — `UMA_MIN_RAM_GB`, `UMA_CHIP_PATTERNS`, and `TARGET_GPU_LIST` — placed in the `MEMORY GATE THRESHOLDS` section and adjacent areas. The perplexity variant has the same categories but different prose structure; place markers where the equivalent values appear in that file.
+
+---
+
+## Verification Checklist
+
+Before proceeding to sections 02–04, confirm:
+
+- [ ] `/Users/okgoogle13/Projects/laptopfinder/scripts/` directory exists
+- [ ] `pyproject.toml` lists `firecrawl-py` with a pinned version
+- [ ] `uv.lock` is updated (run `uv sync` if needed after editing `pyproject.toml` manually)
+- [ ] `.env.example` contains `FIRECRAWL_API_KEY` entry
+- [ ] `.gitignore` contains `data/feed_live/` and `data/purchase_matrix.md`
+- [ ] `prompts/comet_discovery_agent.txt` has `BEGIN_INJECT:TARGETS` / `END_INJECT:TARGETS` markers in place of `[INJECT_TARGETS_HERE]`
+- [ ] `prompts/alternative_silicon_gemini.txt` has all three marker pairs (`UMA_MIN_RAM_GB`, `UMA_CHIP_PATTERNS`, `TARGET_GPU_LIST`)
+- [ ] `prompts/alternative_silicon_perplexity.txt` has all three marker pairs
+- [ ] `python -c "from firecrawl import Firecrawl; print('ok')"` succeeds inside `.venv`
+</file>
+
+<file path="sections/section-02-inject-config.md">
+Now I have all the context needed. Let me write the section content.
+
+# Section 02: Config Injection (`scripts/inject_config.py`)
+
+## Overview
+
+This section covers the implementation of `scripts/inject_config.py` and its test suite `tests/test_inject_config.py`. The script keeps prompt files in sync with `config/static_reference_layer.json` (the SRL) via marker-based, idempotent substitution. It is invoked explicitly via `make inject-config` — it is not a dependency of any scrape target.
+
+**Dependencies:** Section 01 (prerequisites) must be complete. The `scripts/` directory must exist. Sentinel marker pairs must already be present in the three target prompt files (one-time manual edit — see below).
+
+---
+
+## Background and Problem
+
+`prompts/comet_discovery_agent.txt` currently contains a bare `[INJECT_TARGETS_HERE]` placeholder at line 8. This placeholder requires manual updates when `target_gpus` or `watch_list` changes in the SRL. The alternative silicon prompts (`prompts/alternative_silicon_gemini.txt`, `prompts/alternative_silicon_perplexity.txt`) are entirely disconnected from config.
+
+A simple token-replace approach fails the idempotency requirement: run it twice and the second run has no marker to find. The solution is paired sentinel comments that survive each injection run. Content between the sentinels is replaced; the sentinels themselves remain.
+
+---
+
+## One-Time Manual Edit (Prerequisite)
+
+Before the script can run, sentinel marker pairs must be added to the three target prompt files. This is a human/implementer task, not automated by the script.
+
+**`prompts/comet_discovery_agent.txt`** — replace the existing `[INJECT_TARGETS_HERE]` line (currently line 8) with:
+
+```
+<!-- BEGIN_INJECT:TARGETS -->
+<!-- END_INJECT:TARGETS -->
+```
+
+**`prompts/alternative_silicon_gemini.txt`** and **`prompts/alternative_silicon_perplexity.txt`** — add marker pairs at appropriate locations in each file:
+
+```
+<!-- BEGIN_INJECT:UMA_MIN_RAM_GB -->
+<!-- END_INJECT:UMA_MIN_RAM_GB -->
+
+<!-- BEGIN_INJECT:UMA_CHIP_PATTERNS -->
+<!-- END_INJECT:UMA_CHIP_PATTERNS -->
+
+<!-- BEGIN_INJECT:TARGET_GPU_LIST -->
+<!-- END_INJECT:TARGET_GPU_LIST -->
+```
+
+These sentinel pairs are committed to version control. The content between them is what `inject_config.py` manages.
+
+---
+
+## Sentinel Format
+
+```
+<!-- BEGIN_INJECT:TARGETS -->
+...rendered content written here by inject_config.py...
+<!-- END_INJECT:TARGETS -->
+```
+
+The four marker names used in v1:
+
+| Marker Name | Content |
+|---|---|
+| `TARGETS` | Formatted block of target GPU names and watch-list GPUs |
+| `UMA_MIN_RAM_GB` | Integer value of `uma_platforms.min_total_ram_gb_to_shortlist` |
+| `UMA_CHIP_PATTERNS` | Comma-separated chip pattern list |
+| `TARGET_GPU_LIST` | Same GPU list as TARGETS, usable in alt-silicon prompts |
+
+---
+
+## Config Source
+
+Only `config/static_reference_layer.json` is loaded. Key SRL fields used:
+
+- `target_gpus` — a **dict** where keys are GPU names (e.g. `"RTX 3080"`, `"RTX 4090"`). Currently contains: RTX 3080, RTX 3080 Ti, RTX 4080, RTX 4090, RTX 5070, RTX 5080, RTX A5000, and others.
+- `watch_list` — a **list** of dicts, each with a `"name"` key (e.g. `{"name": "RTX 5090", ...}`). Currently contains: RTX 5090, RTX 5000 Ada Mobile, RTX PRO 5000 Blackwell Mobile, GB200, B200.
+- `uma_platforms` — dict with `"min_total_ram_gb_to_shortlist": 32` and `"chip_patterns": ["M1 Max", "M1 Ultra", ..., "Strix Halo"]`.
+
+`silicon_profiles.yaml` is **not** loaded in v1. No ecosystem maturity tokens are injected.
+
+---
+
+## File to Create
+
+**`/Users/okgoogle13/Projects/laptopfinder/scripts/inject_config.py`**
+
+### Function Signatures
+
+```python
+def load_srl(path: str) -> dict:
+    """Load and return static_reference_layer.json as a dict.
+
+    Raises FileNotFoundError if path does not exist.
+    """
+
+def build_substitutions(srl: dict) -> dict[str, str]:
+    """Return mapping of marker name to rendered content string.
+
+    Keys: "TARGETS", "UMA_MIN_RAM_GB", "UMA_CHIP_PATTERNS", "TARGET_GPU_LIST"
+
+    - TARGETS / TARGET_GPU_LIST: format target GPU names from srl["target_gpus"].keys()
+      plus watch-list names from srl["watch_list"] (each entry["name"]).
+    - UMA_MIN_RAM_GB: str(srl["uma_platforms"]["min_total_ram_gb_to_shortlist"])
+    - UMA_CHIP_PATTERNS: ", ".join(srl["uma_platforms"]["chip_patterns"])
+
+    No silicon_profiles.yaml in v1.
+    """
+
+def inject_file(path: str, substitutions: dict[str, str]) -> int:
+    """Replace content between BEGIN_INJECT/END_INJECT marker pairs in a file.
+
+    - Reads the file.
+    - For each key in substitutions, replaces the block between
+      <!-- BEGIN_INJECT:{key} --> and <!-- END_INJECT:{key} --> with the value.
+    - Writes the file in-place.
+    - Markers remain present in the output.
+    - Idempotent: calling twice produces identical content.
+    - Returns count of marker pairs successfully replaced.
+    - Raises FileNotFoundError if path does not exist.
+    """
+
+def main() -> None:
+    """Load SRL from config/static_reference_layer.json, build substitutions,
+    inject into the three target prompt files:
+      - prompts/comet_discovery_agent.txt
+      - prompts/alternative_silicon_gemini.txt
+      - prompts/alternative_silicon_perplexity.txt
+
+    Prints one summary line per file: "<filename>: <n> block(s) replaced"
+    """
+```
+
+### Implementation Notes
+
+- Use `re.sub` with a pattern like `r'(<!-- BEGIN_INJECT:{key} -->).*?(<!-- END_INJECT:{key} -->)'` with `re.DOTALL` to replace the content between markers. The replacement string keeps both marker tags with the new content in between.
+- Read/write files with UTF-8 encoding.
+- The script resolves paths relative to the repo root. Use `pathlib.Path(__file__).parent.parent` to find the repo root from `scripts/inject_config.py`.
+- No `argparse` needed in v1 — paths are hardcoded in `main()`.
+- No `if __name__ == "__main__"` guard is strictly required but is conventional.
+
+---
+
+## Tests to Write First
+
+**`/Users/okgoogle13/Projects/laptopfinder/tests/test_inject_config.py`**
+
+Write these tests before implementing the script. All tests must be runnable with `.venv/bin/pytest tests/test_inject_config.py -v`.
+
+### `load_srl` tests
+
+```python
+def test_load_srl_returns_expected_keys(tmp_path):
+    """Write a minimal SRL JSON to tmp_path; assert load_srl returns dict
+    containing keys: target_gpus, watch_list, uma_platforms, vram_gating_logic."""
+
+def test_load_srl_raises_on_missing_file():
+    """Assert load_srl raises FileNotFoundError for a non-existent path."""
+```
+
+### `build_substitutions` tests
+
+Construct a mock SRL in each test — do not load the real SRL. Use a minimal structure:
+
+```python
+MOCK_SRL = {
+    "target_gpus": {"RTX 3080": {}, "RTX 4090": {}},
+    "watch_list": [{"name": "RTX 5090"}, {"name": "GB200"}],
+    "uma_platforms": {
+        "min_total_ram_gb_to_shortlist": 64,
+        "chip_patterns": ["M3 Max", "M4 Ultra"]
+    },
+    "vram_gating_logic": {}
+}
+```
+
+```python
+def test_build_substitutions_returns_all_four_keys():
+    """Assert result contains keys: TARGETS, UMA_MIN_RAM_GB, UMA_CHIP_PATTERNS, TARGET_GPU_LIST."""
+
+def test_target_gpu_list_contains_gpu_names():
+    """Assert "RTX 3080" and "RTX 4090" appear in TARGET_GPU_LIST value."""
+
+def test_targets_includes_watch_list_names():
+    """Assert "RTX 5090" and "GB200" appear in TARGETS value."""
+
+def test_uma_min_ram_gb_is_string_of_value():
+    """Assert UMA_MIN_RAM_GB == "64"."""
+
+def test_uma_chip_patterns_comma_separated():
+    """Assert UMA_CHIP_PATTERNS == "M3 Max, M4 Ultra"."""
+```
+
+### `inject_file` tests
+
+```python
+def test_inject_file_replaces_content_between_markers(tmp_path):
+    """Write a file with:
+      <!-- BEGIN_INJECT:TARGETS -->
+      stale content
+      <!-- END_INJECT:TARGETS -->
+    Call inject_file with substitutions={"TARGETS": "fresh content"}.
+    Assert the file now contains "fresh content" between the markers.
+    Assert both marker lines are still present.
+    Assert return value is 1."""
+
+def test_inject_file_is_idempotent(tmp_path):
+    """Call inject_file twice with same substitutions.
+    Assert file content after second call == file content after first call.
+    Assert both calls return non-zero replacement count."""
+
+def test_inject_file_no_markers_returns_zero(tmp_path):
+    """Write a file with no sentinel markers.
+    Assert inject_file returns 0 and file content is unchanged."""
+
+def test_inject_file_raises_on_missing_file():
+    """Assert inject_file raises FileNotFoundError for a non-existent path."""
+
+def test_inject_file_replacement_count(tmp_path):
+    """Write a file with two different marker pairs (TARGETS and UMA_MIN_RAM_GB).
+    Call inject_file with both in substitutions.
+    Assert return value is 2."""
+```
+
+### `main` integration test
+
+```python
+def test_main_injects_all_three_prompt_files(tmp_path, monkeypatch):
+    """Copy or create stub versions of all three prompt files in tmp_path,
+    each containing at least one sentinel marker pair.
+    Monkeypatch the script's resolved prompt paths to point to tmp_path copies.
+    Call main().
+    Assert all three files have updated content between their markers.
+    Assert no marker lines were destroyed."""
+```
+
+---
+
+## Makefile Target
+
+This target belongs in the main `Makefile` (added in section 05, but noted here for reference):
+
+```makefile
+inject-config:
+	.venv/bin/python scripts/inject_config.py
+```
+
+`scrape-and-live` does NOT depend on `inject-config`. Run separately when the SRL changes.
+
+---
+
+## Verification Steps
+
+After implementation:
+
+1. Run `make test` — all new and existing tests must pass.
+2. Run `make inject-config` against the real prompt files.
+3. Run `git diff prompts/` — verify that content between the sentinel marker pairs has been updated, and that the marker lines themselves are intact.
+4. Run `make inject-config` a second time — `git diff` should show no new changes (idempotency confirmed).
+</file>
+
+<file path="sections/section-03-scrape-live.md">
+# Section 03 — Live Scraper (`scrape_live.py`)
+
+## Dependencies
+
+This section depends on **section-01-prerequisites** being complete:
+- `firecrawl-py` installed and pinned in `pyproject.toml`
+- `FIRECRAWL_API_KEY` documented in `.env.example`
+- `data/feed_live/` added to `.gitignore`
+
+This section is parallel-safe with section-02 and section-04. Section-05 (Makefile integration) blocks on this one.
+
+---
+
+## Background
+
+The existing `make live` pipeline accepts a pre-assembled text file (`SOURCE=feed.txt`). There is no automated way to populate that file from real listing URLs. Concatenating all listings into one file would be batch-fatal: one bad listing matching the data-integrity `exclusion_regex` in `static_reference_layer.json` aborts Stage 2 for all others.
+
+The solution is per-listing output files. `scrape_live.py` writes each successfully fetched listing to a separate file in `data/feed_live/` (e.g. `data/feed_live/listing-001.txt`). The `scrape-and-live` Makefile target then iterates over these files, running `make live SOURCE=<file>` for each. Failures are isolated at the per-listing level.
+
+---
+
+## Files to Create
+
+- `/Users/okgoogle13/Projects/laptopfinder/src/laptopfinder/scrape_live.py` — the scraper module (target: under 50 lines)
+- `/Users/okgoogle13/Projects/laptopfinder/tests/test_scrape_live.py` — test file (no live HTTP)
+- `/Users/okgoogle13/Projects/laptopfinder/data/urls.txt` — sample URL list (committed to repo)
+
+---
+
+## Tests First (`tests/test_scrape_live.py`)
+
+Write these tests before implementing the module. All tests mock the Firecrawl client — zero live HTTP calls. Use `unittest.mock.patch`.
+
+### `read_urls`
+
+- Blank lines are excluded from the returned list.
+- Lines starting with `#` are excluded.
+- Valid URLs are returned in order.
+- File containing only blanks and comments returns an empty list.
+
+### `strip_nav`
+
+- A line starting with the `breadcrumb` keyword is removed.
+- A line where `cart` appears as a substring of another word (e.g. `"cartridge case"`) is NOT removed — test for false-positive safety.
+- A `<!-- URL -->` provenance comment line is NOT removed by nav stripping.
+- Unrelated listing content lines survive unchanged.
+
+### `normalise_md`
+
+- `**bold**` → `bold`
+- `[link text](https://example.com)` → `link text`
+- Plain text with no Markdown syntax is returned unchanged.
+
+### `fetch_markdown`
+
+- Mock client returns a valid doc object with a `.markdown` attribute containing ≥ 200 chars; `fetch_markdown` returns a cleaned non-None string.
+- Mock client returns a doc with `.markdown` of length < 200; `fetch_markdown` returns `None` and emits a `WARN` message to stderr.
+- Mock client raises `Exception`; `fetch_markdown` returns `None` and emits a `WARN` message to stderr.
+
+### `main`
+
+- `FIRECRAWL_API_KEY` env var absent → exits with code 1 and a clear error message on stderr, before any network call.
+- Two URLs where the first raises and the second succeeds → only the second listing file is written; first URL emits `WARN` to stderr.
+- Successful URL → output file is written to `--out-dir` with a `<!-- url -->` prefix; query string parameters are stripped from the comment (the URL in the comment must not contain `?` or `&`).
+
+---
+
+## Implementation (`src/laptopfinder/scrape_live.py`)
+
+### Firecrawl v1 API
+
+The correct import is `from firecrawl import Firecrawl` (NOT `FirecrawlApp` — that is the deprecated v0 interface). The scrape call is:
+
+```python
+doc = fc.scrape(url, formats=["markdown"], wait_for=3000)
+content = doc.markdown
+```
+
+The response is an object, not a dict. `wait_for=3000` (ms) is required to handle JS-rendered fields on eBay AU pages. The `Firecrawl` client picks up `FIRECRAWL_API_KEY` from the environment automatically if no `api_key` argument is passed.
+
+### Function Signatures
+
+```python
+def read_urls(path: str) -> list[str]:
+    """Return non-blank, non-comment lines from the URL file."""
+
+def strip_nav(md: str) -> str:
+    """Remove nav/chrome lines using word-boundary multiline regex.
+
+    Pattern must target lines where the keyword appears at the start or
+    as a standalone element, not any line containing the substring.
+    Safe pattern: r'(?im)^\s*(breadcrumb|cart|watchlist|sign in|cookie notice).*$'
+    with re.MULTILINE.
+    """
+
+def normalise_md(md: str) -> str:
+    """Strip Markdown emphasis, link syntax, and table artifacts.
+
+    - **text** → text
+    - [text](url) → text
+    - Pipe-table row syntax on non-table lines (optional in v1)
+    This keeps full_listing_text compatible with the Stage 2 grounding firewall,
+    which does verbatim word-boundary regex matches against plain text.
+    """
+
+def fetch_markdown(url: str, client) -> str | None:
+    """Fetch URL via Firecrawl v1 client (doc.markdown).
+
+    Returns cleaned Markdown string, or None on any exception or thin content.
+    Thin content = cleaned string under 200 characters.
+    On thin content: print WARN to stderr and return None.
+    On exception: print WARN to stderr and return None.
+    """
+
+def main() -> None:
+    """CLI entry point.
+
+    Parse --urls-file (default: data/urls.txt) and --out-dir (default: data/feed_live/).
+    Check FIRECRAWL_API_KEY env var; if absent, print error to stderr and sys.exit(1).
+    Construct one Firecrawl client instance.
+    For each URL: call fetch_markdown, write to data/feed_live/listing-{n:03d}.txt.
+    Output files are prefixed with <!-- {url_without_query_string} -->.
+    """
+```
+
+### Behaviour Contract Details
+
+- Read `--urls-file` line by line; skip blank lines and `#` comment lines (delegate to `read_urls`).
+- Check `FIRECRAWL_API_KEY` in `os.environ` before constructing the client. If absent, `print(..., file=sys.stderr)` and `sys.exit(1)`.
+- Construct a single `Firecrawl` client for the whole run (not one per URL).
+- Call `fetch_markdown(url, client)` for each URL. If it returns `None`, skip writing any file for that URL.
+- Write successful output to `{out_dir}/listing-{n:03d}.txt` where `n` is 1-indexed and counts only the URLs attempted (not just successful ones — keep a loop counter).
+- File prefix: strip query string from the URL before writing to the comment. Use `urllib.parse.urlsplit(url)._replace(query="", fragment="").geturl()` or equivalent.
+- On Firecrawl exception inside `fetch_markdown`: `print(f"WARN: failed {url}: {e}", file=sys.stderr)` and continue.
+
+### Nav Stripping Detail
+
+`strip_nav` must use word-boundary anchoring — do not match any line that contains a keyword anywhere. The pattern targets lines where the keyword is the leading element:
+
+```python
+import re
+_NAV_PATTERN = re.compile(
+    r'(?im)^\s*(breadcrumb|cart|watchlist|sign in|cookie notice).*$'
+)
+
+def strip_nav(md: str) -> str:
+    return _NAV_PATTERN.sub("", md)
+```
+
+This correctly removes a line like `breadcrumb: Home > Laptops` while preserving `cartridge case details` because `cartridge` does not start with `cart` as a standalone token at the line boundary under this regex (note: test this carefully — `(?im)` with `^\s*(cart)` would match `cartridge` since it starts with `cart`). To be safe, use alternation that anchors the keyword as a whole word:
+
+```python
+_NAV_PATTERN = re.compile(
+    r'(?im)^\s*(breadcrumb|watchlist|sign in|cookie notice).*$|^\s*cart\s*$.*'
+)
+```
+
+Or use `\b` word boundaries. The test fixture for `"cartridge case"` must pass — verify the regex against it before shipping.
+
+### `normalise_md` Detail
+
+Transformations applied in order:
+
+1. `**text**` → `text` via `re.sub(r'\*\*(.+?)\*\*', r'\1', md)`
+2. `[text](url)` → `text` via `re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', md)`
+
+---
+
+## Sample `data/urls.txt`
+
+Create this file in the repo (committed, not gitignored). It documents the format for operators:
+
+```
+# URLs to scrape for the live pipeline.
+# One URL per line. Blank lines and lines starting with # are ignored.
+# Run: make scrape-and-live
+#
+# https://www.ebay.com.au/itm/example-listing-1
+# https://www.ebay.com.au/itm/example-listing-2
+```
+
+---
+
+## Makefile Target (for reference — implemented in section-05)
+
+The `scrape-and-live` target that section-05 will add:
+
+```makefile
+FIRECRAWL_URLS ?= data/urls.txt
+
+# Note: intentionally does NOT depend on inject-config.
+# Run `make inject-config` separately when config changes.
+scrape-and-live:
+	@echo "=== Firecrawl fetch ==="
+	.venv/bin/python -m laptopfinder.scrape_live --urls-file $(FIRECRAWL_URLS) --out-dir data/feed_live/
+	@echo "=== Live pipeline (per listing) ==="
+	@for f in data/feed_live/listing-*.txt; do \
+	    echo "--- $$f ---"; \
+	    $(MAKE) live SOURCE=$$f; \
+	done
+```
+
+Do not implement the Makefile target here — that belongs to section-05. Document it here for context only.
+
+---
+
+## Implementation Notes
+
+- Keep the file under 50 lines by avoiding docstring verbosity and keeping regex patterns at module level.
+- `strip_nav` and `normalise_md` are pure string functions — no I/O, easy to unit test.
+- `fetch_markdown` takes the client as a parameter (not constructing it internally) so tests can inject a mock without patching import-time state.
+- `main` is the only function that touches `os.environ`, `sys.exit`, `argparse`, and the filesystem — isolate side effects here.
+- The module is invoked as `python -m laptopfinder.scrape_live`, so it needs an `if __name__ == "__main__": main()` guard at the bottom.
+- No custom exceptions. Failures are warnings; the loop continues. Only the missing API key is fatal.
+</file>
+
+<file path="sections/section-04-render-matrix.md">
+# Section 04 — Render Matrix
+
+## Overview
+
+This section implements `scripts/render_matrix.py`, a stdlib-only script that renders a manually assembled JSONL shortlist into a sorted Markdown purchase-decision table. It depends only on section-01-prerequisites (the `scripts/` directory existing). It can be implemented in parallel with sections 02 and 03.
+
+**Files to create:**
+- `scripts/render_matrix.py`
+- `tests/test_render_matrix.py`
+
+**Files to modify:**
+- `Makefile` (add `render-matrix` target — handled in section-05, but the script must exist first)
+
+No external dependencies. Only Python stdlib is needed (`json`, `sys`, `argparse`, `datetime`, `re`).
+
+---
+
+## Tests First
+
+Write `tests/test_render_matrix.py` before implementing the script. All tests use only stdlib — no mocking of external APIs needed.
+
+### load_candidates
+
+```python
+def test_load_candidates_two_valid_entries():
+    """Valid JSONL with two entries returns list of two dicts."""
+
+def test_load_candidates_skips_bad_line():
+    """File with one malformed JSON line: valid lines load, WARN emitted to stderr, no exception."""
+
+def test_load_candidates_empty_file():
+    """Empty file returns empty list."""
+```
+
+Write the malformed-line test by creating a temp file with content like:
+```
+{"recommended_action": "SHORTLIST", "llm_index_score": 80}
+this is not json
+{"recommended_action": "SKIP", "llm_index_score": 10}
+```
+Assert the return value has length 2 and that `capsys.readouterr().err` contains `WARN`.
+
+### sort_candidates
+
+```python
+def test_sort_group_order():
+    """SHORTLIST entries appear before MONITOR, MONITOR before SKIP."""
+
+def test_sort_within_group_descending_score():
+    """Within a group, higher llm_index_score appears first."""
+
+def test_sort_null_score_last_in_group():
+    """Entry with llm_index_score: null sorts last within its group."""
+
+def test_sort_missing_action_last():
+    """Entry with missing recommended_action sorts after SKIP (unknown group)."""
+
+def test_sort_missing_score_key_last():
+    """Entry with llm_index_score key absent (not null) sorts last within its group."""
+```
+
+For the sort tests, construct small in-memory lists of dicts and call `sort_candidates()` directly. Assert ordering by inspecting the resulting list's `recommended_action` and `llm_index_score` fields in sequence.
+
+### render_table
+
+```python
+def test_render_table_header():
+    """Output contains Markdown table header row with Rank, Action, Score, Title, GPU, Price, Notes columns."""
+
+def test_render_table_pipe_escaping():
+    """Listing title containing | is escaped as \| in output."""
+
+def test_render_table_newline_stripped():
+    """Listing title containing a newline has newline stripped before rendering."""
+
+def test_render_table_missing_field_dash():
+    """Missing field (key absent from dict) renders as — in the cell."""
+
+def test_render_table_two_rows():
+    """Two entries produce exactly two data rows (not counting header/separator)."""
+```
+
+Pass constructed dicts directly to `render_table()`. Inspect the returned string.
+
+### main (integration)
+
+```python
+def test_main_integration(tmp_path):
+    """Two-entry JSONL file → --out file contains valid Markdown table with both entries, SHORTLIST before SKIP."""
+```
+
+Write a temp JSONL file with one SHORTLIST and one SKIP entry. Call `main()` via `monkeypatch` on `sys.argv` pointing to the temp file and a temp output path. Read the output file and assert it contains both entries in correct order.
+
+---
+
+## Implementation
+
+### `scripts/render_matrix.py`
+
+No `__init__.py` needed in `scripts/`. The file is invoked directly as `python scripts/render_matrix.py`.
+
+#### Function signatures and docstrings
+
+```python
+def load_candidates(path: str) -> list[dict]:
+    """Read JSONL file at path. Parse each line as JSON.
+    Skip malformed lines with a WARN to stderr (try/except per line).
+    Return list of successfully parsed dicts."""
+
+def sort_candidates(candidates: list[dict]) -> list[dict]:
+    """Sort by action priority group: SHORTLIST=0, MONITOR=1, SKIP=2, unknown=3.
+    Within each group, sort descending by llm_index_score.
+    Treat missing or null llm_index_score as -1 (sorts last in group).
+    Does not mutate the input list."""
+
+def render_table(candidates: list[dict]) -> str:
+    """Return a Markdown table string for the given candidates.
+    Columns: Rank, Action, Score, Title, GPU, Price, Notes.
+    All cell values have | escaped as \| and newlines stripped.
+    Missing keys render as — (em dash, not hyphen)."""
+
+def main() -> None:
+    """CLI entry point.
+    Flags: --in (default: data/shortlist_candidates.jsonl), --out (default: data/purchase_matrix.md).
+    Loads candidates, sorts, renders table, prepends a heading with ISO timestamp, writes to --out.
+    Prints confirmation line to stdout."""
+```
+
+#### Behaviour details
+
+**load_candidates:** Open the file, iterate lines, strip whitespace, skip empty lines. For each non-empty line wrap `json.loads()` in a try/except catching `json.JSONDecodeError`. On failure: `print(f"WARN: skipping malformed line {i}: {e}", file=sys.stderr)` and continue.
+
+**sort_candidates:** Define a priority map: `{"SHORTLIST": 0, "MONITOR": 1, "SKIP": 2}`. Use `.get(c.get("recommended_action"), 3)` for group key. For score key: `-(c.get("llm_index_score") or -1)` — this treats both `None` and absent key as `-1` for descending sort (negate so `sorted()` ascending works). Return `sorted(candidates, key=sort_key)`.
+
+**render_table:** Build the header and separator first:
+
+```
+| Rank | Action | Score | Title | GPU | Price | Notes |
+|------|--------|-------|-------|-----|-------|-------|
+```
+
+For each candidate (1-indexed), extract fields with `.get()` defaulting to `None`, then render each cell value: convert to string, replace `|` with `\|`, replace `\n` with ` `, convert `None` to `—`.
+
+**render_table cell helper** (inline or small inner function):
+
+```python
+def cell(v) -> str:
+    if v is None:
+        return "—"
+    return str(v).replace("\n", " ").replace("|", r"\|")
+```
+
+**main:** Use `argparse.ArgumentParser`. Flags:
+- `--in` (dest `input`, default `data/shortlist_candidates.jsonl`)
+- `--out` (default `data/purchase_matrix.md`)
+
+Output file structure:
+```markdown
+# Purchase Decision Matrix
+
+Generated: 2026-07-02T10:00:00
+
+| Rank | Action | Score | Title | GPU | Price | Notes |
+...
+```
+
+Use `datetime.datetime.now().isoformat(timespec="seconds")` for the timestamp.
+
+---
+
+## Sort Order Reference
+
+Priority groups: SHORTLIST → MONITOR → SKIP → unknown. Within each group, descending by `llm_index_score`. Missing or null score sorts last within the group (treated as -1 for comparison purposes; all actual scores are ≥ 0).
+
+Example input:
+
+```jsonl
+{"recommended_action": "SKIP", "llm_index_score": 20, "listing_title": "Old laptop"}
+{"recommended_action": "SHORTLIST", "llm_index_score": null, "listing_title": "M3 Max — no score yet"}
+{"recommended_action": "SHORTLIST", "llm_index_score": 85, "listing_title": "RTX 4090 beast"}
+{"recommended_action": "MONITOR", "llm_index_score": 60, "listing_title": "Mid-range option"}
+```
+
+Expected output order: RTX 4090 beast (SHORTLIST/85), M3 Max (SHORTLIST/null→last in group), Mid-range option (MONITOR/60), Old laptop (SKIP/20).
+
+---
+
+## Input Format
+
+`data/shortlist_candidates.jsonl` is manually assembled by the operator after a pipeline run. Each line is a JSON object with any combination of these fields (all optional):
+
+| Field | Source | Type |
+|-------|--------|------|
+| `recommended_action` | `decide()` output | `"SHORTLIST"` \| `"MONITOR"` \| `"SKIP"` |
+| `llm_index_score` | `decide()` output | number or null |
+| `listing_title` | Stage 2 `handoff_packet.listing_title` | string |
+| `price` | Stage 2 `handoff_packet.price` | string or number |
+| `gpu` | Stage 2 `analysis_output.extracted_data.gpu` | string |
+| `notes` | Operator-written free text | string |
+
+Any field may be absent. Missing fields render as `—` in the table.
+
+---
+
+## Makefile Target
+
+The `render-matrix` target is added in section-05. The script must exist and be callable before that section is implemented. The target will be:
+
+```makefile
+render-matrix:
+	.venv/bin/python scripts/render_matrix.py --in data/shortlist_candidates.jsonl --out data/purchase_matrix.md
+	@echo "Matrix written to data/purchase_matrix.md"
+```
+
+Add `data/purchase_matrix.md` to `.gitignore` (handled in section-01, but verify it is present).
+
+---
+
+## Dependencies
+
+- **section-01-prerequisites**: `scripts/` directory must exist. `data/purchase_matrix.md` must be in `.gitignore`.
+- No other sections are required. This section has no dependency on section-02 or section-03.
+
+---
+
+## Acceptance Criteria
+
+1. `tests/test_render_matrix.py` passes with `.venv/bin/pytest tests/test_render_matrix.py -v`.
+2. All existing tests continue to pass (`make test`).
+3. `python scripts/render_matrix.py --in tests/fixtures/sample_shortlist.jsonl --out /tmp/matrix.md` (or any valid paths) writes a correctly formatted Markdown file.
+4. Running the script on a JSONL with a malformed line prints a WARN to stderr and writes the valid entries without raising an exception.
+5. Running twice on the same input produces identical output (deterministic sort + timestamp aside — the table body is identical).
+</file>
+
+<file path="sections/section-05-makefile-and-integration.md">
+# Section 05 — Makefile and Integration
+
+## Overview
+
+This section wires the three components from sections 02, 03, and 04 into the project's `Makefile` and creates the remaining runtime support files. It assumes `inject_config.py`, `scrape_live.py`, and `render_matrix.py` are all implemented and their test suites pass.
+
+**Dependencies:** section-02-inject-config, section-03-scrape-live, section-04-render-matrix must all be complete before starting this section.
+
+**Files touched:**
+- `/Users/okgoogle13/Projects/laptopfinder/Makefile` — modified
+- `/Users/okgoogle13/Projects/laptopfinder/data/urls.txt` — created
+
+---
+
+## Tests
+
+There are no new test files for this section. Validation is done by running the full test suite and then smoke-testing the Makefile targets manually.
+
+The integration acceptance criteria are:
+1. `make test` — all new and existing tests pass (zero failures, zero errors)
+2. `make inject-config` — runs without error against the real prompt files; `git diff` shows content inserted between markers, markers themselves unchanged
+3. `make render-matrix` — errors clearly when `data/shortlist_candidates.jsonl` is absent; succeeds and writes `data/purchase_matrix.md` with a sample input
+4. `make scrape-and-live FIRECRAWL_URLS=data/urls.txt` — with a valid `FIRECRAWL_API_KEY` in `.env`, fetches listings and writes per-listing files to `data/feed_live/`
+
+---
+
+## Makefile Changes
+
+The existing `/Users/okgoogle13/Projects/laptopfinder/Makefile` defines `.PHONY` on the first line and then lists targets. Add the three new targets and update `.PHONY` to include them.
+
+### Updated `.PHONY` line
+
+Replace the existing `.PHONY` line with:
+
+```makefile
+.PHONY: test lint decide pipeline live evidence-run evidence-run-dry evidence-reset inject-config scrape-and-live render-matrix
+```
+
+### New targets to append
+
+Append the following three blocks to the bottom of the Makefile, after the `evidence-reset` target:
+
+```makefile
+# Inject config values from static_reference_layer.json into prompt sentinel markers.
+# Run explicitly when SRL changes. NOT a dependency of scrape-and-live.
+inject-config:
+	.venv/bin/python scripts/inject_config.py
+
+# Scrape listing URLs via Firecrawl, then run the live pipeline per listing.
+# Requires FIRECRAWL_API_KEY in .env. Does NOT depend on inject-config.
+# Usage: make scrape-and-live
+#        make scrape-and-live FIRECRAWL_URLS=path/to/other_urls.txt
+FIRECRAWL_URLS ?= data/urls.txt
+
+scrape-and-live:
+	@echo "=== Firecrawl fetch ==="
+	.venv/bin/python -m laptopfinder.scrape_live --urls-file $(FIRECRAWL_URLS) --out-dir data/feed_live/
+	@echo "=== Live pipeline (per listing) ==="
+	@for f in data/feed_live/listing-*.txt; do \
+	    echo "--- $$f ---"; \
+	    $(MAKE) live SOURCE=$$f; \
+	done
+
+# Render JSONL shortlist into a sorted Markdown purchase-decision table.
+# Input:  data/shortlist_candidates.jsonl (manually assembled by operator)
+# Output: data/purchase_matrix.md
+render-matrix:
+	.venv/bin/python scripts/render_matrix.py --in data/shortlist_candidates.jsonl --out data/purchase_matrix.md
+	@echo "Matrix written to data/purchase_matrix.md"
+```
+
+Note the use of `$$f` (not `$f`) in the shell `for` loop — Makefile requires doubling the `$` sign to prevent Make from interpreting it as a Make variable.
+
+---
+
+## `data/urls.txt` — Sample File
+
+Create `/Users/okgoogle13/Projects/laptopfinder/data/urls.txt` with this exact content:
+
+```
+# One listing URL per line.
+# Lines starting with # are ignored.
+# Blank lines are ignored.
+# Override with: make scrape-and-live FIRECRAWL_URLS=path/to/other.txt
+#
+# Example eBay AU listing:
+# https://www.ebay.com.au/itm/123456789012
+#
+# Example Gumtree listing:
+# https://www.gumtree.com.au/s-ad/sydney/laptops-computers/...
+```
+
+This file ships empty of real URLs — it is a template that the operator populates before running `make scrape-and-live`. Committing it with only comments means the file exists in source control, the format is self-documented, and `make scrape-and-live` will not error on a missing file.
+
+---
+
+## `.gitignore` Additions
+
+Section 01 (prerequisites) is responsible for adding the generated artifact paths to `.gitignore`, but confirm these two lines are present before integration testing. If section 01 is not yet merged, add them now:
+
+```
+data/feed_live/
+data/purchase_matrix.md
+```
+
+---
+
+## Integration Verification Steps
+
+Run these steps in order after completing the Makefile edits. Each step must succeed before proceeding to the next.
+
+### Step 1 — Full test suite
+
+```bash
+make test
+```
+
+Expected: all tests pass, including the new tests from sections 02, 03, and 04.
+
+### Step 2 — Smoke-test `inject-config`
+
+```bash
+make inject-config
+git diff prompts/
+```
+
+Expected output from `make inject-config`: three lines like:
+```
+comet_discovery_agent.txt: 1 marker pair(s) replaced
+alternative_silicon_gemini.txt: 3 marker pair(s) replaced
+alternative_silicon_perplexity.txt: 3 marker pair(s) replaced
+```
+
+Expected `git diff` output: content between `<!-- BEGIN_INJECT:... -->` and `<!-- END_INJECT:... -->` markers is updated; the marker lines themselves are unchanged. If the replacement count is 0 for any file, the sentinel markers have not been added to that prompt file yet — this is a prerequisite from section 01.
+
+Run `make inject-config` a second time and confirm `git diff` shows no further changes (idempotency).
+
+### Step 3 — Smoke-test `render-matrix` with a sample input
+
+Create a minimal `data/shortlist_candidates.jsonl` for the smoke test:
+
+```json
+{"recommended_action": "SHORTLIST", "llm_index_score": 72, "listing_title": "ASUS ROG Zephyrus G14 RTX 4090", "price": "AUD 2,800", "gpu": "RTX 4090 Laptop", "notes": "Clean listing, includes charger"}
+{"recommended_action": "MONITOR", "llm_index_score": null, "listing_title": "MSI Titan | parts only?", "price": "AUD 1,200", "gpu": "RTX 3080 Ti", "notes": "Uncertain condition"}
+{"recommended_action": "SKIP", "llm_index_score": 31, "listing_title": "Dell XPS 15", "price": "AUD 800", "gpu": null, "notes": "No GPU info"}
+```
+
+Then run:
+
+```bash
+make render-matrix
+cat data/purchase_matrix.md
+```
+
+Expected: `data/purchase_matrix.md` is written; it contains a Markdown table with three rows; SHORTLIST row is first; the `|` in `MSI Titan | parts only?` is escaped as `\|` in the table.
+
+### Step 4 — Confirm `scrape-and-live` requires `FIRECRAWL_API_KEY`
+
+Without a `.env` file or `FIRECRAWL_API_KEY` set:
+
+```bash
+make scrape-and-live
+```
+
+Expected: the script exits with code 1 and prints a clear error message to stderr. The `for` loop over `data/feed_live/listing-*.txt` is not reached, so no live target failure occurs.
+
+---
+
+## Dependency Notes
+
+- `inject-config` intentionally does NOT appear as a dependency of `scrape-and-live`. This was a deliberate design decision: `scrape-and-live` re-mutating git-tracked prompt files as a side effect of every scrape run creates noisy diffs and a second source of truth. Operators run `make inject-config` explicitly when `static_reference_layer.json` changes.
+- `scrape-and-live` calls `$(MAKE) live SOURCE=$$f` rather than `.venv/bin/python -m laptopfinder.core run-live --source-text $$f` directly, so that the `make live` target's guard (`@test -n "$(SOURCE)"`) and any future changes to that target are picked up automatically.
+- `FIRECRAWL_URLS` is defined as a Makefile variable with `?=` so it can be overridden on the command line without editing the file.
+</file>
+
+<file path="claude-integration-notes.md">
+# Integration Notes — Opus Review
+
+## Integrating
+
+**Item 1 — Marker-based idempotent injection (CRITICAL)**
+The one-shot token consumption design is broken by design. Switching to paired sentinel comments (`<!-- BEGIN_INJECT:X --> ... <!-- END_INJECT:X -->`) fixes the core flaw. `inject_file` now replaces content between markers, leaving markers intact. Running twice yields identical output. The test assertion changes from "token absent" to "idempotent: second run matches first."
+
+**Item 2 — git-tracked files / scrape-and-live dependency**
+Decision: treat prompt files as committed source. The `scrape-and-live` target will NOT implicitly depend on `inject-config`. Operators run `make inject-config` explicitly when config changes. This avoids silent re-mutation on every scrape. The Makefile will document this.
+
+**Item 3 — SRL shape correctness**
+`target_gpus` is a dict — iterate `.keys()`. `watch_list` is a list of objects — extract `entry["name"]`. Updated in `build_substitutions` spec and test fixtures.
+
+**Item 4 — render_matrix field origins**
+The plan will add a `JSONL field reference` section specifying exactly where each column comes from: `recommended_action` and `llm_index_score` from decide() output; `listing_title`, `price`, `gpu` from the Stage 2 handoff_packet the operator used. A note will explain the operator must manually merge these. No helper script added (out of scope for Day 7; the value is the table, not automation).
+
+**Item 5 — strip_nav regex safety**
+Replace the unbounded substring match with a more targeted pattern anchored to line-start nav patterns. Also add a step to strip Markdown emphasis and link syntax from `full_listing_text` before it is written to the feed file, to prevent grounding firewall false positives.
+
+**Item 6 — per-listing isolation**
+`scrape_live.py` will write each listing as a separate file to `data/feed_live/` rather than concatenating into one blob. A subsequent `make live` step will iterate per-file. This isolates bad listings without aborting the batch. The Makefile `scrape-and-live` target will be updated accordingly.
+
+**Item 7 — Pin firecrawl-py version**
+Pin to a specific version (check PyPI for latest stable at install time). Confirm API shape against installed release before coding the fetch call. Document which version was verified.
+
+**Item 8 — FIRECRAWL_API_KEY guard**
+Use `os.environ.get("FIRECRAWL_API_KEY")` with an explicit `sys.exit("FIRECRAWL_API_KEY not set")` early-return, consistent with how other runners handle missing keys.
+
+**Item 9 — Minimum content sanity check**
+After stripping nav, if cleaned Markdown length < 200 chars, print `WARN: suspiciously short content for {url} ({n} chars) — possible login wall` to stderr and skip. Does not abort the run.
+
+**Item 10 — sort crash on missing score**
+`sort_candidates` key: `(-{"SHORTLIST":0,"MONITOR":1}.get(c.get("recommended_action","SKIP"),2), -(c.get("llm_index_score") or -1))` — missing or None score treated as -1 (sorts last within group).
+
+**Item 11 — Pipe escaping**
+`render_table` escapes `|` → `\|` and strips newlines in all cell values.
+
+**Item 12 — JSONL malformed line handling**
+`load_candidates`: skip-and-warn. Each line is wrapped in try/except; bad lines print `WARN: skipping malformed line {n}` to stderr.
+
+**Minor — drop dead `profiles` parameter**
+`build_substitutions(srl)` only. `silicon_profiles.yaml` not loaded in v1.
+
+**Minor — construct Firecrawl client once**
+`main()` constructs one `Firecrawl` instance (v1 — `from firecrawl import Firecrawl`, NOT deprecated `FirecrawlApp`) and passes it to `fetch_markdown`.
+
+**Minor — .gitignore**
+`data/feed_live/` and `data/purchase_matrix.md` added to `.gitignore`. `data/feed_live.txt` is NOT an output — scrape_live writes per-listing files to `data/feed_live/`.
+
+## Not integrating
+
+**"Write rendered prompts to build/ directory"** (Item 2 alternative): The project uses committed prompt files as the source of truth for what gets pasted into Gemini/Perplexity manually. Treating them as generated artifacts would break the human-in-the-loop workflow. The marker-based approach (Item 1) makes re-injection safe; committed files remain the canonical form.
+
+**"Helper that auto-joins decide() output with Stage 2 handoff"** (Item 4): Out of scope for this sprint. Day 7 is a human-assembled JSONL and a renderer. Automation of the join is a future sprint item.
+
+**"Per-URL timeout"** (Item 9): Firecrawl handles HTTP timeouts server-side. Adding a client-side `socket.setdefaulttimeout` is out of scope and potentially interferes with other runners. The minimum-content check catches silent failures.
+</file>
+
+<file path="claude-interview.md">
+# Interview Transcript — Sprint 2
+
+## Q1: Placeholder scope for inject_config.py
+
+**Q:** inject_config.py needs to replace placeholders in prompts. Right now only one exists: `[INJECT_TARGETS_HERE]` in `comet_discovery_agent.txt`. Should we only replace that existing token, or also add new placeholder tokens to the alternative_silicon prompts?
+
+**A:** Add new tokens to alternative_silicon prompts too. Define new placeholders and inject them as well.
+
+## Q2: scrape_live.py error handling
+
+**Q:** What should happen when Firecrawl returns an error for one URL (rate limit, timeout, 404)?
+
+**A:** Skip and log to stderr, continue with remaining URLs. Best-effort — failed URLs are noted but don't abort the run.
+
+## Q3: Day 7 Purchase Decision Matrix — input source
+
+**Q:** Is `data/shortlist_candidates.jsonl` produced by running batch `decide()` over scraped listings, or assembled manually from SHORTLIST decisions?
+
+**A:** Manually assembled. We just need the Markdown renderer — no batch pipeline script required for Day 7.
+
+## Q4: Which config values to inject into alternative_silicon prompts
+
+**Q:** Which specific values from config should be injected into the alternative_silicon prompts?
+
+**A:** 
+- UMA min RAM (32GB) and chip patterns list
+- Target GPU list (15 entries)
+
+(VRAM thresholds and watch list not needed in alternative_silicon prompts.)
+
+## Q5: feed_manual.txt pipeline path
+
+**Q:** Does `data/feed_manual.txt` feed into the same `make live` pipeline, or is it handled separately?
+
+**A:** Separate flow with different prompts or logic. Not covered by the `scrape-and-live` Make target.
+</file>
+
+<file path="claude-plan-tdd.md">
+# TDD Plan — Sprint 2 (Laptopfinder)
+
+Testing framework: pytest. Tests live in `tests/`. Run with `.venv/bin/pytest tests/ -v`. Fixtures go in `tests/fixtures/` where appropriate. Mocking via `unittest.mock.patch`. No live API calls in CI.
+
+---
+
+## 1. Prerequisites
+
+No tests for prerequisite setup steps (install firecrawl-py, create scripts/, update .gitignore, add sentinel markers to prompt files). Verify manually.
+
+---
+
+## 2. Config Injection (`tests/test_inject_config.py`)
+
+Write these tests before implementing `scripts/inject_config.py`:
+
+### load_srl
+- Test: `load_srl` returns a dict containing `target_gpus`, `watch_list`, `uma_platforms`, `vram_gating_logic`
+- Test: `load_srl` raises `FileNotFoundError` on missing path
+
+### build_substitutions (takes only `srl`)
+- Test: given SRL with `target_gpus` as a dict and `watch_list` as a list of `{"name": ...}` objects, `build_substitutions` returns all four expected marker keys
+- Test: `TARGET_GPU_LIST` value contains GPU names from `target_gpus.keys()`
+- Test: `TARGETS` value includes watch-list GPU names from `entry["name"]`
+- Test: `UMA_MIN_RAM_GB` value matches `srl["uma_platforms"]["min_total_ram_gb_to_shortlist"]` as a string
+- Test: `UMA_CHIP_PATTERNS` value is a comma-separated string of the chip patterns list
+
+### inject_file
+- Test: file containing `<!-- BEGIN_INJECT:TARGETS -->stale<!-- END_INJECT:TARGETS -->` is updated with new content; markers remain present
+- Test: running `inject_file` twice on the same file yields identical output (idempotency)
+- Test: return value equals the number of marker pairs replaced
+- Test: file with no markers returns 0, file unchanged
+- Test: `FileNotFoundError` raised for non-existent path
+
+### main (integration)
+- Test: run `main()` against a temp directory containing copies of the three prompt files with sentinel markers; assert all three files have marker content updated; assert no markers are destroyed
+
+---
+
+## 3. Live Scraper (`tests/test_scrape_live.py`)
+
+Write these tests before implementing `src/laptopfinder/scrape_live.py`. All tests mock the Firecrawl client — no live HTTP calls.
+
+### read_urls
+- Test: blank lines are excluded
+- Test: lines starting with `#` are excluded
+- Test: valid URLs are returned in order
+- Test: returns empty list for file with only blanks/comments
+
+### strip_nav
+- Test: line starting with `breadcrumb` keyword is removed
+- Test: line where `cart` appears as substring of another word (e.g. `"cartridge case"`) is NOT removed
+- Test: `<!-- URL -->` provenance comment is NOT removed
+- Test: unrelated listing content lines survive
+
+### normalise_md
+- Test: `**bold**` → `bold`
+- Test: `[link text](https://example.com)` → `link text`
+- Test: plain text with no Markdown syntax is unchanged
+
+### fetch_markdown
+- Test: mock client returns valid doc with `.markdown`; `fetch_markdown` returns cleaned string
+- Test: mock client returns doc with `.markdown` of length < 200; returns `None` and emits stderr warning
+- Test: mock client raises `Exception`; returns `None` and emits stderr warning
+
+### main
+- Test: missing `FIRECRAWL_API_KEY` env var → exits with code 1 and error message on stderr
+- Test: two URLs where first raises, second succeeds → only second listing file is written; first emits WARN to stderr
+- Test: successful URL → output file is written to `--out-dir` with `<!-- url -->` prefix and no query string parameters in comment
+
+---
+
+## 4. Purchase Decision Matrix (`tests/test_render_matrix.py`)
+
+Write these tests before implementing `scripts/render_matrix.py`.
+
+### load_candidates
+- Test: valid JSONL with two entries returns list of two dicts
+- Test: file with one malformed line emits WARN to stderr, skips line, returns remaining valid entries
+- Test: empty file returns empty list
+
+### sort_candidates
+- Test: SHORTLIST entries appear before MONITOR entries, MONITOR before SKIP
+- Test: within a group, higher `llm_index_score` appears first
+- Test: entry with `llm_index_score: null` sorts last within its group
+- Test: entry with missing `recommended_action` sorts after all named groups
+- Test: entry with missing `llm_index_score` key (not null, just absent) sorts last within group
+
+### render_table
+- Test: output contains Markdown table header row with expected column names
+- Test: listing title containing `|` is escaped as `\|` in output
+- Test: listing title containing a newline has newline stripped
+- Test: missing field renders as `—`
+- Test: two entries produce two data rows
+
+### main (integration)
+- Test: given a two-entry JSONL file, `--out` file contains a valid Markdown table with both entries sorted correctly
+
+---
+
+## 5. Delivery Sequence (TDD ordering)
+
+Write tests first, then implement, in this order:
+
+1. `test_inject_config.py` stubs → implement `inject_config.py` → run `make test`
+2. `test_scrape_live.py` stubs → implement `scrape_live.py` → run `make test`
+3. `test_render_matrix.py` stubs → implement `render_matrix.py` → run `make test`
+4. Final: `make test` passes all new and existing tests before any live scrape run
+</file>
+
+<file path="claude-plan.md">
+# Implementation Plan — Sprint 2 (Laptopfinder)
+
+## Context
+
+Laptopfinder is a multi-stage pipeline for discovering and evaluating second-hand laptops suited to local LLM inference. The pipeline currently has hardcoded prompt text and no live web-scraping capability. This sprint wires three new components that make the system data-driven and operationally self-sufficient for a real purchase decision in the Australian used-hardware market.
+
+The three deliverables are:
+1. **`scripts/inject_config.py`** — replaces injected blocks in prompt files via idempotent marker-based substitution, keeping prompts in sync with config
+2. **`src/laptopfinder/scrape_live.py`** — fetches listing pages as Markdown via Firecrawl and writes per-listing files for the existing `make live` pipeline
+3. **`scripts/render_matrix.py`** — renders a manually assembled JSONL shortlist into a sorted Markdown purchase-decision table
+
+All three components follow the project's established conventions: flat top-level functions, no OOP, no custom exceptions, config-driven values, fixture-driven tests.
+
+---
+
+## 1. Prerequisites
+
+**Install firecrawl-py** — not yet in `pyproject.toml`. Add with `uv add firecrawl-py==<pinned-version>`. The v1 client is `Firecrawl` (from `firecrawl import Firecrawl`) — `FirecrawlApp` is the deprecated v0 interface. The v1 scrape method is `fc.scrape(url, formats=["markdown"])` and the response is an object: `doc.markdown`. Pin the confirmed version in `pyproject.toml`.
+
+**Document `FIRECRAWL_API_KEY`** in `.env.example` alongside the existing API keys.
+
+**Create `scripts/` directory** — does not yet exist. No `__init__.py` needed.
+
+**Update `.gitignore`** — add `data/feed_live/`, `data/purchase_matrix.md`. Generated scrape output and rendered matrices are build artifacts, not source.
+
+---
+
+## 2. Config Injection (`scripts/inject_config.py`)
+
+### Problem
+
+`prompts/comet_discovery_agent.txt` contains `[INJECT_TARGETS_HERE]`, which must be manually updated when the target GPU list changes. The alternative silicon prompts are entirely disconnected from config. A one-shot token-replacement approach would consume tokens on the first run and silently produce stale output on subsequent runs — the exact failure mode the feature exists to prevent.
+
+### Solution: Marker-Based Idempotent Injection
+
+Prompt files use paired sentinel comments that survive each injection run. `inject_file` replaces the content *between* the markers, leaving markers in place. Running `make inject-config` twice produces identical output.
+
+**Sentinel format:**
+```
+<!-- BEGIN_INJECT:TARGETS -->
+...rendered content written here by inject_config.py...
+<!-- END_INJECT:TARGETS -->
+```
+
+**Markers to use:**
+- `BEGIN_INJECT:TARGETS` / `END_INJECT:TARGETS` — formatted block of target GPU names and watch-list GPUs
+- `BEGIN_INJECT:UMA_MIN_RAM_GB` / `END_INJECT:UMA_MIN_RAM_GB` — integer value of `uma_platforms.min_total_ram_gb_to_shortlist`
+- `BEGIN_INJECT:UMA_CHIP_PATTERNS` / `END_INJECT:UMA_CHIP_PATTERNS` — comma-separated chip pattern list
+- `BEGIN_INJECT:TARGET_GPU_LIST` / `END_INJECT:TARGET_GPU_LIST` — formatted GPU list (same as TARGETS, usable in alt-silicon prompts)
+
+**One-time manual edit required:** Before first run, add the appropriate sentinel pairs to each target prompt file at the location where the injected content belongs:
+- `prompts/comet_discovery_agent.txt`: replace existing `[INJECT_TARGETS_HERE]` with `BEGIN_INJECT:TARGETS` / `END_INJECT:TARGETS` markers
+- `prompts/alternative_silicon_gemini.txt`: add `BEGIN_INJECT:UMA_MIN_RAM_GB`, `BEGIN_INJECT:UMA_CHIP_PATTERNS`, and `BEGIN_INJECT:TARGET_GPU_LIST` marker pairs at appropriate locations
+- `prompts/alternative_silicon_perplexity.txt`: same marker pairs as gemini variant
+
+### Git Strategy
+
+Prompt files remain committed source. The `scrape-and-live` Makefile target does **not** depend on `inject-config`.
+
+**Note: this intentionally diverges from the original sprint spec**, which listed `scrape-and-live: inject-config` as a dependency. That dependency was removed after review because it silently re-mutates git-tracked prompt files on every scrape run, creating noisy diffs and a second source of truth in version control. Operators run `make inject-config` explicitly when the SRL changes, not as a side effect of scraping.
+
+### Config Sources
+
+Only `static_reference_layer.json` (SRL) is loaded in v1. It provides all four injected values:
+- `target_gpus` (dict — names are keys)
+- `watch_list` (list of dicts — `entry["name"]`)
+- `uma_platforms` (chip patterns and min RAM)
+- `vram_gating_logic` (12/16/24/32 GB thresholds)
+
+`silicon_profiles.yaml` is not loaded. The alternative silicon prompts need ecosystem maturity context, but those tokens are not defined in v1 — adding them is a future task. Loading the file now with no token to inject is speculative code.
+
+### Function Signatures
+
+```python
+def load_srl(path: str) -> dict:
+    """Load and return static_reference_layer.json."""
+
+def build_substitutions(srl: dict) -> dict[str, str]:
+    """Return mapping of marker name → rendered content string.
+
+    Keys: "TARGETS", "UMA_MIN_RAM_GB", "UMA_CHIP_PATTERNS", "TARGET_GPU_LIST"
+    Reads target_gpus (dict — use .keys()), watch_list (list — use entry["name"]),
+    and uma_platforms from srl. No other config needed in v1.
+    """
+
+def inject_file(path: str, substitutions: dict[str, str]) -> int:
+    """Replace content between BEGIN_INJECT/END_INJECT marker pairs in file.
+
+    Writes file in-place. Leaves markers intact. Idempotent.
+    Returns count of marker pairs replaced.
+    Raises FileNotFoundError if file does not exist.
+    """
+
+def main() -> None:
+    """Load SRL, build substitutions, inject all three target prompt files.
+
+    Prints one summary line per file: filename and replacement count.
+    """
+```
+
+### Makefile
+
+```makefile
+inject-config:
+	.venv/bin/python scripts/inject_config.py
+```
+
+Note: `scrape-and-live` does NOT depend on `inject-config`. Run them independently.
+
+---
+
+## 3. Live Scraper (`src/laptopfinder/scrape_live.py`)
+
+### Problem
+
+The existing `make live` pipeline accepts a pre-assembled text file. There is no automated way to populate that file from real listing URLs. Concatenating all listings into one file would be batch-fatal: one bad listing matching the data-integrity `exclusion_regex` aborts Stage 2 for all others.
+
+### Solution: Per-Listing Output Files
+
+`scrape_live.py` writes each successfully fetched listing to a separate file in `data/feed_live/` (e.g. `data/feed_live/listing-001.txt`). The `scrape-and-live` Makefile target then iterates over these files, running `make live SOURCE=<file>` for each. This isolates failures at the per-listing level.
+
+### Behaviour Contract
+
+- Read `--urls-file` line by line; skip blank lines and `#` comment lines.
+- Construct one `Firecrawl` instance using `api_key` read from environment (or omit and let the SDK pick up `FIRECRAWL_API_KEY` automatically). If the key is unset, print a clear error message to stderr and `sys.exit(1)` before any network calls.
+- Call `fc.scrape(url, formats=["markdown"], wait_for=3000)` for each URL in a loop. Extract Markdown via `doc.markdown` (v1 returns a response object, not a dict). The `wait_for=3000` ms handles JS-rendered fields on eBay AU pages.
+- Strip nav chrome via `strip_nav()`. Apply markdown normalisation via `normalise_md()`.
+- **Minimum content check**: if cleaned content is under 200 characters, print `WARN: suspiciously short content for {url} ({n} chars) — possible login wall` to stderr and skip the URL.
+- On any exception from the Firecrawl call: print `WARN: failed {url}: {e}` to stderr and continue.
+- Write each successful listing to `data/feed_live/listing-{n:03d}.txt`, prefixed with `<!-- {url_without_query_string} -->`.
+- `--out-dir` flag controls the output directory (default: `data/feed_live/`).
+
+### Nav Stripping and Markdown Normalisation
+
+`strip_nav` must use word-boundary anchoring, not unbounded substring matching. The pattern should target common nav-only lines rather than any line containing a keyword. A safe approach: match lines where the keyword appears at the start or as a standalone element — e.g. `r'(?im)^\s*(breadcrumb|cart|watchlist|sign in|cookie notice).*$'` with `re.MULTILINE`.
+
+`normalise_md` strips Markdown emphasis and link syntax from the text that will become `full_listing_text`, so the Stage 2 grounding firewall sees plain text matching what the listing actually says:
+- Remove `**text**` → `text`
+- Remove `[text](url)` → `text`
+- Remove `|`-table row syntax from non-table lines
+
+### Function Signatures
+
+```python
+def read_urls(path: str) -> list[str]:
+    """Return non-blank, non-comment lines from the URL file."""
+
+def strip_nav(md: str) -> str:
+    """Remove nav/chrome lines using word-boundary multiline regex."""
+
+def normalise_md(md: str) -> str:
+    """Strip Markdown emphasis, link syntax, and table artifacts for grounding compatibility."""
+
+def fetch_markdown(url: str, client: Firecrawl) -> str | None:
+    """Fetch URL via v1 client (doc.markdown). Return cleaned Markdown or None on failure or thin content."""
+
+def main() -> None:
+    """CLI entry point: parse --urls-file and --out-dir, construct one Firecrawl client,
+    scrape each URL, write per-listing output files."""
+```
+
+### Makefile
+
+```makefile
+FIRECRAWL_URLS ?= data/urls.txt
+
+# Note: intentionally does NOT depend on inject-config.
+# Run `make inject-config` separately when config changes.
+scrape-and-live:
+	@echo "=== Firecrawl fetch ==="
+	.venv/bin/python -m laptopfinder.scrape_live --urls-file $(FIRECRAWL_URLS) --out-dir data/feed_live/
+	@echo "=== Live pipeline (per listing) ==="
+	@for f in data/feed_live/listing-*.txt; do \
+	    echo "--- $$f ---"; \
+	    $(MAKE) live SOURCE=$$f; \
+	done
+```
+
+`data/urls.txt` must be created in the repo with a comment explaining the format (one URL per line, `#` for comments). Add `data/feed_live/` to `.gitignore`.
+
+---
+
+## 4. Purchase Decision Matrix (`scripts/render_matrix.py`)
+
+### Problem
+
+After a scraping run, the operator has a set of SHORTLIST/MONITOR/SKIP decisions with scores. There is no tool to render these into a human-readable comparison table for the final purchase recommendation.
+
+### Input Format
+
+`data/shortlist_candidates.jsonl` is manually assembled by the operator. Each line is a JSON object. Fields come from two sources:
+
+| Field | Origin |
+|-------|--------|
+| `recommended_action` | decide() output |
+| `llm_index_score` | decide() output |
+| `listing_title` | Stage 2 handoff_packet.listing_title |
+| `price` | Stage 2 handoff_packet.price |
+| `gpu` | Stage 2 analysis_output.extracted_data.gpu |
+| `notes` | Operator-written free text |
+
+Any field may be absent; missing fields render as `—` in the table.
+
+### Sort Order
+
+Priority groups: SHORTLIST → MONITOR → SKIP. Within each group, descending by `llm_index_score`. Missing or null `llm_index_score` sorts last within its group (treated as -1). Unknown `recommended_action` values sort after SKIP.
+
+### Output
+
+A Markdown file with heading, ISO timestamp, and a table:
+
+| Rank | Action | Score | Title | GPU | Price | Notes |
+|------|--------|-------|-------|-----|-------|-------|
+
+All cell values have `|` escaped as `\|` and newlines stripped before rendering.
+
+### Function Signatures
+
+```python
+def load_candidates(path: str) -> list[dict]:
+    """Read JSONL. Skip-and-warn on malformed lines (try/except per line).
+    Returns list of parsed dicts."""
+
+def sort_candidates(candidates: list[dict]) -> list[dict]:
+    """Sort by action priority (SHORTLIST=0, MONITOR=1, SKIP=2, unknown=3),
+    then by llm_index_score descending (missing treated as -1)."""
+
+def render_table(candidates: list[dict]) -> str:
+    """Return Markdown table. Escape | and strip newlines in all cell values."""
+
+def main() -> None:
+    """CLI: --in and --out flags. Load → sort → render → write."""
+```
+
+### Makefile
+
+```makefile
+render-matrix:
+	.venv/bin/python scripts/render_matrix.py --in data/shortlist_candidates.jsonl --out data/purchase_matrix.md
+	@echo "Matrix written to data/purchase_matrix.md"
+```
+
+---
+
+## 5. Testing
+
+All tests run with `.venv/bin/pytest tests/ -v`.
+
+### inject_config.py tests (`tests/test_inject_config.py`)
+
+- **`test_build_substitutions`**: construct a mock SRL with `target_gpus` as a dict (with name keys), `watch_list` as a list of `{"name": "..."}` dicts, and `uma_platforms` with known values. Assert correct token values and that dict/list shapes are handled correctly.
+- **`test_inject_file_idempotent`**: write a temp file with `<!-- BEGIN_INJECT:TARGETS -->` / `<!-- END_INJECT:TARGETS -->` markers (with stale content between them); call `inject_file()` twice; assert both runs produce identical file content and both return a non-zero replacement count.
+- **`test_inject_file_no_markers`**: file with no markers; assert return value is 0 and file is unchanged.
+
+### scrape_live.py tests (`tests/test_scrape_live.py`)
+
+- **`test_strip_nav`**: call `strip_nav()` with Markdown containing a `breadcrumb` line and a legitimate line containing `cart` as a substring of a word (e.g. `"cartridge case"`); assert nav line removed, legitimate line survives.
+- **`test_normalise_md`**: verify `**bold**` → `bold`, `[link](url)` → `link`.
+- **`test_fetch_markdown_thin_content`**: mock `scrape_url` to return a 50-char string; assert `fetch_markdown` returns `None` and emits a stderr warning.
+- **`test_error_continues`**: mock `scrape_url` to raise on URL 1, return valid Markdown on URL 2; assert URL 2's output file is written and stderr contains `WARN`.
+- **`test_read_urls_skips_blanks_and_comments`**: assert blank lines and `#` lines are excluded.
+- **`test_missing_api_key`**: assert `main()` exits with code 1 and a clear message when env var absent.
+
+### render_matrix.py tests (`tests/test_render_matrix.py`)
+
+- **`test_sort_candidates`**: mixed SHORTLIST/MONITOR/SKIP list with one null score; assert correct group and score ordering, null score sorts last in its group.
+- **`test_render_table_pipe_escaping`**: title contains `|`; assert output contains `\|`.
+- **`test_load_candidates_skips_bad_line`**: JSONL with one malformed line; assert valid lines load, warning emitted, no exception raised.
+
+---
+
+## 6. Delivery Sequence
+
+1. Create `scripts/` directory
+2. `uv add firecrawl-py==<pinned>`, confirm API shape, update `.env.example`
+3. Update `.gitignore` with `data/feed_live/`, `data/purchase_matrix.md`
+4. Add sentinel marker pairs to the three target prompt files (one-time manual edit)
+5. Write and test `scripts/inject_config.py`
+6. Add `inject-config` Makefile target; run `make inject-config` on real prompt files; verify git diff shows expected content between markers
+7. Write and test `src/laptopfinder/scrape_live.py`; confirm Firecrawl API shape matches pinned version
+8. Add `FIRECRAWL_URLS` default, `data/urls.txt` sample, and `scrape-and-live` target to Makefile
+9. Write and test `scripts/render_matrix.py`
+10. Add `render-matrix` target to Makefile
+11. Run `make test` — all new and existing tests must pass
+</file>
+
+<file path="claude-research.md">
+# Research Findings — Sprint 2
+
+## Codebase Research
+
+### Architecture Summary
+
+Three-stage pipeline: Stage 1 (Discovery) → Stage 1A (Handoff) → Stage 2 (Analysis) → Decision Engine. All governance via `config/static_reference_layer.json`. Python is flat-function style, no OOP, schema constraints replace Python validation.
+
+### Key Findings for inject_config.py
+
+**Existing placeholder tokens in prompts/:**
+- `[INJECT_TARGETS_HERE]` in `prompts/comet_discovery_agent.txt` (line 8) — the only placeholder currently in any prompt file
+- No other `alternative_silicon_*.txt` files exist with placeholders; the alternative silicon prompts (`alternative_silicon_gemini.txt`, `alternative_silicon_perplexity.txt`) are present but have no placeholder tokens
+
+**VRAM/UMA values to inject (from static_reference_layer.json):**
+```json
+vram_gating_logic: {
+  "standard_mobile_min_gb": 16,
+  "touchscreen_exception_min_gb": 12,
+  "uma_unified_min_gb": 32
+}
+vram_tiers: {
+  "entry": {"min_gb": 8, "max_gb": 12},
+  "mid": {"min_gb": 16, "max_gb": 23},
+  "high": {"min_gb": 24, "max_gb": 31},
+  "extreme": {"min_gb": 32, "max_gb": 128}
+}
+uma_platforms.min_total_ram_gb_to_shortlist: 32
+uma_platforms.chip_patterns: [M1 Max, M1 Ultra, M2 Max, M2 Ultra, M3 Max, M3 Ultra, M4 Max, M4 Ultra, Ryzen AI Max, Strix Halo]
+target_gpus: 15 entries
+watch_list: 5 entries
+```
+
+**Implication:** `inject_config.py` needs to either (a) replace the existing `[INJECT_TARGETS_HERE]` token with a formatted targets block, or (b) define new placeholder conventions and add them to the prompt files first. The spec says to replace placeholder text — so option (a) for comet_discovery_agent.txt, and we need to define what placeholders go into the alternative silicon prompts.
+
+### Makefile — Existing Targets
+
+```
+make test        → pytest
+make lint        → ruff
+make decide      → Stage 2 + decision on fixture
+make pipeline    → Stage 1 → Stage 2 → decision
+make live        → full agentic pipeline on raw text
+make evidence-run / evidence-run-dry / evidence-reset
+```
+
+New targets to add: `inject-config`, `scrape-and-live`.
+
+### scripts/ Directory
+
+Does **not exist**. Must be created.
+
+### Dependencies
+
+`firecrawl-py` is **not installed**. Must be added via `uv add firecrawl-py`.
+
+Current API deps: google-genai, anthropic, openai, python-dotenv, pyyaml, jsonschema.
+
+### Testing Setup
+
+- Framework: pytest, run via `.venv/bin/pytest tests/ -v`
+- Pattern: fixture-driven. Each test file loads JSON fixtures from `tests/fixtures/stage1/` or `tests/fixtures/stage2/`
+- New scripts (inject_config.py, scrape_live.py) will need test coverage — either unit tests or fixture-based integration tests
+
+### data/ Structure Relevant to Sprint
+
+- `data/feed_live/listing-*.txt` — per-listing output of scrape_live.py (directory gitignored; files written at scrape time)
+- `data/shortlist_candidates.jsonl` — output of decision engine batch run (does not yet exist)
+- `data/feed_manual.txt` — manual FB Marketplace paste target (does not yet exist)
+
+## Web Research — firecrawl-py (completed after research phase)
+
+**v1 client class is `Firecrawl`, not `FirecrawlApp`.** `FirecrawlApp` is v0 (deprecated). Import: `from firecrawl import Firecrawl`.
+
+**v1 scrape method:** `fc.scrape(url, formats=["markdown"])` — not `scrape_url(url, params={...})`. Response is an object: access `doc.markdown`, not `response["markdown"]`.
+
+**`only_main_content=True` is the default** — strips nav/footer/sidebars natively before Markdown conversion. This handles most chrome removal without regex. `exclude_tags=[...]` provides fine-grained CSS-selector-level exclusion.
+
+**Batch scraping:** `fc.batch_scrape(urls, formats=["markdown"])` is 0.5 credits/page vs 1.0 for individual scrapes. Use for 5+ URLs.
+
+**eBay AU specifics:**
+- Needs `wait_for=3000` (ms) for JS-rendered price/condition fields
+- Include `include_tags=["#prcIsum", ".x-price-primary", "#itemTitle"]` to guarantee key fields survive
+- Keep `maxConcurrency ≤ 5` for eBay to avoid blocks
+
+**Error codes:** 401 = bad key (fail fast), 402 = credits exhausted (fail fast), 429 = rate limit (exponential backoff).
+
+**`product` format:** `formats=["markdown", "product"]` returns `doc.product` as a structured dict with title/price/description — useful complement to raw markdown for listing pages.
+
+## Testing Preferences
+
+Existing project uses pytest with fixture-driven integration tests. New modules should follow the same pattern:
+- `inject_config.py`: test that known placeholders in a temp copy of a prompt file get replaced correctly
+- `scrape_live.py`: test with a saved HTML or mock HTTP response (no live Firecrawl calls in CI)
+</file>
+
+<file path="claude-spec.md">
+# Complete Specification — Sprint 2 (Laptopfinder)
+
+## Goal
+
+Produce a data-backed local LLM hardware purchase decision for Northcote, AU ($3K used / $5K new budget) by wiring three new pipeline components: config injection, live Firecrawl scraping, and a purchase decision matrix renderer.
+
+## Constraints
+
+- Flat-function Python only. No classes, no custom exceptions.
+- Config-driven: scoring/thresholds/lists live in `config/static_reference_layer.json`. `inject_config.py` reads SRL only (NOT silicon_profiles.yaml — that file is reference material for agents/prompts, not loaded at runtime by Sprint 2 scripts).
+- No Browserbase, no Chrome extensions, no Comet browser automation.
+- All authenticated scraping (FB Marketplace) is out of scope for `scrape-and-live` — it uses a separate manual flow not covered in this sprint.
+- `firecrawl-py` must be added to the project via `uv add firecrawl-py`.
+- `scripts/` directory already exists in the repo.
+- All changes must be verifiable with `make test`.
+
+---
+
+## Component 1 — inject_config.py (Day 1)
+
+### Purpose
+
+Keep prompt files in sync with `static_reference_layer.json` without hardcoding values in the prompts themselves. `silicon_profiles.yaml` is NOT loaded in v1.
+
+### Sentinel Convention (replaces one-shot token replacement)
+
+Tokens use paired HTML comments that survive each injection run — NOT `[UPPER_SNAKE_CASE]` one-shot replacement:
+
+```
+<!-- BEGIN_INJECT:TARGETS -->
+...rendered content written here by inject_config.py...
+<!-- END_INJECT:TARGETS -->
+```
+
+Four sentinel pairs used in v1:
+- `TARGETS` — target GPU names + watch-list names (in comet prompt only)
+- `UMA_MIN_RAM_GB` — `uma_platforms.min_total_ram_gb_to_shortlist` from SRL
+- `UMA_CHIP_PATTERNS` — comma-separated chip patterns
+- `TARGET_GPU_LIST` — confirmed target GPU names only (NOT watch-list — used in alt-silicon prompts)
+
+**Note:** `TARGET_GPU_LIST` ≠ `TARGETS`. Watch-list items (MONITOR-routed) must not appear in `TARGET_GPU_LIST`.
+
+### Script: `scripts/inject_config.py`
+
+Top-level functions only:
+
+- `load_srl(path) → dict` — load and return static_reference_layer.json
+- `build_substitutions(srl) → dict[str, str]` — construct the sentinel-name → value mapping (SRL only; no profiles arg)
+- `inject_file(path, substitutions) → int` — read file, replace content between BEGIN_INJECT/END_INJECT pairs via `re.sub` with `re.DOTALL`, write back in-place (gated on count &gt; 0), return count of pairs replaced. Idempotent.
+- `main()` — orchestrates: load SRL, build substitutions, call `inject_file` for each target prompt file, print summary
+
+Target prompt files:
+1. `prompts/comet_discovery_agent.txt`
+2. `prompts/alternative_silicon_gemini.txt`
+3. `prompts/alternative_silicon_perplexity.txt`
+
+### Makefile Target
+
+```makefile
+inject-config:
+	.venv/bin/python scripts/inject_config.py
+```
+
+### Tests
+
+- Unit test `build_substitutions()` with a minimal mock SRL dict — assert correct token values
+- Integration test: copy a fixture prompt file containing known tokens into a temp dir, call `inject_file`, assert replacements occurred
+
+---
+
+## Component 2 — scrape_live.py (Day 3–4)
+
+### Purpose
+
+Fetch live listing pages as clean Markdown via the Firecrawl API, strip nav chrome, and write each listing to a separate file in `data/feed_live/` for ingestion by `make live`.
+
+### Script: `src/laptopfinder/scrape_live.py`
+
+Under 50 lines. CLI entry point invoked as `python -m laptopfinder.scrape_live`.
+
+Arguments:
+- `--urls-file PATH` — newline-separated list of listing URLs
+- `--out-dir PATH` — directory to write per-listing files (default: `data/feed_live/`)
+
+Behaviour:
+- Read URLs from `--urls-file`, one per line, skip blank lines and `#` comments
+- Use `Firecrawl` (v1 client: `from firecrawl import Firecrawl`) — NOT deprecated `FirecrawlApp`
+- For each URL: call `fc.scrape(url, formats=["markdown"], wait_for=3000)`, extract `doc.markdown` (v1 returns response object, not dict)
+- Strip nav chrome via `strip_nav()`: word-boundary multiline pattern `r'(?im)^\s*(breadcrumb|cart|watchlist|sign in|cookie notice).*$'` — NOT an unbounded substring match
+- Apply `normalise_md()`: strip `**bold**`, `[link](url)`, table artifacts for grounding firewall compatibility
+- Minimum content check: if cleaned content &lt; 200 chars, warn to stderr and skip
+- On any exception: print `WARN: failed {url}: {e}` to stderr, continue
+- Write each successful listing to `data/feed_live/listing-{n:03d}.txt` (per-listing files, NOT a single blob) prefixed with `&lt;!-- {url} --&gt;`
+- `--out-dir` flag controls output directory (default: `data/feed_live/`)
+- If `FIRECRAWL_API_KEY` unset: `sys.exit(1)` with clear error before any network calls
+
+### Makefile Target
+
+```makefile
+# Note: intentionally does NOT depend on inject-config.
+scrape-and-live:
+	@echo "=== Firecrawl fetch ==="
+	.venv/bin/python -m laptopfinder.scrape_live --urls-file $(FIRECRAWL_URLS) --out-dir data/feed_live/
+	@echo "=== Live pipeline (per listing) ==="
+	@for f in data/feed_live/listing-*.txt; do $(MAKE) live SOURCE=$$f; done
+```
+
+`FIRECRAWL_URLS` defaults to `data/urls.txt`.
+
+### Tests
+
+- Mock `Firecrawl.scrape` (v1) to return object with `.markdown` attribute; assert nav chrome stripped and per-listing file written
+- Assert URL raising an exception does not abort run; other URLs produce output files
+- `test_strip_nav`: nav line removed, word containing "cart" as substring survives
+- `test_normalise_md`: bold/link syntax stripped
+- `test_missing_api_key`: `main()` exits 1 with clear message when env var absent
+
+---
+
+## Component 3 — Purchase Decision Matrix (Day 7)
+
+### Purpose
+
+Render `data/shortlist_candidates.jsonl` (manually assembled SHORTLIST decisions) as a sorted Markdown table for the final purchase recommendation.
+
+### Script: `scripts/render_matrix.py`
+
+Top-level functions only:
+
+- `load_candidates(path) → list[dict]` — read JSONL, return list of dicts
+- `sort_candidates(candidates) → list[dict]` — sort by `recommended_action` priority (SHORTLIST first, then MONITOR, then SKIP), then by `llm_index_score` descending
+- `render_table(candidates) → str` — produce a Markdown table with columns: Rank, Title, Action, Score, VRAM/RAM, GPU, Price, Notes
+- `main()` — load → sort → render → print to stdout (or `--out` file)
+
+### Makefile Target
+
+```makefile
+render-matrix:
+	.venv/bin/python scripts/render_matrix.py --in data/shortlist_candidates.jsonl --out data/purchase_matrix.md
+	@echo "Matrix written to data/purchase_matrix.md"
+```
+
+### Tests
+
+- Unit test `sort_candidates()` with mixed SHORTLIST/MONITOR/SKIP entries — assert correct ordering
+- Unit test `render_table()` with two fixture entries — assert Markdown table header and rows are present
+
+---
+
+## Dependency Order
+
+1. `inject-config` (no dependencies — run explicitly when SRL changes)
+2. `scrape-and-live` (no dependency on inject-config — they are independent)
+3. `render-matrix` (no dependencies — reads manually assembled JSONL)
+
+## Definition of Done
+
+- `make test` passes with new tests for all three components
+- `make inject-config` runs without error on the real prompt files and prints a replacement summary
+- `make scrape-and-live FIRECRAWL_URLS=data/urls.txt` fetches real pages and writes per-listing files to `data/feed_live/`
+- `make render-matrix` produces a valid Markdown table from a hand-crafted `data/shortlist_candidates.jsonl`
+</file>
+
+<file path="deep_plan_config.json">
+{
+  "context": {
+    "check_enabled": true,
+    "_comment": "check_enabled: set false to skip context prompts before critical operations"
+  },
+  "vertex_ai": {
+    "project": null,
+    "location": null,
+    "_comment": "Required for Vertex AI: set project and location. Falls back to gcloud config (project) and GOOGLE_CLOUD_LOCATION env var."
+  },
+  "external_review": {
+    "alert_if_missing": true,
+    "feedback_iterations": 1,
+    "_comment_alert": "alert_if_missing: set false to skip external LLM checks silently",
+    "_comment_iterations": "feedback_iterations: number of review/integrate cycles (0 = skip external review entirely). More than 1 feedback iteration is not yet implemented"
+  },
+  "models": {
+    "gemini": "gemini-3-pro-preview",
+    "chatgpt": "gpt-5.2",
+    "_comment": "Models used for external plan review"
+  },
+  "llm_client": {
+    "timeout_seconds": 120,
+    "max_retries": 3,
+    "retry_codes": [
+      429,
+      500,
+      503
+    ],
+    "_comment": "Timeout and retry settings for external LLM calls"
+  },
+  "plugin_root": "/Users/okgoogle13/.claude/plugins/cache/piercelamb-plugins/deep-plan/0.3.2",
+  "planning_dir": "/Users/okgoogle13/Projects/laptopfinder/planning",
+  "initial_file": "/Users/okgoogle13/Projects/laptopfinder/planning/sprint2-spec.md",
+  "review_mode": "opus_subagent"
+}
+</file>
+
+<file path="sprint2-spec.md">
+# Sprint 2 — Laptopfinder
+
+## Goal
+
+Output a data-backed local LLM hardware purchase decision for Northcote, AU with a $3K used / $5K new budget.
+
+## Architecture Rules
+
+- Primary Fast-Path: Firecrawl + Antigravity CLI.
+- No Browserbase, no Chrome Extensions, no Comet Browser automation.
+- All authenticated scraping (FB Marketplace) is manual copy-paste into `data/feed_manual.txt`.
+
+## Day 1: Config Injection (Stop Hardcoding)
+
+Write a standalone `scripts/inject_config.py` (no classes, top-level functions only). It must:
+- Read `config/static_reference_layer.json` ONLY (silicon_profiles.yaml is NOT loaded in v1)
+- Use sentinel-based idempotent injection (`<!-- BEGIN_INJECT:X --> ... <!-- END_INJECT:X -->`) — NOT one-shot str.replace
+- Replace content between markers in `prompts/comet_discovery_agent.txt` and `prompts/alternative_silicon_*.txt`
+
+Add this target to the Makefile:
+
+```makefile
+inject-config:
+    .venv/bin/python scripts/inject_config.py
+```
+
+## Day 3–4: Firecrawl Fetch & Makefile Wiring
+
+Write `src/laptopfinder/scrape_live.py`. It should:
+- Use `Firecrawl` (v1 client: `from firecrawl import Firecrawl`) — NOT deprecated `FirecrawlApp`
+- Read a `--urls-file`; write per-listing files to `--out-dir data/feed_live/` (NOT a single blob)
+- Strip nav chrome via word-boundary regex (NOT unbounded substring match)
+- Guard missing FIRECRAWL_API_KEY with sys.exit(1) before any network calls
+
+Add this target to the Makefile:
+
+```makefile
+# Note: intentionally does NOT depend on inject-config.
+scrape-and-live:
+    @echo "=== Firecrawl fetch ==="
+    .venv/bin/python -m laptopfinder.scrape_live --urls-file $(FIRECRAWL_URLS) --out-dir data/feed_live/
+    @echo "=== Live pipeline (per listing) ==="
+    @for f in data/feed_live/listing-*.txt; do $(MAKE) live SOURCE=$$f; done
+```
+
+## Day 7: Purchase Decision Matrix
+
+Prepare the system to accept a final prompt that:
+- Ingests `data/shortlist_candidates.jsonl`
+- Outputs a Markdown table sorted by recommended action (SHORTLIST/MONITOR/SKIP) and `llm_index_score`
+</file>
+
+</files>

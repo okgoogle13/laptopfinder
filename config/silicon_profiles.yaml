@@ -16,12 +16,39 @@ paradigms:
     inference_stack: [CUDA, "llama.cpp+CUDA", Ollama, TensorRT]
     ecosystem_maturity: dominant
     thermals: active_high
+    architecture_tiers:
+      turing_sm75:
+        flash_attention: emulated_fallback
+        fp8: unsupported
+        penalty_vs_ada_same_vram_pts: -2
+        recommendation: avoid_if_ada_available_at_same_vram
+      ada_sm89:
+        flash_attention: native_hw
+        fp8: native_hw
+        recommendation: preferred
+      blackwell_gb2xx:
+        flash_attention: native_hw
+        fp8: native_hw
+        recommendation: preferred
 
   discrete_rocm:
     description: Dedicated AMD Radeon GPU with GDDR6 VRAM
     inference_stack: [ROCm, Vulkan, "llama.cpp+ROCm", Ollama]
     ecosystem_maturity: partial
     thermals: active_high
+    ecosystem_score: 15
+    known_issues:
+      - id: s3_suspend_resume_tlb_fence_timeout
+        severity: critical
+        workaround: "amdgpu.cwsr_enable=0 (disables power management features)"
+      - id: lm_studio_stable_support
+        severity: critical
+        workaround: none
+      - id: ollama_mobile_vram_boundary
+        severity: high
+        workaround: partial
+    review_date: "2026-Q4"
+    review_condition: "Raise ecosystem_score to 17-18 if ROCm 7.x resolves S3 suspend/resume bug"
 
 text_centric_llm_inference:
   preferred_paradigms: [apple_silicon_uma, amd_strix_halo_uma]
@@ -35,3 +62,30 @@ text_centric_llm_inference:
   exceptions:
     - training_or_diffusion
     - cuda_locked_software_stack
+  ram_floors:
+    absolute_min_gb: 32
+    recommended_gb: 64
+    stretch_gb: 96
+    telemetry_basis: "Gemma 2 9B on 8GB Mac: 35MB free RAM, 80MB/s pageout during inference"
+
+egpu_interconnect:
+  thunderbolt_3_4:
+    bandwidth_gbps: 32
+    throughput_gbs: 4.0
+    prefill_utilisation_pct: 20
+    decode_retention_pct: 92
+    scoring_penalty_pts: -3
+  oculink:
+    bandwidth_gbps: 64
+    throughput_gbs: 8.0
+    prefill_utilisation_pct: 60
+    decode_retention_pct: 98
+    scoring_penalty_pts: 0
+    condition: host_ram_ge_32gb
+  thunderbolt_5:
+    bandwidth_gbps: 120
+    throughput_gbs: 10.0
+    prefill_utilisation_pct: 85
+    decode_retention_pct: 99
+    scoring_penalty_pts: 0
+    condition: host_ram_ge_32gb

@@ -1,9 +1,26 @@
 {
-  "enabledPlugins": {
+  "claude_enabled_plugins": {
     "claude-md-management@claude-plugins-official": true,
     "claude-code-setup@claude-plugins-official": true
   },
-  "hooks": {
+  "claude_permissions": {
+    "allow": [
+      "Bash(make -n test)",
+      "Bash(.venv/bin/python *)",
+      "Bash(make test)",
+      "Bash(make lint)",
+      "Bash(make decide *)",
+      "Bash(make evidence-run)",
+      "Bash(make evidence-run-dry)",
+      "Bash(make evidence-reset)",
+      "Bash(uv run *)",
+      "Bash(grep *)",
+      "Bash(head *)",
+      "Bash(wc *)",
+      "Bash(bash /Users/okgoogle13/.claude/plugins/cache/piercelamb-plugins/deep-plan/0.3.2/scripts/checks/validate-env.sh)"
+    ]
+  },
+  "shared_hooks": {
     "PreToolUse": [
       {
         "matcher": "Edit|Write",
@@ -39,6 +56,23 @@
           {
             "type": "command",
             "command": "INPUT=$(cat); fp=$(echo \"$INPUT\" | python3 -c \"import sys,json; print(json.load(sys.stdin).get('file_path',''))\"); if echo \"$fp\" | grep -q 'implementation_plan.md'; then echo '\\n\\n>>> 🛑 PAUSE FOR PEER REVIEW: Do NOT execute this plan yet. Instruct the user to run \"review plan\" in their Codex terminal, then wait for them to paste the brief PASS/FAIL result back here. <<<\\n'; exit 1; fi"
+          }
+        ]
+      }
+    ]
+  },
+  "local_hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "INPUT=$(cat); fp=$(echo \"$INPUT\" | python3 -c \"import sys,json; print(json.load(sys.stdin).get('file_path',''))\"); if echo \"$fp\" | grep -qE '^src/|^tests/'; then .venv/bin/python -m ruff check src/ tests/ --quiet 2>&1; fi"
+          },
+          {
+            "type": "command",
+            "command": "INPUT=$(cat); fp=$(echo \"$INPUT\" | python3 -c \"import sys,json; print(json.load(sys.stdin).get('file_path',''))\"); if echo \"$fp\" | grep -q 'decide.py'; then .venv/bin/python -m pytest tests/test_decide.py -v --tb=short 2>&1 | tail -25; elif echo \"$fp\" | grep -q 'src/laptopfinder/core.py'; then make test 2>&1 | tail -20; fi"
           }
         ]
       }

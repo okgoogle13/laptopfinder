@@ -903,7 +903,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "anthropic", specifier = ">=0.20.0" },
-    { name = "firecrawl-py", specifier = ">=4.31.0" },
+    { name = "firecrawl-py", specifier = "~=4.31" },
     { name = "google-genai", specifier = ">=0.3.0" },
     { name = "jsonschema", specifier = ">=4.0" },
     { name = "openai", specifier = ">=1.10.0" },

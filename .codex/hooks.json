@@ -1,8 +1,4 @@
 {
-  "enabledPlugins": {
-    "claude-md-management@claude-plugins-official": true,
-    "claude-code-setup@claude-plugins-official": true
-  },
   "hooks": {
     "PreToolUse": [
       {
@@ -39,6 +35,19 @@
           {
             "type": "command",
             "command": "INPUT=$(cat); fp=$(echo \"$INPUT\" | python3 -c \"import sys,json; print(json.load(sys.stdin).get('file_path',''))\"); if echo \"$fp\" | grep -q 'implementation_plan.md'; then echo '\\n\\n>>> 🛑 PAUSE FOR PEER REVIEW: Do NOT execute this plan yet. Instruct the user to run \"review plan\" in their Codex terminal, then wait for them to paste the brief PASS/FAIL result back here. <<<\\n'; exit 1; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "INPUT=$(cat); fp=$(echo \"$INPUT\" | python3 -c \"import sys,json; print(json.load(sys.stdin).get('file_path',''))\"); if echo \"$fp\" | grep -qE '^src/|^tests/'; then .venv/bin/python -m ruff check src/ tests/ --quiet 2>&1; fi"
+          },
+          {
+            "type": "command",
+            "command": "INPUT=$(cat); fp=$(echo \"$INPUT\" | python3 -c \"import sys,json; print(json.load(sys.stdin).get('file_path',''))\"); if echo \"$fp\" | grep -q 'decide.py'; then .venv/bin/python -m pytest tests/test_decide.py -v --tb=short 2>&1 | tail -25; elif echo \"$fp\" | grep -q 'src/laptopfinder/core.py'; then make test 2>&1 | tail -20; fi"
           }
         ]
       }
