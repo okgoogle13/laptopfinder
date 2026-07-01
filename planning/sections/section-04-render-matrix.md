@@ -4,14 +4,20 @@
 
 This section implements `scripts/render_matrix.py`, a stdlib-only script that renders a manually assembled JSONL shortlist into a sorted Markdown purchase-decision table. It depends only on section-01-prerequisites (the `scripts/` directory existing). It can be implemented in parallel with sections 02 and 03.
 
-**Files to create:**
+**Files created:**
 - `scripts/render_matrix.py`
 - `tests/test_render_matrix.py`
 
 **Files to modify:**
-- `Makefile` (add `render-matrix` target — handled in section-05, but the script must exist first)
+- `Makefile` (add `render-matrix` target — handled in section-05)
 
-No external dependencies. Only Python stdlib is needed (`json`, `sys`, `argparse`, `datetime`, `re`).
+No external dependencies. Only Python stdlib is needed (`json`, `sys`, `argparse`, `datetime`, `os`).
+
+### Implementation notes (post-review)
+
+- **Score=0 bug fixed:** The plan's suggested sort key `-(c.get("llm_index_score") or -1)` treats 0 as falsy. Implementation uses an explicit None check: `v = c.get("llm_index_score"); score = -(v if v is not None else -1)`.
+- **FileNotFoundError guard added:** `main()` checks `os.path.exists(args.input)` before calling `load_candidates()` and exits with a clear message if missing (not in original spec).
+- **Test count:** 15 tests (14 planned + `test_sort_zero_score_above_null` added during review).
 
 ---
 
