@@ -322,6 +322,31 @@ def _apply_architecture_penalty(gpu: str | None, tier: str | None, ref: dict) ->
     return 0
 
 
+def _apply_egpu_interconnect_penalty(analysis: dict, ref: dict) -> int:
+    """Return TB3/4 interconnect penalty for eGPU bundles; 0 otherwise.
+
+    Interconnect type is inferred from egpu_model keywords (no schema field exists).
+    zero_penalty_condition: system_ram_gb >= 32 waives penalty regardless of interconnect.
+    """
+    extracted = analysis.get("extracted_data", {})
+    model = extracted.get("exact_model_name")
+    egpu_model = extracted.get("egpu_model")
+    if not _has_egpu_bundle(model, egpu_model, ref):
+        return 0
+    system_ram = extracted.get("total_system_ram")
+    if system_ram is not None and system_ram >= 32:
+        return 0
+    cfg = ref.get("egpu_interconnect_penalty", {})
+    egpu_lower = (egpu_model or "").lower()
+    oculink_enclosures = [e.lower() for e in cfg.get("oculink_enclosures", [])]
+    is_oculink = "oculink" in egpu_lower or any(enc in egpu_lower for enc in oculink_enclosures)
+    if is_oculink:
+        return cfg.get("oculink_pts", 0)
+    if "thunderbolt 5" in egpu_lower or "tb5" in egpu_lower:
+        return cfg.get("thunderbolt_5_pts", 0)
+    return cfg.get("thunderbolt_3_4_pts", -3)
+
+
 def calculate_llm_index_score(
     analysis: dict,
     tier: str | None,
@@ -356,6 +381,7 @@ def calculate_llm_index_score(
             raw += 3
 
     raw += _apply_architecture_penalty(gpu, tier, ref)
+    raw += _apply_egpu_interconnect_penalty(analysis, ref)
 
     return max(0, min(100, raw))
 

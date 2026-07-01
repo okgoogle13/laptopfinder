@@ -244,7 +244,7 @@
     }
   },
   "min_vram_to_shortlist_gb": 12,
-  "_comment_min_vram": "Applies to discrete VRAM only. UMA platforms (Apple Silicon, Strix Halo) use uma_platforms.min_total_ram_gb_to_shortlist instead. Do not apply both thresholds to the same listing.",
+  "_comment_min_vram": "DEPRECATED / UNUSED — decide.py does not read this key. It is a legacy leftover. The live discrete-VRAM shortlist gate is vram_gating_logic.standard_mobile_min_gb (16 GB), with vram_gating_logic.touchscreen_exception_min_gb (12 GB) as the touchscreen exception. UMA platforms use uma_platforms.min_total_ram_gb_to_shortlist. Do not edit this key expecting it to change routing behavior; edit vram_gating_logic instead. Retained only for backward-compat in case an external script reads it directly.",
   "min_vram_to_flag_gb": 12,
   "apple_silicon": {
     "routing": "CONDITIONAL",
@@ -372,7 +372,8 @@
     "oculink_pts": 0,
     "thunderbolt_5_pts": 0,
     "zero_penalty_condition": "system_ram_gb >= 32",
-    "_comment": "TB3/4 caps at ~4 GB/s (PCIe 3.0 x4); prefill phase achieves ~20% GPU utilisation. OCuLink (8 GB/s) achieves ~60%. TB5 (10+ GB/s) is effectively native. Penalty applied to llm_index_score for eGPU listings."
+    "oculink_enclosures": ["Minisforum DEG2"],
+    "_comment": "TB3/4 caps at ~4 GB/s (PCIe 3.0 x4); prefill phase achieves ~20% GPU utilisation. OCuLink (8 GB/s) achieves ~60%. TB5 (10+ GB/s) is effectively native. oculink_enclosures lists known OCuLink docks whose names do not contain the string 'oculink'. Penalty applied to llm_index_score for eGPU listings."
   },
   "architecture_adjustments": {
     "turing_vs_ada_same_vram_penalty_pts": -2,

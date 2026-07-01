@@ -102,8 +102,37 @@ raw += _apply_egpu_interconnect_penalty(analysis, ref)
 
 `tests/fixtures/stage2/ebay_egpu_bundle.json` has `egpu_model: "XG Mobile RTX 4090"` — no OCuLink/TB5 keyword, `total_system_ram: null`. This fixture will produce a -3 penalty after wiring. No fixture modification needed, but verify that the existing `ebay_egpu_bundle.json`-based decide tests still pass (the score will be 3 pts lower — check if any test hardcodes a specific score value that would break).
 
+## Deviations from Plan
+
+**Review fix — TB5 key separation:** Plan used `oculink_pts` for both OCuLink and TB5. Code review
+caught this breaks SRL governance if either key changes. Split into two branches: OCuLink returns
+`oculink_pts`, TB5 returns `thunderbolt_5_pts`.
+
+**Review fix — Minisforum DEG2 false positive:** Original keyword check (`"oculink" in egpu_lower`)
+fails for enclosures whose names don't contain "oculink" (Minisforum DEG2 is canonical OCuLink).
+Added `oculink_enclosures: ["Minisforum DEG2"]` to SRL and check against it. SRL is the governance
+layer for this list, not Python source.
+
+**Review fix — truthiness on numeric:** `if system_ram and ...` → `if system_ram is not None and ...`
+
+**Additional test:** `egpu_model=None` + enclosure keyword only in `exact_model_name` →
+`_has_egpu_bundle` True, `egpu_lower=""`, no keyword match → returns -3 (conservative default).
+Behavior documented via test; no code change.
+
+**Test count change:** 7 originally planned → 9 after review fixes (added DEG2 test + undocumented path test).
+
+## Files Actually Modified
+
+- `src/laptopfinder/decide.py` — `_apply_egpu_interconnect_penalty()` added, wired into `calculate_llm_index_score()`
+- `tests/test_decide.py` — `TestApplyEgpuInterconnectPenalty` class (9 tests), import added
+- `config/static_reference_layer.json` — `oculink_enclosures` key added to `egpu_interconnect_penalty` block
+
+## Final Test Count
+
+178 passed (baseline 169 → +9 new eGPU tests, all others unchanged).
+
 ## Verification
 
-1. `make test` — green (7 new tests pass)
-2. Confirm `ebay_egpu_bundle.json` fixture-driven decide test still passes
-3. Spot-check: `decide(egpu_analysis, ref)["llm_index_score"]` is 3 pts lower than equivalent non-eGPU analysis
+1. `make test` — 178 passed ✓
+2. `ebay_egpu_bundle.json` fixture decide tests still pass ✓
+3. `decide(egpu_analysis, ref)["llm_index_score"]` is 3 pts lower than equivalent non-eGPU ✓

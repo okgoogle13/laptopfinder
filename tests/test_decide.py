@@ -23,6 +23,7 @@ from laptopfinder.decide import (
     _seller_reward_points,
     _deduction_points,
     _apply_architecture_penalty,
+    _apply_egpu_interconnect_penalty,
     calculate_llm_index_score,
 )
 
@@ -745,3 +746,68 @@ class TestSrlStorageFloors:
 
     def test_storage_floors_recommended_gb(self):
         assert load_ref()["storage_floors"]["recommended_gb"] == 1024
+
+
+class TestApplyEgpuInterconnectPenalty:
+    def _make_analysis(self, egpu_model=None, exact_model_name=None, system_ram=None):
+        return {
+            "extracted_data": {
+                "exact_model_name": exact_model_name,
+                "egpu_model": egpu_model,
+                "total_system_ram": system_ram,
+            }
+        }
+
+    def test_non_egpu_returns_zero(self):
+        analysis = self._make_analysis(exact_model_name="Dell XPS 15", egpu_model=None)
+        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
+
+    def test_egpu_tb34_returns_penalty(self):
+        analysis = self._make_analysis(
+            exact_model_name="ASUS ROG Flow X13", egpu_model="Razer Core X", system_ram=16
+        )
+        assert _apply_egpu_interconnect_penalty(analysis, REF) == -3
+
+    def test_egpu_oculink_keyword_returns_zero(self):
+        analysis = self._make_analysis(
+            exact_model_name="ASUS ROG Flow X13", egpu_model="Generic OCuLink Dock"
+        )
+        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
+
+    def test_egpu_minisforum_deg2_returns_zero(self):
+        # Minisforum DEG2 is a known OCuLink dock; name has no "oculink" substring
+        analysis = self._make_analysis(
+            exact_model_name="ASUS ROG Flow X13", egpu_model="Minisforum DEG2"
+        )
+        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
+
+    def test_egpu_thunderbolt5_returns_zero(self):
+        analysis = self._make_analysis(
+            exact_model_name="ASUS ROG Flow X13", egpu_model="Razer Core X Thunderbolt 5"
+        )
+        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
+
+    def test_egpu_tb5_shorthand_returns_zero(self):
+        analysis = self._make_analysis(
+            exact_model_name="ASUS ROG Flow X13", egpu_model="Some Dock TB5"
+        )
+        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
+
+    def test_zero_penalty_condition_system_ram_32(self):
+        analysis = self._make_analysis(
+            exact_model_name="ASUS ROG Flow X13", egpu_model="Razer Core X", system_ram=32
+        )
+        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
+
+    def test_zero_penalty_condition_system_ram_64(self):
+        analysis = self._make_analysis(
+            exact_model_name="ASUS ROG Flow X13", egpu_model="Razer Core X", system_ram=64
+        )
+        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
+
+    def test_enclosure_in_model_name_only_returns_tb34_penalty(self):
+        # Enclosure keyword in exact_model_name, egpu_model absent — conservative default
+        analysis = self._make_analysis(
+            exact_model_name="ASUS ROG XG Mobile bundle", egpu_model=None, system_ram=16
+        )
+        assert _apply_egpu_interconnect_penalty(analysis, REF) == -3
