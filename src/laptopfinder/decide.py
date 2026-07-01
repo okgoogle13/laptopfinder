@@ -21,7 +21,37 @@ _UNDISCOVERED_HARDWARE_LOG_PATH = Path(__file__).resolve().parents[2] / "data" /
 def load_ref(path: str | Path | None = None) -> dict[str, Any]:
     p = Path(path) if path else _REF_PATH
     with p.open("r", encoding="utf-8") as f:
-        return json.load(f)
+        ref = json.load(f)
+    _precompute_ref(ref)
+    return ref
+
+
+def _precompute_ref(ref: dict) -> None:
+    """Mutate ref in-place to add pre-lowercased lookup structures.
+
+    Avoids repeated .lower() calls inside hot loops in decide().
+    Added keys are prefixed with '_' to distinguish from source data.
+    """
+    uma = ref.get("uma_platforms", {})
+    ref["_chip_patterns_lower"] = [p.lower() for p in uma.get("chip_patterns", [])]
+
+    ref["_watch_names_upper"] = [
+        (w.get("name") if isinstance(w, dict) else w).upper()
+        for w in ref.get("watch_list", [])
+        if (w.get("name") if isinstance(w, dict) else w)
+    ]
+
+    ref["_radeon_names_lower"] = [n.lower() for n in ref.get("radeon_mobile_gpus", {})]
+
+    ref["_egpu_enclosures_lower"] = [e.lower() for e in ref.get("egpu_enclosures", [])]
+
+    score_cfg = ref.get("llm_index_score", {})
+    ref["_gen_by_name_lower"] = {
+        name.lower(): gen
+        for name, gen in score_cfg.get("gpu_generation_by_name", {}).items()
+    }
+
+    ref["_target_models_lower"] = [m.lower() for m in ref.get("target_models", [])]
 
 
 def _vram_gb(vram_val: "str | dict | None") -> float | None:
@@ -58,9 +88,8 @@ def _is_target(model: str | None, gpu: str | None, ref: dict) -> bool:
         return True
     if model:
         model_lower = model.lower()
-        for pattern in ref.get("target_models", []):
-            if pattern.lower() in model_lower:
-                return True
+        patterns = ref.get("_target_models_lower") or [m.lower() for m in ref.get("target_models", [])]
+        return any(pattern in model_lower for pattern in patterns)
     return False
 
 
@@ -72,11 +101,12 @@ def _is_watch(gpu: str | None, ref: dict) -> bool:
     if not gpu:
         return False
     gpu_upper = gpu.upper()
-    for w in ref.get("watch_list", []):
-        name = w.get("name") if isinstance(w, dict) else w
-        if name and name.upper() in gpu_upper:
-            return True
-    return False
+    watch_names = ref.get("_watch_names_upper") or [
+        (w.get("name") if isinstance(w, dict) else w).upper()
+        for w in ref.get("watch_list", [])
+        if (w.get("name") if isinstance(w, dict) else w)
+    ]
+    return any(name in gpu_upper for name in watch_names)
 
 
 def _ram_gb(ram_str: str | None) -> float | None:
@@ -92,20 +122,25 @@ def _is_uma_platform(model: str | None, cpu: str | None, ref: dict) -> bool:
 
     UMA platforms have no discrete VRAM — total_system_ram is the relevant capacity signal instead.
     """
-    cfg = ref.get("uma_platforms", {})
     haystack = " ".join(filter(None, [model, cpu])).lower()
     if not haystack:
         return False
-    return any(pattern.lower() in haystack for pattern in cfg.get("chip_patterns", []))
+    patterns = ref.get("_chip_patterns_lower") or [
+        p.lower() for p in ref.get("uma_platforms", {}).get("chip_patterns", [])
+    ]
+    return any(pattern in haystack for pattern in patterns)
 
 
 def _is_radeon_mobile(gpu: str | None, ref: dict) -> str | None:
     """Return the matching Radeon mobile/workstation GPU name if gpu is on the list, else None."""
     if not gpu:
         return None
-    for name in ref.get("radeon_mobile_gpus", {}):
-        if name.lower() in gpu.lower():
-            return name
+    gpu_lower = gpu.lower()
+    names = list(ref.get("radeon_mobile_gpus", {}))
+    names_lower = ref.get("_radeon_names_lower") or [n.lower() for n in names]
+    for orig, lower in zip(names, names_lower):
+        if lower in gpu_lower:
+            return orig
     return None
 
 
@@ -118,19 +153,24 @@ def _has_egpu_bundle(model: str | None, egpu_model: str | None, ref: dict) -> bo
     haystack = " ".join(filter(None, [model, egpu_model])).lower()
     if not haystack:
         return False
-    return any(enclosure.lower() in haystack for enclosure in ref.get("egpu_enclosures", []))
+    enclosures = ref.get("_egpu_enclosures_lower") or [e.lower() for e in ref.get("egpu_enclosures", [])]
+    return any(enclosure in haystack for enclosure in enclosures)
 
 
-def _classify_paradigm(analysis: dict, ref: dict) -> Paradigm:
+def _classify_paradigm(analysis: dict, ref: dict, is_uma: bool | None = None, radeon_match: str | None = ...) -> Paradigm:  # type: ignore[assignment]
     extracted = analysis.get("extracted_data") or {}
     gpu = extracted.get("gpu") or ""
     model = extracted.get("exact_model_name") or ""
     cpu = extracted.get("cpu") or ""
-    if _is_uma_platform(model, cpu, ref):
+    if is_uma is None:
+        is_uma = _is_uma_platform(model, cpu, ref)
+    if is_uma:
         if any(kw.lower() in " ".join(filter(None, [model, cpu])).lower() for kw in ("Strix", "Ryzen AI Max")):
             return "amd_strix_halo_uma"
         return "apple_silicon_uma"
-    if _is_radeon_mobile(gpu, ref):
+    if radeon_match is ...:
+        radeon_match = _is_radeon_mobile(gpu, ref)
+    if radeon_match:
         return "discrete_rocm"
     return "discrete_cuda"
 
@@ -195,9 +235,12 @@ def _gpu_generation_points(gpu: str | None, is_uma: bool, ref: dict) -> int:
         return points_by_gen.get("Apple Silicon", 0)
     if not gpu:
         return 0
-    gen_by_name = cfg.get("gpu_generation_by_name", {})
-    for name, generation in gen_by_name.items():
-        if name.lower() in gpu.lower():
+    gpu_lower = gpu.lower()
+    gen_by_name_lower = ref.get("_gen_by_name_lower") or {
+        k.lower(): v for k, v in cfg.get("gpu_generation_by_name", {}).items()
+    }
+    for name_lower, generation in gen_by_name_lower.items():
+        if name_lower in gpu_lower:
             return points_by_gen.get(generation, 0)
     return 0
 
@@ -269,6 +312,16 @@ def _deduction_points(analysis: dict, ref: dict) -> int:
     return round(missing_deduction + risk_deduction)
 
 
+def _apply_architecture_penalty(gpu: str | None, tier: str | None, ref: dict) -> int:
+    """Return the SRL architecture adjustment when the comparison context is available.
+
+    The current `decide()` path scores one listing at a time, so the Turing-vs-Ada
+    same-VRAM comparison cannot be resolved safely here. Keep this as a no-op until
+    pairwise comparison context exists.
+    """
+    return 0
+
+
 def calculate_llm_index_score(
     analysis: dict,
     tier: str | None,
@@ -298,10 +351,11 @@ def calculate_llm_index_score(
         raw += 5
     if model_name:
         model_lower = model_name.lower()
-        for pattern in ref.get("target_models", []):
-            if pattern.lower() in model_lower:
-                raw += 3
-                break
+        patterns = ref.get("_target_models_lower") or [m.lower() for m in ref.get("target_models", [])]
+        if any(pattern in model_lower for pattern in patterns):
+            raw += 3
+
+    raw += _apply_architecture_penalty(gpu, tier, ref)
 
     return max(0, min(100, raw))
 
@@ -326,7 +380,8 @@ def decide(analysis: dict, ref: dict | None = None, workload: str | None = None)
     is_watch = _is_watch(gpu, ref)
 
     is_uma = _is_uma_platform(model, cpu, ref)
-    uma_ram = _ram_gb(ram_str) if is_uma else None
+    system_ram = _ram_gb(ram_str)
+    uma_ram = system_ram if is_uma else None
     uma_tier = _vram_tier(uma_ram, ref) if is_uma else None
     radeon_match = _is_radeon_mobile(gpu, ref)
     has_egpu = _has_egpu_bundle(model, egpu_model, ref)
@@ -335,7 +390,7 @@ def decide(analysis: dict, ref: dict | None = None, workload: str | None = None)
         analysis,
         gpu,
         vram,
-        _ram_gb(ram_str),
+        system_ram,
         generation_points,
         is_target,
         is_uma,
@@ -398,7 +453,7 @@ def decide(analysis: dict, ref: dict | None = None, workload: str | None = None)
         else:
             reasons.append(f"VRAM too low or unknown (got {vram}GB, need {min_vram}GB+)")
 
-    paradigm = _classify_paradigm(analysis, ref)
+    paradigm = _classify_paradigm(analysis, ref, is_uma=is_uma, radeon_match=radeon_match)
     paradigm_note = None
     if workload == "text_llm" and paradigm in ("discrete_cuda", "discrete_rocm") and action == "SHORTLIST":
         action = "SKIP"

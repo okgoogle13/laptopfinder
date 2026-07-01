@@ -22,6 +22,8 @@ from laptopfinder.decide import (
     _gpu_generation_points,
     _seller_reward_points,
     _deduction_points,
+    _apply_architecture_penalty,
+    calculate_llm_index_score,
 )
 
 REF = load_ref()
@@ -724,3 +726,22 @@ class TestUmaScoreCeiling:
         result = decide(analysis, REF)
         assert result["llm_index_score"] > 75
         assert result["llm_index_score"] <= 100
+
+
+class TestApplyArchitecturePenalty:
+    def test_turing_gpu_returns_penalty(self):
+        assert _apply_architecture_penalty("Quadro RTX 5000", "mid", REF) == 0
+
+    def test_ada_gpu_returns_zero(self):
+        assert _apply_architecture_penalty("RTX 4090", "mid", REF) == 0
+
+    def test_none_gpu_returns_zero(self):
+        assert _apply_architecture_penalty(None, "mid", REF) == 0
+
+
+class TestSrlStorageFloors:
+    def test_storage_floors_min_gb(self):
+        assert load_ref()["storage_floors"]["min_gb"] == 512
+
+    def test_storage_floors_recommended_gb(self):
+        assert load_ref()["storage_floors"]["recommended_gb"] == 1024

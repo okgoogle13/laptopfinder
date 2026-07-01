@@ -62,8 +62,8 @@
 ### Claude Pro Handoff (2026-07-01)
 - [x] Paste `claude_handoff.txt` into Claude Pro; `targets.json` saved (min 32 GB RAM, min 12 GB VRAM, min 512 GB storage)
 - [x] `ram_floors` and VRAM thresholds reflected in `config/static_reference_layer.json` (2026-07-01)
-- [x] **PENDING: Integrate `storage_gb` spec from `targets.json` into SRL**
-- [x] Confirm `make test` stays green after storage integration
+- [x] Integrate `storage_gb` spec from `targets.json` into SRL — `storage_floors` block at SRL:366 (min_gb: 512, recommended_gb: 1024)
+- [x] `make test` green after storage integration
 
 ---
 
@@ -86,7 +86,7 @@
 - [x] 108 tests green
 
 **Sprint 3 stub (architecture_adjustments not yet wired):**
-- [ ] Wire `architecture_adjustments.turing_vs_ada_same_vram_penalty_pts` into `decide.py` via `_apply_architecture_penalty()`
+- [ ] Wire `architecture_adjustments.turing_vs_ada_same_vram_penalty_pts` into `decide.py` via `_apply_architecture_penalty()` — currently a documented no-op stub (pairwise comparison context required; see docstring)
 
 ---
 
@@ -124,31 +124,49 @@
 ### Pipeline Enhancements (done 2026-07-01)
 - [x] Config JSON fragments for `target_gpus`, `target_models`, `egpu_enclosures`, `watch_list` — applied
 - [x] RDNA3/ROCm ecosystem score held at 15; Turing gen-points gap (5 vs Ada 20) documented
-- [ ] Identify 5–10 high-value search terms/variants for the discovery prompt (report §8.1 provides 8 Boolean strings — wire into discovery prompt)
-- [ ] Document 1–3 systematic blind spots and propose fixes
+- [x] Identify 5–10 high-value search terms/variants for the discovery prompt — 8 Boolean strings wired into `prompts/comet_discovery_agent.txt:37-44`
+- [x] Document 1–3 systematic blind spots — documented in `CLAUDE.md` (RAM/VRAM conflation, mislabelled eGPU bundles, niche workstation imports)
 
 ---
 
-## ACTIVE: Sprint 2 — Config Injection, Live Scraping, Decision Matrix (2026-07)
+## ACTIVE: Sprint 3 — Prompt Hygiene + eGPU Scoring (2026-07)
+
+**Goal:** Close the UMA discovery gap, wire the eGPU interconnect penalty, and put all hardcoded thresholds in prompts under inject_config control.
+
+### Discovery Threshold Fix
+- [ ] S3-01: Fix UMA RAM threshold in `prompts/comet_discovery_agent.txt` (currently `64GB+` — must be `32GB+` to match `uma_unified_min_gb` in SRL)
+- [ ] S3-01: Add inject_config sentinel pairs around UMA RAM floor, VRAM thresholds in the discovery prompt so `inject_config.py` keeps them in sync with SRL
+
+### eGPU Interconnect Penalty
+- [ ] S3-02: Add `_apply_egpu_interconnect_penalty(analysis, ref)` to `decide.py` — reads `egpu_interconnect_penalty` from SRL, applies −3 pts for TB3/4 when eGPU bundle detected; 0 for OCuLink/TB5 or system_ram_gb ≥ 32
+- [ ] S3-02: Add tests in `test_decide.py` for TB3/4 penalty, OCuLink zero-penalty, and system_ram_gb ≥ 32 zero-penalty override
+
+### Prompt Audit
+- [ ] S3-03: Grep `prompts/` for hardcoded VRAM/RAM values (`16`, `12`, `32`, `64`, `512`) — add sentinel pairs for any that duplicate SRL config keys
+- [ ] S3-03: `make test` green after sentinel pair additions
+
+---
+
+## COMPLETE: Sprint 2 — Config Injection, Live Scraping, Decision Matrix (2026-07)
 
 **Plan:** `planning/claude-plan.md` · **Sections:** `planning/sections/`
 
 ### Prerequisites
-- [ ] S2-01: Create `scripts/` directory (`.gitkeep`)
-- [ ] S2-02: `uv add firecrawl-py` (pinned); add `FIRECRAWL_API_KEY` to `.env.example`
-- [ ] S2-03: Update `.gitignore` — add `data/feed_live/`, `data/purchase_matrix.md`
-- [ ] S2-04: Add sentinel marker pairs to 3 prompt files (one-time manual edit per section-01)
+- [x] S2-01: Create `scripts/` directory (`.gitkeep`)
+- [x] S2-02: `uv add firecrawl-py` (pinned); add `FIRECRAWL_API_KEY` to `.env.example`
+- [x] S2-03: Update `.gitignore` — add `data/feed_live/`, `data/purchase_matrix.md`
+- [x] S2-04: Add sentinel marker pairs to 3 prompt files (one-time manual edit per section-01)
 
 ### Components
-- [ ] S2-05: Write + test `scripts/inject_config.py` (`load_srl`, `build_substitutions`, `inject_file`, `main`)
-- [ ] S2-06: Write + test `src/laptopfinder/scrape_live.py` (`read_urls`, `strip_nav`, `normalise_md`, `fetch_markdown`, `main`)
-- [ ] S2-07: Write + test `scripts/render_matrix.py` (`load_candidates`, `sort_candidates`, `render_table`, `main`)
-- [ ] S2-08: Add `tests/test_prompt_markers.py` — asserts real prompt files contain sentinel pairs
+- [x] S2-05: Write + test `scripts/inject_config.py` (`load_srl`, `build_substitutions`, `inject_file`, `main`)
+- [x] S2-06: Write + test `src/laptopfinder/scrape_live.py` (`read_urls`, `strip_nav`, `normalise_md`, `fetch_markdown`, `main`)
+- [x] S2-07: Write + test `scripts/render_matrix.py` (`load_candidates`, `sort_candidates`, `render_table`, `main`)
+- [x] S2-08: Add `tests/test_prompt_markers.py` — asserts real prompt files contain sentinel pairs
 
 ### Integration
-- [ ] S2-09: Add `inject-config`, `scrape-and-live` (with zero-results guard), `render-matrix` Makefile targets
-- [ ] S2-10: Create `data/urls.txt` sample file
-- [ ] S2-11: `make test` — all new and existing tests pass
+- [x] S2-09: Add `inject-config`, `scrape-and-live` (with zero-results guard), `render-matrix` Makefile targets
+- [x] S2-10: Create `data/urls.txt` sample file
+- [x] S2-11: `make test` — all new and existing tests pass (49 Sprint 2 tests green)
 
 ---
 

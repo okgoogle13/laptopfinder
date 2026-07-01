@@ -90,6 +90,11 @@ A secondary sub-pipeline that derives hardware spec requirements from real macOS
 **Benchmark Scraper** (`src/laptopfinder/scrape_benchmark.py`)  
 Converts saved HTML pages or JSON API payloads from eBay AU / FB Marketplace / Gumtree into Stage 2 fixture format (`handoff_packet + full_listing_text + analysis_output stub`). CSS selectors are best-guess — verify against real saved pages before trusting output. Input modes: `--html-dir`, `--html-file`, `--urls`, `--ebay-api`. Platform auto-detected from filename prefix or URL hostname.
 
+**Discovery Blind Spots (documented 2026-07)**  
+1. **RAM/VRAM conflation** — eBay AU search surfaces "16GB RAM" (system) listings alongside "16GB VRAM" listings. The Stage 1 hint/fact firewall catches misclassification downstream, but raw discovery may return irrelevant results. Manual photo/spec-sheet verification of VRAM is mandatory on any hit flagged by the search heuristics in `prompts/comet_discovery_agent.txt`.  
+2. **Mislabelled eGPU bundles** — sellers list "RTX 3090 Laptop" when the GPU is in an external enclosure (Razer Core X, OCuLink dock). `_has_egpu_bundle()` in `decide.py` handles this only when enclosure keywords appear in the listing text; listings omitting the enclosure brand name will be scored as internal discrete GPU laptops.  
+3. **Niche workstation imports** — ASUS ProArt P16, ThinkPad P-series, and similar non-gaming chassis from overseas resellers carry the `OVERSEAS_IMPORT` −10 seller penalty. High-value Strix Halo and Ada workstation units from international sellers may still warrant manual review despite the scoring penalty.
+
 **Static Reference Layer** (`config/static_reference_layer.json`)  
 The single source of truth for all scoring weights, VRAM tier thresholds, target GPU/model lists, watch lists, UMA chip patterns, Radeon mobile GPUs, eGPU enclosure names, risk gate limits, geolocation filters, and the data integrity exclusion regex. Change scoring/thresholds here, not in Python source. `decide.py` loads it at runtime via `load_ref()`.
 

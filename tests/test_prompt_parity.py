@@ -70,3 +70,54 @@ def test_claude_md_threshold_parity():
     touch_match = re.search(r"VRAM\s*[≥>=]\s*(\d+)GB\s*\+\s*`touchscreen_digitizer`", claude_text)
     assert touch_match, "Could not find touchscreen VRAM rule in CLAUDE.md"
     assert int(touch_match.group(1)) == touch_vram, f"CLAUDE.md touchscreen VRAM threshold ({touch_match.group(1)}) does not match SRL ({touch_vram})"
+
+
+def _read_inject_block(text: str, key: str) -> str:
+    """Extract content between BEGIN_INJECT and END_INJECT markers."""
+    pattern = rf"<!-- BEGIN_INJECT:{re.escape(key)} -->\n(.*?)\n<!-- END_INJECT:{re.escape(key)} -->"
+    m = re.search(pattern, text, re.DOTALL)
+    return m.group(1).strip() if m else ""
+
+
+def test_prompt_injection_sync():
+    """Verify inject-config sentinels in prompts are in sync with SRL.
+
+    Fails if `make inject-config` was not re-run after modifying static_reference_layer.json.
+    """
+    srl = load_srl()
+    gpu_names = list(srl["target_gpus"].keys())
+    watch_names = [entry["name"] for entry in srl["watch_list"]]
+    uma = srl["uma_platforms"]
+
+    expected_targets = "\n".join(f"- {name}" for name in gpu_names + watch_names)
+    expected_gpu_list = "\n".join(f"- {name}" for name in gpu_names)
+    expected_uma_ram = str(uma["min_total_ram_gb_to_shortlist"])
+    expected_uma_chips = ", ".join(uma["chip_patterns"])
+
+    comet_text = (_REPO_ROOT / "prompts" / "comet_discovery_agent.txt").read_text(encoding="utf-8")
+    actual_targets = _read_inject_block(comet_text, "TARGETS")
+    assert actual_targets == expected_targets, (
+        "prompts/comet_discovery_agent.txt TARGETS block is out of sync with SRL. "
+        "Run `make inject-config` to update."
+    )
+
+    for fname in ("alternative_silicon_gemini.txt", "alternative_silicon_perplexity.txt"):
+        text = (_REPO_ROOT / "prompts" / fname).read_text(encoding="utf-8")
+
+        actual_gpu_list = _read_inject_block(text, "TARGET_GPU_LIST")
+        assert actual_gpu_list == expected_gpu_list, (
+            f"prompts/{fname} TARGET_GPU_LIST block is out of sync with SRL. "
+            "Run `make inject-config` to update."
+        )
+
+        actual_uma_ram = _read_inject_block(text, "UMA_MIN_RAM_GB")
+        assert actual_uma_ram == expected_uma_ram, (
+            f"prompts/{fname} UMA_MIN_RAM_GB block is out of sync with SRL. "
+            "Run `make inject-config` to update."
+        )
+
+        actual_uma_chips = _read_inject_block(text, "UMA_CHIP_PATTERNS")
+        assert actual_uma_chips == expected_uma_chips, (
+            f"prompts/{fname} UMA_CHIP_PATTERNS block is out of sync with SRL. "
+            "Run `make inject-config` to update."
+        )

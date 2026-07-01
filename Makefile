@@ -1,4 +1,4 @@
-.PHONY: test lint decide pipeline live evidence-run evidence-run-dry evidence-reset inject-config scrape-and-live render-matrix
+.PHONY: test lint decide pipeline live evidence-run evidence-run-dry evidence-reset inject-config scrape-and-live render-matrix scan-gaps
 
 # Overrideable variables
 FIRECRAWL_URLS ?= data/urls.txt
@@ -69,3 +69,8 @@ scrape-and-live:
 render-matrix:
 	.venv/bin/python scripts/render_matrix.py --in data/shortlist_candidates.jsonl --out data/purchase_matrix.md
 	@echo "Matrix written to data/purchase_matrix.md"
+
+# Sweep feed files for price drift, watch-list graduation candidates, and unrecognised GPU sightings.
+# Usage: make scan-gaps
+scan-gaps:
+	.venv/bin/python scripts/scan_market_gaps.py

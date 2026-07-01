@@ -377,6 +377,6 @@
   "architecture_adjustments": {
     "turing_vs_ada_same_vram_penalty_pts": -2,
     "applies_when": "vram_tier_equal AND generation_A == 'Turing' AND generation_B == 'Ada Lovelace'",
-    "_comment": "decide.py does not yet read this key. Wire up in Sprint 3 via _apply_architecture_penalty(). Penalty is additive to the existing gen-points gap (Turing=5 vs Ada=20)."
+    "_comment": "Reserved for future pairwise comparison logic. Penalty is additive to the existing gen-points gap (Turing=5 vs Ada=20)."
   }
 }
