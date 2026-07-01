@@ -56,6 +56,9 @@
 - [x] Added prompt staleness check: `generate_claude_handoff()` hashes `claude_evidence_analyzer.txt` and warns if the handoff embeds a stale version of the prompt
 - [x] Deleted `normalize_archive.py` — one-off workaround; canonical path is `raw/ → make evidence-run → prompts_for_gemini/ → parsed/ → make evidence-run`
 
+### Telemetry (2026-07-01)
+- [x] 2026-07-01: Gemma 2B/9B telemetry captured; 32 GB floor, 64 GB recommended RAM, 12–16 GB VRAM confirmed.
+
 ### Next: Integrate targets.json into main pipeline
 - [ ] Paste `claude_handoff.txt` into Claude Pro; save corrected `targets.json`
 - [ ] Load `targets.json` spec ranges into `config/static_reference_layer.json` or as a runtime override

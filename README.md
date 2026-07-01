@@ -34,6 +34,17 @@ make live SOURCE=feed.txt
 - **Governance lives in JSON:** `config/static_reference_layer.json` owns all scoring weights, tier thresholds, and hardware lists. Edit there, not in Python.
 - **Fixture-driven:** all logic changes must pass `make test`.
 
+## Gemma Telemetry
+
+To capture quantitative and subjective memory telemetry for local Gemma 2 models (`2b` and `9b`) via Ollama on macOS, run the automated test script:
+
+```bash
+./run_gemma_test.sh 2b
+./run_gemma_test.sh 9b
+```
+
+This will automatically pull the model, start background `vm_stat` logging, and capture `top` PhysMem snapshots before and after an interactive session. The logs land in the project root as `vmstat-log-<model>-<timestamp>.txt` and `physmem-log-<model>-<timestamp>.txt`. The `telemetry_summary.md` document interprets these logs, demonstrating that a 9B model on an 8GB system results in critical memory pressure.
+
 ## Australian Market Context
 
 Platforms: eBay AU, Facebook Marketplace, Gumtree. Currency: AUD. Pickup origin: Northcote, VIC.

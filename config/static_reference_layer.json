@@ -18,9 +18,9 @@
     "extreme": {"min_gb": 32, "max_gb": 128}
   },
   "vram_gating_logic": {
-    "standard_mobile_min_gb": 16,
+    "standard_mobile_min_gb": 12,
     "touchscreen_exception_min_gb": 12,
-    "uma_unified_min_gb": 64
+    "uma_unified_min_gb": 32
   },
   "data_integrity": {
     "min_listings_for_baseline": 3,
@@ -97,7 +97,7 @@
       "note": "Only eligible if a discrete high-VRAM workstation GPU is explicitly stated in the listing. Do not shortlist on chassis name alone."
     }
   },
-  "min_vram_to_shortlist_gb": 16,
+  "min_vram_to_shortlist_gb": 12,
   "_comment_min_vram": "Applies to discrete VRAM only. UMA platforms (Apple Silicon, Strix Halo) use uma_platforms.min_total_ram_gb_to_shortlist instead. Do not apply both thresholds to the same listing.",
   "min_vram_to_flag_gb": 12,
   "apple_silicon": {
@@ -109,7 +109,7 @@
     "note": "Apple Silicon UMA platforms are evaluated via uma_platforms rules. Desktop form factors (Mac Studio) are in scope for this pipeline."
   },
   "uma_platforms": {
-    "min_total_ram_gb_to_shortlist": 64,
+    "min_total_ram_gb_to_shortlist": 32,
     "chip_patterns": [
       "M1 Max", "M1 Ultra",
       "M2 Max", "M2 Ultra",

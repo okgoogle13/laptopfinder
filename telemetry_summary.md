@@ -42,3 +42,4 @@ This document summarizes the quantitative and subjective memory telemetry gather
 The 2B model resulted in a mild increase in memory pressure, largely handled efficiently by the macOS memory compressor. However, the 9B model pushed the 8GB limit significantly, dragging free memory down to 35MB and forcing nearly 2.5GB into the compressor. 
 
 This objective data strongly suggests that running a 9B class model alongside a normal web/IDE stack on an 8GB machine results in critical memory pressure. Moving to a minimum of 16GB (or 32GB/64GB for agentic overhead + IDE) is strongly recommended for seamless local LLM usage.
+a
