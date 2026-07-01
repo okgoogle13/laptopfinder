@@ -131,6 +131,8 @@ This project is developed using **Antigravity IDE** as the visual environment wi
 
 **Agent hook config:** maintain hook policy in `config/agent_hooks.json` and sync tool-specific files with `.venv/bin/python scripts/sync_agent_hooks.py`. Do not hand-edit `.claude/settings.json`, `.claude/settings.local.json`, or `.codex/hooks.json` independently.
 
+**Agent Peer Review Philosophy:** Reserve Codex/Claude peer review strictly for the unstructured boundary where deterministic tooling fails: English execution plans, English prompt files, and cross-config policy logic. Do not build LLM validation skills for invariants that are already enforced by JSON schemas, Python firewalls, or `make test`.
+
 ## Sprint tracking
 
 See `memory/project/sprint.md` and `TASKS.md` for current item-level tracking.
