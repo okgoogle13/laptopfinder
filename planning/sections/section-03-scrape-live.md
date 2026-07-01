@@ -19,11 +19,16 @@ The solution is per-listing output files. `scrape_live.py` writes each successfu
 
 ---
 
-## Files to Create
+## Files Created
 
-- `/Users/okgoogle13/Projects/laptopfinder/src/laptopfinder/scrape_live.py` — the scraper module (target: under 50 lines)
-- `/Users/okgoogle13/Projects/laptopfinder/tests/test_scrape_live.py` — test file (no live HTTP)
-- `/Users/okgoogle13/Projects/laptopfinder/data/urls.txt` — sample URL list (committed to repo)
+- `src/laptopfinder/scrape_live.py` — scraper module (~70 lines incl. None guard)
+- `tests/test_scrape_live.py` — 18 tests, zero live HTTP
+- `data/urls.txt` — sample/operator URL list (all entries commented out)
+
+### Deviations from plan
+- File is ~70 lines (plan target 50). The `doc.markdown is None` guard added during review necessitated an extra branch.
+- `_make_doc(None)` test case added for the None-markdown code path (plan didn't enumerate this but the spec implied it).
+- Counter filename assertion (`listing-002.txt`) added to `test_main_first_fails_second_succeeds` to enforce the all-URLs-counted contract.
 
 ---
 
