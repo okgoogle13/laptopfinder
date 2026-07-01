@@ -15,6 +15,7 @@ Paradigm = Literal["apple_silicon_uma", "amd_strix_halo_uma", "discrete_cuda", "
 _SCORING_WEIGHTS_PATH = Path(__file__).resolve().parents[2] / "config" / "scoring_weights.yaml"
 
 _REF_PATH = Path(__file__).resolve().parents[2] / "config" / "static_reference_layer.json"
+_UNDISCOVERED_HARDWARE_LOG_PATH = Path(__file__).resolve().parents[2] / "data" / "evidence" / "undiscovered_hardware.jsonl"
 
 
 def load_ref(path: str | Path | None = None) -> dict[str, Any]:
@@ -201,6 +202,42 @@ def _gpu_generation_points(gpu: str | None, is_uma: bool, ref: dict) -> int:
     return 0
 
 
+def _log_undiscovered_hardware(
+    analysis: dict,
+    gpu: str | None,
+    vram_gb: float | None,
+    system_ram_gb: float | None,
+    generation_points: int,
+    is_target: bool,
+    is_uma: bool,
+    is_radeon_mobile: bool,
+) -> None:
+    if generation_points != 0:
+        return
+    if is_target or is_uma or is_radeon_mobile:
+        return
+    if (vram_gb is None or vram_gb < 12) and (system_ram_gb is None or system_ram_gb < 64):
+        return
+
+    metadata = analysis.get("metadata", {})
+    record = {
+        "title": metadata.get("listing_title"),
+        "price_aud": metadata.get("listing_price_aud"),
+        "gpu_string": gpu,
+        "vram_gb": vram_gb,
+        "system_ram_gb": system_ram_gb,
+        "listing_url_or_identifier": metadata.get("listing_url_or_identifier"),
+    }
+
+    try:
+        _UNDISCOVERED_HARDWARE_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with _UNDISCOVERED_HARDWARE_LOG_PATH.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(record) + "\n")
+        print(f"[UNKNOWN_HIGH_CAPACITY_TARGET] queued {record['gpu_string'] or record['title']}")
+    except OSError as exc:
+        print(f"[UNKNOWN_HIGH_CAPACITY_TARGET] failed to queue diagnostic: {exc}")
+
+
 def _seller_reward_points(analysis: dict, ref: dict) -> int:
     """Seller risk/reward modifier: classification points + platform modifier. Range roughly -20 to +20."""
     cfg = ref.get("llm_index_score", {})
@@ -293,6 +330,17 @@ def decide(analysis: dict, ref: dict | None = None, workload: str | None = None)
     uma_tier = _vram_tier(uma_ram, ref) if is_uma else None
     radeon_match = _is_radeon_mobile(gpu, ref)
     has_egpu = _has_egpu_bundle(model, egpu_model, ref)
+    generation_points = _gpu_generation_points(gpu, is_uma, ref)
+    _log_undiscovered_hardware(
+        analysis,
+        gpu,
+        vram,
+        _ram_gb(ram_str),
+        generation_points,
+        is_target,
+        is_uma,
+        bool(radeon_match),
+    )
 
     capacity_tier = uma_tier if is_uma else tier
     llm_index_score = calculate_llm_index_score(analysis, capacity_tier, gpu, is_uma, ref)

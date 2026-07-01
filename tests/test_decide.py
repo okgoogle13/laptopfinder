@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import importlib
 from pathlib import Path
 
 
@@ -255,6 +256,117 @@ class TestDecide:
         result = decide(analysis, REF)
         assert result["recommended_action"] == "SKIP"
         assert any("requires touchscreen exception" in r for r in result["reasons"])
+
+    def test_unknown_high_capacity_gpu_is_logged_without_changing_decision(self, tmp_path, monkeypatch):
+        decide_module = importlib.import_module("laptopfinder.decide")
+
+        log_path = tmp_path / "undiscovered_hardware.jsonl"
+        monkeypatch.setattr(decide_module, "_UNDISCOVERED_HARDWARE_LOG_PATH", log_path)
+
+        analysis = {
+            "metadata": {
+                "source_platform": "EBAY_AU",
+                "listing_url_or_identifier": "ebay-au:unknown9990",
+                "listing_title": "Mystery workstation RTX 9990 Unknown 16GB",
+                "listing_price_aud": 2600.0,
+                "seller_name_or_identifier": "seller123",
+                "seller_rating_or_profile_signal": "100%",
+            },
+            "extracted_data": {
+                "exact_model_name": "Mystery workstation",
+                "component_category": "SYSTEM",
+                "cpu": "Intel Core i9",
+                "gpu": "RTX 9990 Unknown",
+                "ram": "64GB",
+                "storage": "2TB SSD",
+                "vram_capacity": "16GB",
+                "stated_condition": "Used",
+                "shipping_or_pickup_signal": "BOTH",
+                "missing_information": [],
+                "total_system_ram": "64GB",
+                "egpu_model": None,
+                "touchscreen_digitizer": None,
+            },
+            "analysis": {
+                "risk_score": 1.0,
+                "risk_flags": [],
+                "stated_pickup_location": "Melbourne VIC",
+                "confidence": 0.9,
+                "seller_classification": "ESTABLISHED_RESELLER",
+            },
+        }
+
+        result = decide(analysis, REF)
+
+        assert result["recommended_action"] == "SHORTLIST"
+        assert result["llm_index_score"] == 34
+        lines = log_path.read_text(encoding="utf-8").strip().splitlines()
+        assert len(lines) == 1
+        record = json.loads(lines[0])
+        assert record == {
+            "title": "Mystery workstation RTX 9990 Unknown 16GB",
+            "price_aud": 2600.0,
+            "gpu_string": "RTX 9990 Unknown",
+            "vram_gb": 16.0,
+            "system_ram_gb": 64.0,
+            "listing_url_or_identifier": "ebay-au:unknown9990",
+        }
+
+    def test_known_high_capacity_gpu_is_not_logged(self, tmp_path, monkeypatch):
+        decide_module = importlib.import_module("laptopfinder.decide")
+
+        log_path = tmp_path / "undiscovered_hardware.jsonl"
+        monkeypatch.setattr(decide_module, "_UNDISCOVERED_HARDWARE_LOG_PATH", log_path)
+
+        analysis = load_fixture("ebay_facts_grounded.json")["analysis_output"]
+        result = decide(analysis, REF)
+
+        assert result["recommended_action"] == "SHORTLIST"
+        assert not log_path.exists()
+
+    def test_low_capacity_unknown_gpu_is_not_logged(self, tmp_path, monkeypatch):
+        decide_module = importlib.import_module("laptopfinder.decide")
+
+        log_path = tmp_path / "undiscovered_hardware.jsonl"
+        monkeypatch.setattr(decide_module, "_UNDISCOVERED_HARDWARE_LOG_PATH", log_path)
+
+        analysis = {
+            "metadata": {
+                "source_platform": "EBAY_AU",
+                "listing_url_or_identifier": "ebay-au:unknown4050",
+                "listing_title": "Mystery laptop GTX 4050 8GB",
+                "listing_price_aud": 1200.0,
+                "seller_name_or_identifier": "seller123",
+                "seller_rating_or_profile_signal": "100%",
+            },
+            "extracted_data": {
+                "exact_model_name": "Mystery laptop",
+                "component_category": "SYSTEM",
+                "cpu": "Intel Core i7",
+                "gpu": "GTX 4050 Mystery",
+                "ram": "16GB",
+                "storage": "1TB SSD",
+                "vram_capacity": "8GB",
+                "stated_condition": "Used",
+                "shipping_or_pickup_signal": "BOTH",
+                "missing_information": [],
+                "total_system_ram": "16GB",
+                "egpu_model": None,
+                "touchscreen_digitizer": None,
+            },
+            "analysis": {
+                "risk_score": 1.0,
+                "risk_flags": [],
+                "stated_pickup_location": "Melbourne VIC",
+                "confidence": 0.9,
+                "seller_classification": "ESTABLISHED_RESELLER",
+            },
+        }
+
+        result = decide(analysis, REF)
+
+        assert result["recommended_action"] == "SKIP"
+        assert not log_path.exists()
 
 
 # --- UMA (Apple Silicon Max/Ultra, Strix Halo) ---
