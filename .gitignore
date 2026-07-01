@@ -20,6 +20,7 @@ node_modules/
 # Environment / secrets
 .env
 .env.*
+!.env.example
 .envrc
 .direnv/
 
@@ -31,3 +32,7 @@ repomix*.xml
 
 # Backup / restored files
 restored_conversations/
+
+# Live scrape output and rendered matrices (generated build artifacts)
+data/feed_live/
+data/purchase_matrix.md

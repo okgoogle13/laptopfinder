@@ -5,7 +5,8 @@ Identify mobile computer hardware candidates matching high-compute local LLM req
 
 Target Hardware & Keywords:
 - Match candidates against the following injected target lists:
-  [INJECT_TARGETS_HERE]
+<!-- BEGIN_INJECT:TARGETS -->
+<!-- END_INJECT:TARGETS -->
 - Support colloquialisms and variants: "4090 lappy", "M1 Max 64GB", "Oculink", "Thunderbolt 5", "OLED digitizer".
 - UMA platforms: Apple Silicon Max/Ultra (64GB+ unified RAM) or AMD Strix Halo / Ryzen AI Max (64GB+).
 
