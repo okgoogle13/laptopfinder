@@ -6,6 +6,28 @@ Identify mobile computer hardware candidates matching high-compute local LLM req
 Target Hardware & Keywords:
 - Match candidates against the following injected target lists:
 <!-- BEGIN_INJECT:TARGETS -->
+- RTX 3080
+- RTX 3080 Ti
+- RTX 4080
+- RTX 4090
+- RTX 5070
+- RTX 5080
+- RTX A5000
+- RTX A3000
+- RTX 5000 Ada
+- RTX A5500
+- RTX A4500
+- Quadro RTX 6000
+- Quadro RTX 5000
+- RTX 4000 Ada
+- RTX 3500 Ada
+- RTX 3090
+- RTX 4060 Ti
+- RTX 5090
+- RTX 5000 Ada Mobile
+- RTX PRO 5000 Blackwell Mobile
+- GB200
+- B200
 <!-- END_INJECT:TARGETS -->
 - Support colloquialisms and variants: "4090 lappy", "M1 Max 64GB", "Oculink", "Thunderbolt 5", "OLED digitizer".
 - UMA platforms: Apple Silicon Max/Ultra (64GB+ unified RAM) or AMD Strix Halo / Ryzen AI Max (64GB+).

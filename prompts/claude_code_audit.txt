@@ -18,7 +18,7 @@ Confirm risk_score is a continuous severity measure (0.0 clean, 10.0 high risk) 
 Verify recommended_action matches the following rules, in priority:
 a. If is_watch_only is true, recommended_action MUST be "MONITOR".
 b. If risk_gate_passed is false, recommended_action MUST be "SKIP".
-c. If is_uma_platform is true and uma_ram_gb >= 64, recommended_action MUST be "SHORTLIST".
+c. If is_uma_platform is true and uma_ram_gb >= 32, recommended_action MUST be "SHORTLIST".
 d. If has_egpu_bundle is true OR vram_gb >= 16, recommended_action MUST be "SHORTLIST".
 e. If vram_gb >= 12 and touchscreen_digitizer is not null, recommended_action MUST be "SHORTLIST" (touchscreen exception).
 f. Otherwise, recommended_action MUST be "SKIP".

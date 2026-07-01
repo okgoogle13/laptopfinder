@@ -10,9 +10,27 @@ PIPELINE GATE THRESHOLDS (these exact values govern shortlist eligibility in the
 
   * UMA Platforms (Apple Silicon, Strix Halo):
 <!-- BEGIN_INJECT:UMA_MIN_RAM_GB -->
+32
 <!-- END_INJECT:UMA_MIN_RAM_GB -->
   * Discrete Radeon Mobile GPUs: minimum 16 GB VRAM to qualify.
 <!-- BEGIN_INJECT:TARGET_GPU_LIST -->
+- RTX 3080
+- RTX 3080 Ti
+- RTX 4080
+- RTX 4090
+- RTX 5070
+- RTX 5080
+- RTX A5000
+- RTX A3000
+- RTX 5000 Ada
+- RTX A5500
+- RTX A4500
+- Quadro RTX 6000
+- Quadro RTX 5000
+- RTX 4000 Ada
+- RTX 3500 Ada
+- RTX 3090
+- RTX 4060 Ti
 <!-- END_INJECT:TARGET_GPU_LIST -->
   * Touchscreen exception: a discrete GPU with 12–15 GB VRAM may qualify IF the listing explicitly confirms a touchscreen digitizer. Flag this separately; do not count it as a standard SHORTLIST candidate.
   * Below-threshold configs must be explicitly excluded and flagged. Do not assess or recommend them even as budget options.
@@ -36,6 +54,7 @@ Against these requirements, map the confirmed bandwidth specs for:
   - M2 Ultra (800 GB/s, 192 GB config)
   - M4 Ultra (819 GB/s, 192 GB config — if data available)
 <!-- BEGIN_INJECT:UMA_CHIP_PATTERNS -->
+M1 Max, M1 Ultra, M2 Max, M2 Ultra, M3 Max, M3 Ultra, M4 Max, M4 Ultra, Ryzen AI Max, Strix Halo
 <!-- END_INJECT:UMA_CHIP_PATTERNS -->
 
 Output a bandwidth-to-model-tier mapping table. Be explicit about which configurations are bandwidth-gated vs. RAM-gated for each model size. If token throughput data for a specific chip is anecdotal or synthetic-only, label it clearly.

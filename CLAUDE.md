@@ -67,7 +67,7 @@ Schema notes:
 Reads a validated Stage 2 analysis and `config/static_reference_layer.json` to compute a `SHORTLIST` / `MONITOR` / `SKIP` recommendation. Decision logic in priority order:
 1. Watch-list GPU → `MONITOR` (too new/unreleased)
 2. Risk gate failure (risk_score > 3.0, or too many missing fields) → `SKIP`
-3. UMA platform (Apple Silicon Max/Ultra, Strix Halo) with system RAM ≥ 64GB → `SHORTLIST`
+3. UMA platform (Apple Silicon Max/Ultra, Strix Halo) with system RAM ≥ 32GB → `SHORTLIST`
 4. eGPU bundle, VRAM ≥ 16GB, or **touchscreen exception** (VRAM ≥ 12GB + `touchscreen_digitizer` present) → `SHORTLIST`
 5. Otherwise → `SKIP`
 

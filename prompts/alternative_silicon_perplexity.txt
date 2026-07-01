@@ -12,9 +12,27 @@ MEMORY GATE THRESHOLDS (non-negotiable memory boundaries for local LLM inference
 
   * UMA Platforms (Apple Silicon, Strix Halo):
 <!-- BEGIN_INJECT:UMA_MIN_RAM_GB -->
+32
 <!-- END_INJECT:UMA_MIN_RAM_GB -->
   * Discrete Radeon Mobile GPUs: minimum 16 GB VRAM to qualify.
 <!-- BEGIN_INJECT:TARGET_GPU_LIST -->
+- RTX 3080
+- RTX 3080 Ti
+- RTX 4080
+- RTX 4090
+- RTX 5070
+- RTX 5080
+- RTX A5000
+- RTX A3000
+- RTX 5000 Ada
+- RTX A5500
+- RTX A4500
+- Quadro RTX 6000
+- Quadro RTX 5000
+- RTX 4000 Ada
+- RTX 3500 Ada
+- RTX 3090
+- RTX 4060 Ti
 <!-- END_INJECT:TARGET_GPU_LIST -->
   * Treat these thresholds as hard gates. Do not assess or recommend any configuration below these values, even as a budget option.
 
@@ -48,6 +66,7 @@ Search for the following exact configurations and report for each:
   - MacBook Pro 16" M3 Max 128 GB
   - MacBook Pro 16" M4 Max 128 GB
 <!-- BEGIN_INJECT:UMA_CHIP_PATTERNS -->
+M1 Max, M1 Ultra, M2 Max, M2 Ultra, M3 Max, M3 Ultra, M4 Max, M4 Ultra, Ryzen AI Max, Strix Halo
 <!-- END_INJECT:UMA_CHIP_PATTERNS -->
 
 For each configuration, describe:

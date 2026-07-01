@@ -29,6 +29,10 @@
     "section-04-render-matrix": {
       "status": "complete",
       "commit_hash": "a1084d6"
+    },
+    "section-05-makefile-and-integration": {
+      "status": "complete",
+      "commit_hash": "625b611"
     }
   },
   "pre_commit": {

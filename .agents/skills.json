@@ -12,6 +12,7 @@
     "data-autocleaning",
     "dataform-bigquery",
     "dbt-bigquery",
+    "debugging-and-error-recovery",
     "deprecation-and-migration",
     "developing-with-bigquery",
     "discovering-gcp-data-assets",
@@ -26,6 +27,7 @@
     "gcp-pipeline-orchestration",
     "gcp-pipeline-resource-provisioning",
     "gcp-spark",
+    "git-workflow-and-versioning",
     "google-agents-cli-adk-code",
     "google-agents-cli-deploy",
     "google-agents-cli-eval",
@@ -39,12 +41,14 @@
     "ml-best-practices",
     "notebook-guidance",
     "performance-optimization",
+    "planning-and-task-breakdown",
     "repomix-packer-by-concern",
     "security-and-hardening",
     "shipping-and-launch",
     "skill-creator",
     "skill-repair",
     "source-driven-development",
-    "spec-driven-development"
+    "spec-driven-development",
+    "test-driven-development"
   ]
 }

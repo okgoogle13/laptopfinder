@@ -1,6 +1,6 @@
 ---
 name: cross-agent-plan-review
-description: Audits implementation plans and deep-plan artifacts produced by other agents (like Claude Code) against laptopfinder project invariants.
+description: Use this skill specifically when the user asks to "review claude", "review claudes work", "review plan", or audit an implementation plan. Overrides global code-review skills for agent-to-agent peer review against laptopfinder invariants.
 ---
 
 # Cross-Agent Plan Review
