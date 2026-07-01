@@ -30,7 +30,10 @@ Target Hardware & Keywords:
 - B200
 <!-- END_INJECT:TARGETS -->
 - Support colloquialisms and variants: "4090 lappy", "M1 Max 64GB", "Oculink", "Thunderbolt 5", "OLED digitizer".
-- UMA platforms: Apple Silicon Max/Ultra (64GB+ unified RAM) or AMD Strix Halo / Ryzen AI Max (64GB+).
+- UMA platforms: Apple Silicon Max/Ultra or AMD Strix Halo / Ryzen AI Max — minimum unified/system RAM (GB):
+<!-- BEGIN_INJECT:UMA_MIN_RAM_GB -->
+32
+<!-- END_INJECT:UMA_MIN_RAM_GB -->
 
 AU Marketplace Search Heuristics (eBay AU primary):
 Use these Boolean strings as discovery seeds when scanning or querying marketplace text. Verify VRAM vs system RAM manually on any hit — marketplace algorithms conflate "16GB RAM" (system) with "16GB VRAM".

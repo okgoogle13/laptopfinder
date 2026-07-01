@@ -101,6 +101,12 @@ def test_prompt_injection_sync():
         "Run `make inject-config` to update."
     )
 
+    actual_comet_uma_ram = _read_inject_block(comet_text, "UMA_MIN_RAM_GB")
+    assert actual_comet_uma_ram == expected_uma_ram, (
+        "prompts/comet_discovery_agent.txt UMA_MIN_RAM_GB block is out of sync with SRL. "
+        "Run `make inject-config` to update."
+    )
+
     for fname in ("alternative_silicon_gemini.txt", "alternative_silicon_perplexity.txt"):
         text = (_REPO_ROOT / "prompts" / fname).read_text(encoding="utf-8")
 
