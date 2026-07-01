@@ -1,6 +1,10 @@
-# URLs to scrape for the live pipeline.
-# One URL per line. Blank lines and lines starting with # are ignored.
-# Run: make scrape-and-live
+# One listing URL per line.
+# Lines starting with # are ignored.
+# Blank lines are ignored.
+# Override with: make scrape-and-live FIRECRAWL_URLS=path/to/other.txt
 #
-# https://www.ebay.com.au/itm/example-listing-1
-# https://www.ebay.com.au/itm/example-listing-2
+# Example eBay AU listing:
+# https://www.ebay.com.au/itm/123456789012
+#
+# Example Gumtree listing:
+# https://www.gumtree.com.au/s-ad/sydney/laptops-computers/...

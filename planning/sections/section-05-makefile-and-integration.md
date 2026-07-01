@@ -170,6 +170,25 @@ Expected: the script exits with code 1 and prints a clear error message to stder
 
 ---
 
+## Implementation Notes (actual)
+
+**Files modified/created:**
+- `Makefile` — `.PHONY` updated; `FIRECRAWL_URLS ?=` moved to a top-level "Overrideable variables" section (not mid-file as originally planned); three new targets appended
+- `data/urls.txt` — comment-only template updated to match spec
+
+**Deviations from plan:**
+1. `FIRECRAWL_URLS ?= data/urls.txt` moved from between the comment block and `scrape-and-live:` to the top of the Makefile for discoverability. Code review flagged mid-file placement as unidiomatic.
+2. `scrape-and-live` target gains `@rm -f data/feed_live/listing-*.txt` as the first recipe line — purges stale files from previous runs before the fresh scrape. Without this, removed URLs would still have their old scraped content re-processed.
+3. `$(MAKE) live SOURCE=$$f` changed to `$(MAKE) live SOURCE="$$f" || exit 1` — fail-fast on any per-listing failure, and proper quoting added.
+
+**Integration verification passed:**
+1. `make test` — 161 passed
+2. `make inject-config` — 1/3/3 blocks replaced; idempotent on second run
+3. `make render-matrix` (sample JSONL) — 3-row table, SHORTLIST first, pipe escaped
+4. `make scrape-and-live` (no API key / empty urls.txt) — exits non-zero with clear error
+
+---
+
 ## Dependency Notes
 
 - `inject-config` intentionally does NOT appear as a dependency of `scrape-and-live`. This was a deliberate design decision: `scrape-and-live` re-mutating git-tracked prompt files as a side effect of every scrape run creates noisy diffs and a second source of truth. Operators run `make inject-config` explicitly when `static_reference_layer.json` changes.
