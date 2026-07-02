@@ -1,43 +1,66 @@
-profiles:
-  text_llm_default:
-    memory_bandwidth_weight: 0.40
-    total_memory_capacity_weight: 0.35
-    software_ecosystem_weight: 0.15
-    thermals_noise_power_weight: 0.10
-    paradigm_ecosystem_scores:
-      apple_silicon_uma: 1.0
-      amd_strix_halo_uma: 0.7
-      discrete_cuda: 0.8
-      discrete_rocm: 0.6
-    paradigm_thermals_scores:
-      apple_silicon_uma: 1.0
-      amd_strix_halo_uma: 0.7
-      discrete_cuda: 0.5
-      discrete_rocm: 0.4
-    # Multiplier applied to discrete paradigms — not a hard exclusion
-    discrete_text_llm_penalty: 0.85
+# scoring_weights.yaml
+# Tunable scoring weights for the laptopfinder ranker.
+# Values are relative — they are normalised to sum to 1.0 internally.
+# Adjust per use-case profile (see workload_classifier.py).
 
-  training_or_diffusion:
-    memory_bandwidth_weight: 0.20
-    total_memory_capacity_weight: 0.20
-    software_ecosystem_weight: 0.35
-    thermals_noise_power_weight: 0.10
-    paradigm_ecosystem_scores:
-      apple_silicon_uma: 0.7
-      amd_strix_halo_uma: 0.5
-      discrete_cuda: 1.0
-      discrete_rocm: 0.7
-    paradigm_thermals_scores:
-      apple_silicon_uma: 1.0
-      amd_strix_halo_uma: 0.7
-      discrete_cuda: 0.5
-      discrete_rocm: 0.4
-    discrete_text_llm_penalty: 1.0
+default_weights:
+  memory_bandwidth_GBps: 0.30       # Single biggest predictor for LLM inference throughput
+  total_memory_pool_GB: 0.25        # UMA pool OR discrete VRAM — normalised to same unit
+  cpu_performance: 0.15
+  battery_life_hours: 0.10
+  display_quality: 0.08
+  build_quality_repairability: 0.07  # Framework scores high here
+  au_price_aud: 0.05                 # Penalise premium over AU market median
 
-global_constraints:
-  min_ram_gb_for_serious_llm: 64
-  prefer_unified_memory: true
-  avoid_discrete_gpu_default: true
-  # Normalisation references — M1 Max bandwidth and 128GB RAM cap
-  bw_baseline_gbps: 400.0
-  ram_baseline_gb: 128.0
+# Workload-specific overrides
+# The workload_classifier.py selects one of these profiles
+workload_profiles:
+  text_llm_inference:
+    # Bandwidth and memory pool dominate; raw TFLOPS irrelevant
+    memory_bandwidth_GBps: 0.40
+    total_memory_pool_GB: 0.30
+    cpu_performance: 0.10
+    battery_life_hours: 0.08
+    display_quality: 0.05
+    build_quality_repairability: 0.05
+    au_price_aud: 0.02
+    preferred_paradigms: [apple_silicon_uma, amd_strix_halo_uma]
+    anti_bias_note: >
+      For text-centric LLM inference, UMA platforms with high bandwidth
+      outperform discrete GPUs limited by 8-16GB VRAM ceiling.
+      Do NOT default to CUDA unless user explicitly requires CUDA-exclusive libraries.
+
+  multimodal_llm_inference:
+    memory_bandwidth_GBps: 0.30
+    total_memory_pool_GB: 0.30
+    cpu_performance: 0.15
+    battery_life_hours: 0.08
+    display_quality: 0.07
+    build_quality_repairability: 0.05
+    au_price_aud: 0.05
+    preferred_paradigms: [apple_silicon_uma, amd_strix_halo_uma, discrete_cuda]
+
+  cuda_exclusive_workload:
+    # Fine-tuning, custom CUDA kernels, ComfyUI-CUDA-specific pipelines
+    memory_bandwidth_GBps: 0.20
+    total_memory_pool_GB: 0.20
+    cpu_performance: 0.15
+    battery_life_hours: 0.05
+    display_quality: 0.05
+    build_quality_repairability: 0.05
+    au_price_aud: 0.10
+    preferred_paradigms: [discrete_cuda]
+    anti_bias_note: >
+      CUDA-exclusive profile. Only use when user explicitly requires
+      CUDA-specific libraries (e.g. bitsandbytes, Flash Attention CUDA).
+      Must be triggered by explicit user input, never assumed as default.
+
+  general_productivity:
+    memory_bandwidth_GBps: 0.15
+    total_memory_pool_GB: 0.20
+    cpu_performance: 0.25
+    battery_life_hours: 0.20
+    display_quality: 0.10
+    build_quality_repairability: 0.07
+    au_price_aud: 0.03
+    preferred_paradigms: [apple_silicon_uma, amd_strix_halo_uma, discrete_cuda, discrete_rocm]
