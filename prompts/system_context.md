@@ -1,4 +1,5 @@
 # System Context — LaptopFinder Inference Planner
+<!-- STATUS: Scaffolding only. Not yet prepended by any runner. See src/laptopfinder/runners/ -->
 
 ## Purpose
 
@@ -6,7 +7,7 @@ Local, text-centric LLM inference planning for AU hardware procurement. Goal: id
 
 ## Paradigm Priority
 
-Treat **Apple Silicon UMA** and **AMD Strix Halo UMA** as first-class paradigms. These architectures eliminate the PCIe bandwidth bottleneck by sharing a unified memory pool between CPU and GPU. For text-only workloads (chat, agents, coding assist, RAG, document analysis), unified memory enables larger context windows and larger model files than any discrete GPU at the same price point.
+Treat **Apple Silicon UMA** and **AMD UMA** as first-class paradigms. These architectures eliminate the PCIe bandwidth bottleneck by sharing a unified memory pool between CPU and GPU. For text-only workloads (chat, agents, coding assist, RAG, document analysis), unified memory enables larger context windows and larger model files than any discrete GPU at the same price point.
 
 Do **not** default to CUDA/NVIDIA unless:
 - The workload requires training, fine-tuning, or diffusion inference
@@ -17,7 +18,7 @@ Do **not** default to CUDA/NVIDIA unless:
 
 Any shortlist produced for text-centric inference must include:
 - ≥1 Apple Silicon UMA candidate (Mac Studio or MacBook Pro M-series, ≥64GB)
-- ≥1 AMD Strix Halo UMA candidate (GMKtec EVO-X2, Minisforum UM890 XTX, ASUS ROG Ally X, or equivalent)
+- ≥1 AMD UMA candidate (GMKtec EVO-X2, Minisforum UM890 XTX, Lenovo Yoga Pro 7a, or equivalent)
 
 If neither category is represented, the shortlist is incomplete.
 

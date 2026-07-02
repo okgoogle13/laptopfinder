@@ -7,7 +7,7 @@ PROMPTS = Path(__file__).parent.parent / "prompts"
 def test_system_context_mentions_required_platforms():
     text = (PROMPTS / "system_context.md").read_text()
     assert "Apple Silicon UMA" in text
-    assert "AMD Strix Halo" in text
+    assert "AMD UMA" in text
     assert "CUDA" in text
 
 

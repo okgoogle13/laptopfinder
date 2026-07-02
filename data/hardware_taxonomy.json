@@ -17,7 +17,7 @@
   },
   {
     "model": "GMKtec EVO-X2 (Ryzen AI Max 395) 64GB",
-    "paradigm": "amd_strix_halo_uma",
+    "paradigm": "amd_uma",
     "ram_gb": 64,
     "bandwidth_gbps": 215,
     "inference_stack": ["llama.cpp+Vulkan", "Ollama", "ROCm"],

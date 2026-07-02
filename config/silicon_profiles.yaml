@@ -5,8 +5,8 @@ paradigms:
     ecosystem_maturity: high
     thermals: passive_or_quiet
 
-  amd_strix_halo_uma:
-    description: AMD Ryzen AI Max (Strix Halo) with unified LPDDR5x memory
+  amd_uma:
+    description: AMD Ryzen AI Max series (Strix Halo and successors) with unified LPDDR5x memory
     inference_stack: [Vulkan, "llama.cpp+Vulkan", ROCm, Ollama]
     ecosystem_maturity: emerging
     thermals: active_moderate
@@ -20,7 +20,6 @@ paradigms:
       turing_sm75:
         flash_attention: emulated_fallback
         fp8: unsupported
-        penalty_vs_ada_same_vram_pts: -2
         recommendation: avoid_if_ada_available_at_same_vram
       ada_sm89:
         flash_attention: native_hw
@@ -36,7 +35,6 @@ paradigms:
     inference_stack: [ROCm, Vulkan, "llama.cpp+ROCm", Ollama]
     ecosystem_maturity: partial
     thermals: active_high
-    ecosystem_score: 15
     known_issues:
       - id: s3_suspend_resume_tlb_fence_timeout
         severity: critical
@@ -51,7 +49,7 @@ paradigms:
     review_condition: "Raise ecosystem_score to 17-18 if ROCm 7.x resolves S3 suspend/resume bug"
 
 text_centric_llm_inference:
-  preferred_paradigms: [apple_silicon_uma, amd_strix_halo_uma]
+  preferred_paradigms: [apple_silicon_uma, amd_uma]
   avoid_paradigms: [discrete_cuda, discrete_rocm]
   rationale: >
     Text-centric LLM inference is memory-bandwidth-bound. Unified memory
@@ -68,6 +66,7 @@ text_centric_llm_inference:
     stretch_gb: 96
     telemetry_basis: "Gemma 2 9B on 8GB Mac: 35MB free RAM, 80MB/s pageout during inference"
 
+# Reference data only. Authoritative scoring penalties are defined in config/static_reference_layer.json.
 egpu_interconnect:
   thunderbolt_3_4:
     bandwidth_gbps: 32

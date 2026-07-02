@@ -99,7 +99,7 @@ Converts saved HTML pages or JSON API payloads from eBay AU / FB Marketplace / G
 The single source of truth for all scoring weights, VRAM tier thresholds, target GPU/model lists, watch lists, UMA chip patterns, Radeon mobile GPUs, eGPU enclosure names, risk gate limits, geolocation filters, and the data integrity exclusion regex. Change scoring/thresholds here, not in Python source. `decide.py` loads it at runtime via `load_ref()`.
 
 **Silicon Profiles** (`config/silicon_profiles.yaml`)  
-Paradigm definitions (`apple_silicon_uma`, `amd_strix_halo_uma`, `discrete_cuda`, `discrete_rocm`) and workload preferences for `text_centric_llm_inference`. Read by agents and prompts; not loaded at runtime by `decide.py`.
+Paradigm definitions (`apple_silicon_uma`, `amd_uma`, `discrete_cuda`, `discrete_rocm`) and workload preferences for `text_centric_llm_inference`. Read by agents and prompts; not loaded at runtime by `decide.py`.
 
 **Scoring Weights** (`config/scoring_weights.yaml`)  
 Per-workload weight profiles for `score_text_llm_candidate()`. Profiles: `text_llm_default`, `training_or_diffusion`. Per-paradigm ecosystem and thermal multipliers live here, not in Python.

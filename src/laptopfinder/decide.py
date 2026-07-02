@@ -10,7 +10,7 @@ from typing import Any, Literal
 
 import yaml
 
-Paradigm = Literal["apple_silicon_uma", "amd_strix_halo_uma", "discrete_cuda", "discrete_rocm"]
+Paradigm = Literal["apple_silicon_uma", "amd_uma", "discrete_cuda", "discrete_rocm"]
 
 _SCORING_WEIGHTS_PATH = Path(__file__).resolve().parents[2] / "config" / "scoring_weights.yaml"
 
@@ -166,7 +166,7 @@ def _classify_paradigm(analysis: dict, ref: dict, is_uma: bool | None = None, ra
         is_uma = _is_uma_platform(model, cpu, ref)
     if is_uma:
         if any(kw.lower() in " ".join(filter(None, [model, cpu])).lower() for kw in ("Strix", "Ryzen AI Max")):
-            return "amd_strix_halo_uma"
+            return "amd_uma"
         return "apple_silicon_uma"
     if radeon_match is ...:
         radeon_match = _is_radeon_mobile(gpu, ref)

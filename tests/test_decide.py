@@ -673,7 +673,7 @@ class TestParadigmClassification:
     def test_strix_halo_uma(self):
         from laptopfinder.decide import _classify_paradigm
         result = _classify_paradigm(self._analysis(cpu="Ryzen AI Max 395"), REF)
-        assert result == "amd_strix_halo_uma"
+        assert result == "amd_uma"
 
     def test_discrete_cuda(self):
         from laptopfinder.decide import _classify_paradigm
@@ -702,7 +702,7 @@ class TestTextLlmScoring:
     def test_strix_uma_beats_discrete_cuda_for_text(self):
         from laptopfinder.decide import load_scoring_weights, score_text_llm_candidate
         weights = load_scoring_weights("text_llm_default")
-        strix = {"paradigm": "amd_strix_halo_uma", "bandwidth_gbps": 215, "ram_gb": 64}
+        strix = {"paradigm": "amd_uma", "bandwidth_gbps": 215, "ram_gb": 64}
         cuda = {"paradigm": "discrete_cuda", "bandwidth_gbps": 576, "ram_gb": 16}
         assert score_text_llm_candidate(strix, weights) > score_text_llm_candidate(cuda, weights)
 
