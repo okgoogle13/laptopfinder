@@ -29,13 +29,16 @@ make pipeline STAGE1=tests/fixtures/stage1/ebay_rtx4090_laptop.json STAGE2=tests
 make live SOURCE=feed.txt
 
 # Run benchmark scraper against saved HTML pages
-python -m laptopfinder.scrape_benchmark --html-dir saved_pages/ --out data/benchmark/benchmark.jsonl
+.venv/bin/python -m laptopfinder.scrape_benchmark --html-dir saved_pages/ --out data/benchmark/benchmark.jsonl
 
 # Evidence pipeline — normalize telemetry files in data/evidence/raw/ and append to aggregated.jsonl
 make evidence-run
 
 # Evidence pipeline dry-run — parse and append but skip archiving and handoff generation
 make evidence-run-dry
+
+# Evidence pipeline — reset parsed/archived state for a re-run
+make evidence-reset
 ```
 
 **Environment:** uses `.venv` (uv-managed). Always invoke Python as `.venv/bin/python` or `.venv/bin/pytest`, not the system Python. Copy `.env.example` → `.env` and fill in `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `PERPLEXITY_API_KEY` before running the live pipeline.
@@ -64,27 +67,48 @@ Schema notes:
 Reads a validated Stage 2 analysis and `config/static_reference_layer.json` to compute a `SHORTLIST` / `MONITOR` / `SKIP` recommendation. Decision logic in priority order:
 1. Watch-list GPU → `MONITOR` (too new/unreleased)
 2. Risk gate failure (risk_score > 3.0, or too many missing fields) → `SKIP`
-3. UMA platform (Apple Silicon Max/Ultra, Strix Halo) with system RAM ≥ 64GB → `SHORTLIST`
+3. UMA platform (Apple Silicon Max/Ultra, Strix Halo) with system RAM ≥ 32GB → `SHORTLIST`
 4. eGPU bundle, VRAM ≥ 16GB, or **touchscreen exception** (VRAM ≥ 12GB + `touchscreen_digitizer` present) → `SHORTLIST`
 5. Otherwise → `SKIP`
 
 Radeon mobile GPUs surface a buyer disclosure note (`radeon_ecosystem_disclosure`) but are NOT penalized at the risk gate — evaluated at the same risk_score ≤ 3.0 threshold as all other listings.
 
-Also computes a `llm_index_score` (0–100): capacity points (max 60) + GPU generation points (max 25) + seller reward/risk modifier (~±20) − uncapped deductions. The score is informational and never gates `recommended_action`. All thresholds driving these rules (`standard_mobile_min_gb`, `touchscreen_exception_min_gb`, `uma_unified_min_gb`) live in `vram_gating_logic` inside `static_reference_layer.json`.
+Also computes a `llm_index_score` (0–100): capacity points (max 60) + GPU generation points (max 25) + seller reward/risk modifier (~±20) − uncapped deductions. The score is informational and never gates `recommended_action`. All thresholds driving these rules (`standard_mobile_min_gb`, `touchscreen_exception_min_gb`, `uma_unified_min_gb`) live in `vram_gating_logic` inside `static_reference_layer.json`. The UMA score ceiling (formerly 75) was removed 2026-06-30 — Apple Silicon and Strix Halo UMA platforms now compete at the full 0–100 scale.
+
+`decide()` accepts an optional `workload` parameter. When `workload="text_llm"`, discrete CUDA/ROCm candidates that would otherwise SHORTLIST are routed to SKIP with a `paradigm_note` explaining the UMA alternative.
 
 **Evidence Pipeline** (`src/laptopfinder/runners/evidence_pipeline.py`)  
 A secondary sub-pipeline that derives hardware spec requirements from real macOS workload telemetry rather than static config. Workflow:
 1. Drop telemetry files (screenshots or terminal logs) into `data/evidence/raw/`
-2. `make evidence-run` → Gemini parses each file against `GEMINI_EVIDENCE_SCHEMA`, appends to `data/evidence/aggregated.jsonl`, archives originals
-3. At ≥ 5 records → generates `data/evidence/claude_handoff.txt` using `prompts/claude_evidence_analyzer.txt`
-4. Human pastes handoff into Claude Pro and saves the JSON response as `data/evidence/targets.json`
-5. `targets.json` (validated against `schemas/evidence_targets.schema.json`) feeds into `static_reference_layer.json` or a runtime override
+2. `make evidence-run` → generates Gemini prompts in `data/evidence/prompts_for_gemini/`
+3. Human pastes each prompt into the Gemini web UI and saves the resulting JSON files to `data/evidence/parsed/`
+4. `make evidence-run` → parses files from `parsed/`, appends to `data/evidence/aggregated.jsonl`, and archives originals.
+5. At ≥ 5 records → generates `data/evidence/claude_handoff.txt` using `prompts/claude_evidence_analyzer.txt`
+6. Human pastes handoff into Claude Pro and saves the JSON response as `data/evidence/targets.json`
+7. `targets.json` (validated against `schemas/evidence_targets.schema.json`) feeds into `static_reference_layer.json` or a runtime override
 
 **Benchmark Scraper** (`src/laptopfinder/scrape_benchmark.py`)  
 Converts saved HTML pages or JSON API payloads from eBay AU / FB Marketplace / Gumtree into Stage 2 fixture format (`handoff_packet + full_listing_text + analysis_output stub`). CSS selectors are best-guess — verify against real saved pages before trusting output. Input modes: `--html-dir`, `--html-file`, `--urls`, `--ebay-api`. Platform auto-detected from filename prefix or URL hostname.
 
+**Discovery Blind Spots (documented 2026-07)**  
+1. **RAM/VRAM conflation** — eBay AU search surfaces "16GB RAM" (system) listings alongside "16GB VRAM" listings. The Stage 1 hint/fact firewall catches misclassification downstream, but raw discovery may return irrelevant results. Manual photo/spec-sheet verification of VRAM is mandatory on any hit flagged by the search heuristics in `prompts/comet_discovery_agent.txt`.  
+2. **Mislabelled eGPU bundles** — sellers list "RTX 3090 Laptop" when the GPU is in an external enclosure (Razer Core X, OCuLink dock). `_has_egpu_bundle()` in `decide.py` handles this only when enclosure keywords appear in the listing text; listings omitting the enclosure brand name will be scored as internal discrete GPU laptops.  
+3. **Niche workstation imports** — ASUS ProArt P16, ThinkPad P-series, and similar non-gaming chassis from overseas resellers carry the `OVERSEAS_IMPORT` −10 seller penalty. High-value Strix Halo and Ada workstation units from international sellers may still warrant manual review despite the scoring penalty.
+
 **Static Reference Layer** (`config/static_reference_layer.json`)  
 The single source of truth for all scoring weights, VRAM tier thresholds, target GPU/model lists, watch lists, UMA chip patterns, Radeon mobile GPUs, eGPU enclosure names, risk gate limits, geolocation filters, and the data integrity exclusion regex. Change scoring/thresholds here, not in Python source. `decide.py` loads it at runtime via `load_ref()`.
+
+**Silicon Profiles** (`config/silicon_profiles.yaml`)  
+Paradigm definitions (`apple_silicon_uma`, `amd_strix_halo_uma`, `discrete_cuda`, `discrete_rocm`) and workload preferences for `text_centric_llm_inference`. Read by agents and prompts; not loaded at runtime by `decide.py`.
+
+**Scoring Weights** (`config/scoring_weights.yaml`)  
+Per-workload weight profiles for `score_text_llm_candidate()`. Profiles: `text_llm_default`, `training_or_diffusion`. Per-paradigm ecosystem and thermal multipliers live here, not in Python.
+
+**Hardware Taxonomy** (`data/hardware_taxonomy.json`)  
+Representative hardware entries by paradigm (bandwidth_gbps, ram_gb, inference_stack). Input to `score_text_llm_candidate()` via `batch_decide()`.
+
+**Research Dossier** (`research/alternative_silicon_dossier_june2026.md`)  
+Synthesised alternative silicon findings (AU market, June 2026). Source for agent and prompt grounding.
 
 **Live Pipeline Runners** (`src/laptopfinder/runners/`)  
 - `comet.py` — Gemini 3.1 Pro via `google-genai`; runs the `prompts/comet_discovery_agent.txt` prompt to produce Stage 1 JSON
@@ -101,6 +125,8 @@ The single source of truth for all scoring weights, VRAM tier thresholds, target
 - **Stage 2 fixture format:** each file contains `handoff_packet`, `full_listing_text`, and `analysis_output` at the top level. `run_stage2_from_fixture` unwraps these.
 - **Missing data → null.** Never infer specs from category or price averages. If the listing text doesn't state it, the field is null.
 - **Karpathy-style Python.** Flat structures, no deep OOP, no custom exceptions. Schema constraints replace Python validation.
+- **`score_text_llm_candidate()` is taxonomy-driven.** It operates on `data/hardware_taxonomy.json` entries, not Stage 2 analysis dicts. Per-paradigm scores come from `config/scoring_weights.yaml`, not Python literals.
+- **UMA ceiling removed.** `apple_silicon.score_ceiling` is `null` in the SRL. Do not re-add a ceiling — UMA platforms compete at full 0–100 `llm_index_score` scale.
 
 ## Tooling context
 
@@ -108,6 +134,10 @@ This project is developed using **Antigravity IDE** as the visual environment wi
 
 **MCP:** Antigravity IDE is the host MCP client. Claude Code has native file access and shell execution, but Antigravity handles any MCP connections. Desktop Commander and Filesystem MCP are redundant for this project.
 
-## Current sprint
+**Agent hook config:** maintain hook policy in `config/agent_hooks.json` and sync tool-specific files with `.venv/bin/python scripts/sync_agent_hooks.py`. Do not hand-edit `.claude/settings.json`, `.claude/settings.local.json`, or `.codex/hooks.json` independently.
 
-Building the evidence-based target pipeline to derive VRAM/RAM spec ranges from real macOS workload telemetry. See `memory/project/sprint.md` for the full implementation sequence and `TASKS.md` for the task list.
+**Agent Peer Review Philosophy:** Reserve Codex/Claude peer review strictly for the unstructured boundary where deterministic tooling fails: English execution plans, English prompt files, and cross-config policy logic. Do not build LLM validation skills for invariants that are already enforced by JSON schemas, Python firewalls, or `make test`.
+
+## Sprint tracking
+
+See `memory/project/sprint.md` and `TASKS.md` for current item-level tracking.

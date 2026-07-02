@@ -1,0 +1,40 @@
+{
+  "event_timestamp": "2026-06-29T23:10:54.025181+10:00",
+  "source_file": "OOM_Symptoms_365d.log",
+  "scenario_label": "system_log_audit",
+  "source_kind": "terminal_log",
+  "collection_notes": null,
+  "data_confidence": "low",
+  "observed_telemetry": {
+    "memory_pressure_state": "Normal",
+    "physical_memory_gb": null,
+    "app_memory_gb": null,
+    "wired_memory_gb": null,
+    "compressed_memory_gb": null,
+    "cached_files_gb": null,
+    "swap_used_gb": null,
+    "cpu_telemetry": null,
+    "gpu_telemetry": null,
+    "inference_telemetry": null
+  },
+  "active_processes": [
+    "AssetCache",
+    "parsec-fbf",
+    "AssetCacheLocatorService",
+    "rtcreportingd",
+    "com.apple.geod",
+    "findmydeviced",
+    "com.apple.Safari.SafeBrowsing.Service",
+    "dataaccessd",
+    "findmylocateagent",
+    "Podcasts",
+    "CacheDeleteExtension",
+    "com.apple.WebKit.Networking"
+  ],
+  "uncertainty_flags": [
+    "long_term_log",
+    "no_whole_system_memory_totals",
+    "multi_day_log_no_single_timestamp",
+    "oom_polling_observed"
+  ]
+}

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import importlib
 from pathlib import Path
 
 
@@ -21,6 +22,8 @@ from laptopfinder.decide import (
     _gpu_generation_points,
     _seller_reward_points,
     _deduction_points,
+    _apply_architecture_penalty,
+    _apply_egpu_interconnect_penalty,
 )
 
 REF = load_ref()
@@ -177,7 +180,7 @@ class TestDecide:
             "vram_gb", "vram_tier", "is_target", "is_watch_only",
             "risk_gate_passed", "recommended_action", "reasons",
             "is_uma_platform", "uma_ram_gb", "is_radeon_mobile", "has_egpu_bundle",
-            "llm_index_score",
+            "llm_index_score", "paradigm", "paradigm_note",
         }
 
     def test_touchscreen_exception_shortlisted(self):
@@ -255,6 +258,117 @@ class TestDecide:
         result = decide(analysis, REF)
         assert result["recommended_action"] == "SKIP"
         assert any("requires touchscreen exception" in r for r in result["reasons"])
+
+    def test_unknown_high_capacity_gpu_is_logged_without_changing_decision(self, tmp_path, monkeypatch):
+        decide_module = importlib.import_module("laptopfinder.decide")
+
+        log_path = tmp_path / "undiscovered_hardware.jsonl"
+        monkeypatch.setattr(decide_module, "_UNDISCOVERED_HARDWARE_LOG_PATH", log_path)
+
+        analysis = {
+            "metadata": {
+                "source_platform": "EBAY_AU",
+                "listing_url_or_identifier": "ebay-au:unknown9990",
+                "listing_title": "Mystery workstation RTX 9990 Unknown 16GB",
+                "listing_price_aud": 2600.0,
+                "seller_name_or_identifier": "seller123",
+                "seller_rating_or_profile_signal": "100%",
+            },
+            "extracted_data": {
+                "exact_model_name": "Mystery workstation",
+                "component_category": "SYSTEM",
+                "cpu": "Intel Core i9",
+                "gpu": "RTX 9990 Unknown",
+                "ram": "64GB",
+                "storage": "2TB SSD",
+                "vram_capacity": "16GB",
+                "stated_condition": "Used",
+                "shipping_or_pickup_signal": "BOTH",
+                "missing_information": [],
+                "total_system_ram": "64GB",
+                "egpu_model": None,
+                "touchscreen_digitizer": None,
+            },
+            "analysis": {
+                "risk_score": 1.0,
+                "risk_flags": [],
+                "stated_pickup_location": "Melbourne VIC",
+                "confidence": 0.9,
+                "seller_classification": "ESTABLISHED_RESELLER",
+            },
+        }
+
+        result = decide(analysis, REF)
+
+        assert result["recommended_action"] == "SHORTLIST"
+        assert result["llm_index_score"] == 34
+        lines = log_path.read_text(encoding="utf-8").strip().splitlines()
+        assert len(lines) == 1
+        record = json.loads(lines[0])
+        assert record == {
+            "title": "Mystery workstation RTX 9990 Unknown 16GB",
+            "price_aud": 2600.0,
+            "gpu_string": "RTX 9990 Unknown",
+            "vram_gb": 16.0,
+            "system_ram_gb": 64.0,
+            "listing_url_or_identifier": "ebay-au:unknown9990",
+        }
+
+    def test_known_high_capacity_gpu_is_not_logged(self, tmp_path, monkeypatch):
+        decide_module = importlib.import_module("laptopfinder.decide")
+
+        log_path = tmp_path / "undiscovered_hardware.jsonl"
+        monkeypatch.setattr(decide_module, "_UNDISCOVERED_HARDWARE_LOG_PATH", log_path)
+
+        analysis = load_fixture("ebay_facts_grounded.json")["analysis_output"]
+        result = decide(analysis, REF)
+
+        assert result["recommended_action"] == "SHORTLIST"
+        assert not log_path.exists()
+
+    def test_low_capacity_unknown_gpu_is_not_logged(self, tmp_path, monkeypatch):
+        decide_module = importlib.import_module("laptopfinder.decide")
+
+        log_path = tmp_path / "undiscovered_hardware.jsonl"
+        monkeypatch.setattr(decide_module, "_UNDISCOVERED_HARDWARE_LOG_PATH", log_path)
+
+        analysis = {
+            "metadata": {
+                "source_platform": "EBAY_AU",
+                "listing_url_or_identifier": "ebay-au:unknown4050",
+                "listing_title": "Mystery laptop GTX 4050 8GB",
+                "listing_price_aud": 1200.0,
+                "seller_name_or_identifier": "seller123",
+                "seller_rating_or_profile_signal": "100%",
+            },
+            "extracted_data": {
+                "exact_model_name": "Mystery laptop",
+                "component_category": "SYSTEM",
+                "cpu": "Intel Core i7",
+                "gpu": "GTX 4050 Mystery",
+                "ram": "16GB",
+                "storage": "1TB SSD",
+                "vram_capacity": "8GB",
+                "stated_condition": "Used",
+                "shipping_or_pickup_signal": "BOTH",
+                "missing_information": [],
+                "total_system_ram": "16GB",
+                "egpu_model": None,
+                "touchscreen_digitizer": None,
+            },
+            "analysis": {
+                "risk_score": 1.0,
+                "risk_flags": [],
+                "stated_pickup_location": "Melbourne VIC",
+                "confidence": 0.9,
+                "seller_classification": "ESTABLISHED_RESELLER",
+            },
+        }
+
+        result = decide(analysis, REF)
+
+        assert result["recommended_action"] == "SKIP"
+        assert not log_path.exists()
 
 
 # --- UMA (Apple Silicon Max/Ultra, Strix Halo) ---
@@ -453,11 +567,11 @@ class TestLlmIndexScoreIntegration:
 
     def test_uma_extreme_tier_scores_highest(self):
         """Mac Studio 128GB (extreme=60) + Apple Silicon (20) + ESTABLISHED_RESELLER
-        on EBAY_AU (13) − risk 1.0 deduction (4) = 89 raw, clamped to UMA
-        score_ceiling of 75."""
+        on EBAY_AU (13) − risk 1.0 deduction (4) = 89 raw.
+        Ceiling removed 2026-06-30; raw score now ~89, no longer capped at 75."""
         analysis = load_fixture("ebay_uma_mac_studio.json")["analysis_output"]
         result = decide(analysis, REF)
-        assert result["llm_index_score"] == 75
+        assert result["llm_index_score"] > 75
 
     def test_radeon_mobile_score(self):
         """RX 7900M 16GB (mid=25) + RDNA3 (15) + PRIVATE_NEW_OR_UNKNOWN on
@@ -481,8 +595,6 @@ class TestLlmIndexScoreIntegration:
         analysis["analysis"]["risk_score"] = 0.0
         result = decide(analysis, REF)
         assert result["llm_index_score"] <= 100
-        # UMA platforms are additionally capped at apple_silicon.score_ceiling (75).
-        assert result["llm_index_score"] <= REF["apple_silicon"]["score_ceiling"]
 
     def test_score_is_additive_not_blocking(self):
         """A SKIP-routed listing (failed risk gate) still gets a computed score —
@@ -534,3 +646,167 @@ class TestLlmIndexScoreIntegration:
         # Score: entry(15) + gen_0_for_RX6700M(0) + ESTABLISHED_RESELLER+EBAY_AU(13)
         # − risk 0.5*4(2) + model_hint(+3) = 29
         assert result["llm_index_score"] == 29
+
+
+class TestParadigmClassification:
+    from laptopfinder.decide import _classify_paradigm
+
+    def _analysis(self, gpu=None, model=None, cpu=None):
+        return {
+            "extracted_data": {
+                "gpu": gpu,
+                "exact_model_name": model,
+                "cpu": cpu,
+                "vram_capacity": None,
+                "total_system_ram": None,
+                "missing_information": {},
+            },
+            "analysis": {"risk_score": 1.0, "risk_flags": [], "seller_classification": "PRIVATE_NEW_OR_UNKNOWN", "confidence": 0.9, "stated_pickup_location": None},
+            "metadata": {"source_platform": "EBAY_AU", "listing_url": None, "ships_from_overseas": False},
+        }
+
+    def test_apple_silicon_uma(self):
+        from laptopfinder.decide import _classify_paradigm
+        result = _classify_paradigm(self._analysis(cpu="M4 Max"), REF)
+        assert result == "apple_silicon_uma"
+
+    def test_strix_halo_uma(self):
+        from laptopfinder.decide import _classify_paradigm
+        result = _classify_paradigm(self._analysis(cpu="Ryzen AI Max 395"), REF)
+        assert result == "amd_strix_halo_uma"
+
+    def test_discrete_cuda(self):
+        from laptopfinder.decide import _classify_paradigm
+        result = _classify_paradigm(self._analysis(gpu="RTX 4090"), REF)
+        assert result == "discrete_cuda"
+
+    def test_discrete_rocm(self):
+        from laptopfinder.decide import _classify_paradigm
+        result = _classify_paradigm(self._analysis(gpu="RX 7900M"), REF)
+        assert result == "discrete_rocm"
+
+    def test_no_gpu_no_model_defaults_to_cuda(self):
+        from laptopfinder.decide import _classify_paradigm
+        result = _classify_paradigm(self._analysis(), REF)
+        assert result == "discrete_cuda"
+
+
+class TestTextLlmScoring:
+    def test_apple_uma_beats_discrete_cuda_for_text(self):
+        from laptopfinder.decide import load_scoring_weights, score_text_llm_candidate
+        weights = load_scoring_weights("text_llm_default")
+        apple = {"paradigm": "apple_silicon_uma", "bandwidth_gbps": 400, "ram_gb": 64}
+        cuda = {"paradigm": "discrete_cuda", "bandwidth_gbps": 576, "ram_gb": 16}
+        assert score_text_llm_candidate(apple, weights) > score_text_llm_candidate(cuda, weights)
+
+    def test_strix_uma_beats_discrete_cuda_for_text(self):
+        from laptopfinder.decide import load_scoring_weights, score_text_llm_candidate
+        weights = load_scoring_weights("text_llm_default")
+        strix = {"paradigm": "amd_strix_halo_uma", "bandwidth_gbps": 215, "ram_gb": 64}
+        cuda = {"paradigm": "discrete_cuda", "bandwidth_gbps": 576, "ram_gb": 16}
+        assert score_text_llm_candidate(strix, weights) > score_text_llm_candidate(cuda, weights)
+
+    def test_workload_text_llm_skips_discrete_shortlist(self):
+        analysis = load_fixture("ebay_facts_grounded.json")["analysis_output"]
+        result = decide(analysis, REF, workload="text_llm")
+        assert result["recommended_action"] == "SKIP"
+        assert result["paradigm_note"] is not None
+
+    def test_workload_none_preserves_shortlist(self):
+        analysis = load_fixture("ebay_facts_grounded.json")["analysis_output"]
+        result = decide(analysis, REF, workload=None)
+        assert result["recommended_action"] == "SHORTLIST"
+        assert result["paradigm_note"] is None
+
+
+class TestUmaScoreCeiling:
+    def test_uma_extreme_tier_scores_above_old_ceiling(self):
+        """Ceiling removed 2026-06-30: Mac Studio 128GB raw score ~89 > 75."""
+        analysis = load_fixture("ebay_uma_mac_studio.json")["analysis_output"]
+        result = decide(analysis, REF)
+        assert result["llm_index_score"] > 75
+        assert result["llm_index_score"] <= 100
+
+
+class TestApplyArchitecturePenalty:
+    def test_turing_gpu_returns_penalty(self):
+        assert _apply_architecture_penalty("Quadro RTX 5000", "mid", REF) == 0
+
+    def test_ada_gpu_returns_zero(self):
+        assert _apply_architecture_penalty("RTX 4090", "mid", REF) == 0
+
+    def test_none_gpu_returns_zero(self):
+        assert _apply_architecture_penalty(None, "mid", REF) == 0
+
+
+class TestSrlStorageFloors:
+    def test_storage_floors_min_gb(self):
+        assert load_ref()["storage_floors"]["min_gb"] == 512
+
+    def test_storage_floors_recommended_gb(self):
+        assert load_ref()["storage_floors"]["recommended_gb"] == 1024
+
+
+class TestApplyEgpuInterconnectPenalty:
+    def _make_analysis(self, egpu_model=None, exact_model_name=None, system_ram=None):
+        return {
+            "extracted_data": {
+                "exact_model_name": exact_model_name,
+                "egpu_model": egpu_model,
+                "total_system_ram": system_ram,
+            }
+        }
+
+    def test_non_egpu_returns_zero(self):
+        analysis = self._make_analysis(exact_model_name="Dell XPS 15", egpu_model=None)
+        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
+
+    def test_egpu_tb34_returns_penalty(self):
+        analysis = self._make_analysis(
+            exact_model_name="ASUS ROG Flow X13", egpu_model="Razer Core X", system_ram=16
+        )
+        assert _apply_egpu_interconnect_penalty(analysis, REF) == -3
+
+    def test_egpu_oculink_keyword_returns_zero(self):
+        analysis = self._make_analysis(
+            exact_model_name="ASUS ROG Flow X13", egpu_model="Generic OCuLink Dock"
+        )
+        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
+
+    def test_egpu_minisforum_deg2_returns_zero(self):
+        # Minisforum DEG2 is a known OCuLink dock; name has no "oculink" substring
+        analysis = self._make_analysis(
+            exact_model_name="ASUS ROG Flow X13", egpu_model="Minisforum DEG2"
+        )
+        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
+
+    def test_egpu_thunderbolt5_returns_zero(self):
+        analysis = self._make_analysis(
+            exact_model_name="ASUS ROG Flow X13", egpu_model="Razer Core X Thunderbolt 5"
+        )
+        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
+
+    def test_egpu_tb5_shorthand_returns_zero(self):
+        analysis = self._make_analysis(
+            exact_model_name="ASUS ROG Flow X13", egpu_model="Some Dock TB5"
+        )
+        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
+
+    def test_zero_penalty_condition_system_ram_32(self):
+        analysis = self._make_analysis(
+            exact_model_name="ASUS ROG Flow X13", egpu_model="Razer Core X", system_ram=32
+        )
+        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
+
+    def test_zero_penalty_condition_system_ram_64(self):
+        analysis = self._make_analysis(
+            exact_model_name="ASUS ROG Flow X13", egpu_model="Razer Core X", system_ram=64
+        )
+        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
+
+    def test_enclosure_in_model_name_only_returns_tb34_penalty(self):
+        # Enclosure keyword in exact_model_name, egpu_model absent — conservative default
+        analysis = self._make_analysis(
+            exact_model_name="ASUS ROG XG Mobile bundle", egpu_model=None, system_ram=16
+        )
+        assert _apply_egpu_interconnect_penalty(analysis, REF) == -3

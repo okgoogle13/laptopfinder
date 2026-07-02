@@ -1,0 +1,1 @@
+Relocated to [`prompts/perplexity_research_prompt_refined.md`](../prompts/perplexity_research_prompt_refined.md) on 2026-07-02 during the documentation consolidation audit — this is a prompt template, not a research finding, so it now lives with the rest of the prompt library. This stub is kept so old links/history don't 404.

@@ -1,0 +1,27 @@
+{
+  "event_timestamp": null,
+  "source_file": "RunningBoard_MemoryStatus_365d.log",
+  "scenario_label": "system_log_audit",
+  "source_kind": "terminal_log",
+  "collection_notes": null,
+  "data_confidence": "low",
+  "observed_telemetry": {
+    "memory_pressure_state": "Unknown",
+    "physical_memory_gb": null,
+    "app_memory_gb": null,
+    "wired_memory_gb": null,
+    "compressed_memory_gb": null,
+    "cached_files_gb": null,
+    "swap_used_gb": null,
+    "cpu_telemetry": null,
+    "gpu_telemetry": null,
+    "inference_telemetry": null
+  },
+  "active_processes": [],
+  "uncertainty_flags": [
+    "long_term_log",
+    "no_whole_system_memory_totals",
+    "multi_day_log_no_single_timestamp",
+    "empty_log_file"
+  ]
+}

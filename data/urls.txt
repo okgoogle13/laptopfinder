@@ -1,0 +1,10 @@
+# One listing URL per line.
+# Lines starting with # are ignored.
+# Blank lines are ignored.
+# Override with: make scrape-and-live FIRECRAWL_URLS=path/to/other.txt
+#
+# Example eBay AU listing:
+# https://www.ebay.com.au/itm/123456789012
+#
+# Example Gumtree listing:
+# https://www.gumtree.com.au/s-ad/sydney/laptops-computers/...

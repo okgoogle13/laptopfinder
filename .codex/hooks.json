@@ -1,0 +1,56 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "INPUT=$(cat); fp=$(echo \"$INPUT\" | python3 -c \"import sys,json,os; print(json.load(sys.stdin).get('file_path',''))\"); case \"$(basename \"$fp\")\" in .env|uv.lock|pyproject.toml) echo \"Blocked: $fp is protected — edit manually or use uv commands.\"; exit 1;; esac"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "INPUT=$(cat); cmd=$(echo \"$INPUT\" | python3 -c \"import sys,json; print(json.load(sys.stdin).get('command',''))\"); if echo \"$cmd\" | grep -qE 'git (add|commit|push|diff)'; then echo 'Blocked: git operations are forbidden for Claude in this project. Delegate to @copilot.'; exit 1; fi"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "INPUT=$(cat); fp=$(echo \"$INPUT\" | python3 -c \"import sys,json; print(json.load(sys.stdin).get('file_path',''))\"); if echo \"$fp\" | grep -qE 'fixtures/.*\\.json$'; then .venv/bin/python -m json.tool \"$fp\" > /dev/null 2>&1 || echo \"ERROR: Invalid fixture JSON in $fp\"; fi"
+          },
+          {
+            "type": "command",
+            "command": "INPUT=$(cat); fp=$(echo \"$INPUT\" | python3 -c \"import sys,json; print(json.load(sys.stdin).get('file_path',''))\"); if echo \"$fp\" | grep -q 'static_reference_layer.json'; then echo 'SRL modified — running test suite...'; make test 2>&1 | tail -20; fi"
+          },
+          {
+            "type": "command",
+            "command": "INPUT=$(cat); fp=$(echo \"$INPUT\" | python3 -c \"import sys,json; print(json.load(sys.stdin).get('file_path',''))\"); if echo \"$fp\" | grep -q 'implementation_plan.md'; then echo '\\n\\n>>> 🛑 PAUSE FOR PEER REVIEW: Do NOT execute this plan yet. Instruct the user to run \"review plan\" in their Codex terminal, then wait for them to paste the brief PASS/FAIL result back here. <<<\\n'; exit 1; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "INPUT=$(cat); fp=$(echo \"$INPUT\" | python3 -c \"import sys,json; print(json.load(sys.stdin).get('file_path',''))\"); if echo \"$fp\" | grep -qE '^src/|^tests/'; then .venv/bin/python -m ruff check src/ tests/ --quiet 2>&1; fi"
+          },
+          {
+            "type": "command",
+            "command": "INPUT=$(cat); fp=$(echo \"$INPUT\" | python3 -c \"import sys,json; print(json.load(sys.stdin).get('file_path',''))\"); if echo \"$fp\" | grep -q 'decide.py'; then .venv/bin/python -m pytest tests/test_decide.py -v --tb=short 2>&1 | tail -25; elif echo \"$fp\" | grep -q 'src/laptopfinder/core.py'; then make test 2>&1 | tail -20; fi"
+          }
+        ]
+      }
+    ]
+  }
+}

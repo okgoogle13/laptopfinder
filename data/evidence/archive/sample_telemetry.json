@@ -1,0 +1,31 @@
+{
+  "event_timestamp": null,
+  "source_file": "sample_telemetry.log",
+  "scenario_label": null,
+  "source_kind": "terminal_log",
+  "collection_notes": null,
+  "data_confidence": "medium",
+  "observed_telemetry": {
+    "memory_pressure_state": "Normal",
+    "physical_memory_gb": 16.0,
+    "app_memory_gb": null,
+    "wired_memory_gb": null,
+    "compressed_memory_gb": null,
+    "cached_files_gb": null,
+    "swap_used_gb": null,
+    "cpu_telemetry": null,
+    "gpu_telemetry": null,
+    "inference_telemetry": null
+  },
+  "active_processes": [
+    "WindowServer",
+    "Chrome"
+  ],
+  "uncertainty_flags": [
+    "app_memory_not_visible",
+    "compressed_memory_not_visible",
+    "swap_not_visible",
+    "cpu_telemetry_missing",
+    "gpu_telemetry_missing"
+  ]
+}

@@ -12,7 +12,9 @@ dependencies = [
     "google-genai>=0.3.0",
     "anthropic>=0.20.0",
     "openai>=1.10.0",
-    "python-dotenv>=1.0.0"
+    "python-dotenv>=1.0.0",
+    "pyyaml>=6.0.3",
+    "firecrawl-py~=4.31",
 ]
 
 [project.optional-dependencies]
@@ -26,3 +28,8 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.20",
+]
