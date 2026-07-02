@@ -24,7 +24,6 @@ from laptopfinder.decide import (
     _deduction_points,
     _apply_architecture_penalty,
     _apply_egpu_interconnect_penalty,
-    calculate_llm_index_score,
 )
 
 REF = load_ref()

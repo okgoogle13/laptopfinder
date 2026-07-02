@@ -1,261 +1,107 @@
-diff --git a/scripts/inject_config.py b/scripts/inject_config.py
-new file mode 100644
-index 0000000..ee8de56
---- /dev/null
-+++ b/scripts/inject_config.py
-@@ -0,0 +1,70 @@
-+import json
-+import re
-+from pathlib import Path
+diff --git a/src/laptopfinder/decide.py b/src/laptopfinder/decide.py
+index dcb53dd..9d0d468 100644
+--- a/src/laptopfinder/decide.py
++++ b/src/laptopfinder/decide.py
+@@ -322,6 +322,27 @@ def _apply_architecture_penalty(gpu: str | None, tier: str | None, ref: dict) ->
+     return 0
+ 
+ 
++def _apply_egpu_interconnect_penalty(analysis: dict, ref: dict) -> int:
++    """Return TB3/4 interconnect penalty for eGPU bundles; 0 otherwise.
 +
-+_REPO_ROOT = Path(__file__).parent.parent
-+
-+SRL_PATH = str(_REPO_ROOT / "config" / "static_reference_layer.json")
-+
-+PROMPT_FILES = [
-+    str(_REPO_ROOT / "prompts" / "comet_discovery_agent.txt"),
-+    str(_REPO_ROOT / "prompts" / "alternative_silicon_gemini.txt"),
-+    str(_REPO_ROOT / "prompts" / "alternative_silicon_perplexity.txt"),
-+]
-+
-+
-+def load_srl(path: str) -> dict:
-+    p = Path(path)
-+    if not p.exists():
-+        raise FileNotFoundError(f"SRL not found: {path}")
-+    return json.loads(p.read_text(encoding="utf-8"))
-+
-+
-+def build_substitutions(srl: dict) -> dict[str, str]:
-+    gpu_names = list(srl["target_gpus"].keys())
-+    watch_names = [entry["name"] for entry in srl["watch_list"]]
-+    all_names = gpu_names + watch_names
-+    formatted_list = "\n".join(f"- {name}" for name in all_names)
-+
-+    uma = srl["uma_platforms"]
-+    return {
-+        "TARGETS": formatted_list,
-+        "TARGET_GPU_LIST": formatted_list,
-+        "UMA_MIN_RAM_GB": str(uma["min_total_ram_gb_to_shortlist"]),
-+        "UMA_CHIP_PATTERNS": ", ".join(uma["chip_patterns"]),
-+    }
++    Interconnect type is inferred from egpu_model keywords (no schema field exists).
++    zero_penalty_condition: system_ram_gb >= 32 waives penalty regardless of interconnect.
++    """
++    extracted = analysis.get("extracted_data", {})
++    model = extracted.get("exact_model_name")
++    egpu_model = extracted.get("egpu_model")
++    if not _has_egpu_bundle(model, egpu_model, ref):
++        return 0
++    system_ram = extracted.get("total_system_ram")
++    if system_ram and system_ram >= 32:
++        return 0
++    cfg = ref.get("egpu_interconnect_penalty", {})
++    egpu_lower = (egpu_model or "").lower()
++    if "oculink" in egpu_lower or "thunderbolt 5" in egpu_lower or "tb5" in egpu_lower:
++        return cfg.get("oculink_pts", 0)
++    return cfg.get("thunderbolt_3_4_pts", -3)
 +
 +
-+def inject_file(path: str, substitutions: dict[str, str]) -> int:
-+    p = Path(path)
-+    if not p.exists():
-+        raise FileNotFoundError(f"Prompt file not found: {path}")
+ def calculate_llm_index_score(
+     analysis: dict,
+     tier: str | None,
+@@ -356,6 +377,7 @@ def calculate_llm_index_score(
+             raw += 3
+ 
+     raw += _apply_architecture_penalty(gpu, tier, ref)
++    raw += _apply_egpu_interconnect_penalty(analysis, ref)
+ 
+     return max(0, min(100, raw))
+ 
+diff --git a/tests/test_decide.py b/tests/test_decide.py
+index 16278ae..c9aee53 100644
+--- a/tests/test_decide.py
++++ b/tests/test_decide.py
+@@ -23,6 +23,7 @@ from laptopfinder.decide import (
+     _seller_reward_points,
+     _deduction_points,
+     _apply_architecture_penalty,
++    _apply_egpu_interconnect_penalty,
+     calculate_llm_index_score,
+ )
+ 
+@@ -745,3 +746,54 @@ class TestSrlStorageFloors:
+ 
+     def test_storage_floors_recommended_gb(self):
+         assert load_ref()["storage_floors"]["recommended_gb"] == 1024
 +
-+    content = p.read_text(encoding="utf-8")
-+    count = 0
-+    for key, value in substitutions.items():
-+        pattern = (
-+            rf"(<!-- BEGIN_INJECT:{re.escape(key)} -->)"
-+            rf".*?"
-+            rf"(<!-- END_INJECT:{re.escape(key)} -->)"
++
++class TestApplyEgpuInterconnectPenalty:
++    def _make_analysis(self, egpu_model=None, exact_model_name=None, system_ram=None):
++        return {
++            "extracted_data": {
++                "exact_model_name": exact_model_name,
++                "egpu_model": egpu_model,
++                "total_system_ram": system_ram,
++            }
++        }
++
++    def test_non_egpu_returns_zero(self):
++        analysis = self._make_analysis(exact_model_name="Dell XPS 15", egpu_model=None)
++        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
++
++    def test_egpu_tb34_returns_penalty(self):
++        analysis = self._make_analysis(
++            exact_model_name="ASUS ROG Flow X13", egpu_model="Razer Core X", system_ram=16
 +        )
-+        replacement = rf"\1\n{value}\n\2"
-+        new_content, n = re.subn(pattern, replacement, content, flags=re.DOTALL)
-+        if n:
-+            content = new_content
-+            count += n
++        assert _apply_egpu_interconnect_penalty(analysis, REF) == -3
 +
-+    p.write_text(content, encoding="utf-8")
-+    return count
-+
-+
-+def main() -> None:
-+    srl = load_srl(SRL_PATH)
-+    substitutions = build_substitutions(srl)
-+    for path in PROMPT_FILES:
-+        n = inject_file(path, substitutions)
-+        print(f"{Path(path).name}: {n} block(s) replaced")
-+
-+
-+if __name__ == "__main__":
-+    main()
-diff --git a/tests/test_inject_config.py b/tests/test_inject_config.py
-new file mode 100644
-index 0000000..e18f771
---- /dev/null
-+++ b/tests/test_inject_config.py
-@@ -0,0 +1,158 @@
-+import json
-+import sys
-+from pathlib import Path
-+
-+import pytest
-+
-+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-+from inject_config import build_substitutions, inject_file, load_srl
-+
-+MOCK_SRL = {
-+    "target_gpus": {"RTX 3080": {}, "RTX 4090": {}},
-+    "watch_list": [{"name": "RTX 5090"}, {"name": "GB200"}],
-+    "uma_platforms": {
-+        "min_total_ram_gb_to_shortlist": 64,
-+        "chip_patterns": ["M3 Max", "M4 Ultra"],
-+    },
-+    "vram_gating_logic": {},
-+}
-+
-+
-+# --- load_srl ---
-+
-+
-+def test_load_srl_returns_expected_keys(tmp_path):
-+    srl_file = tmp_path / "srl.json"
-+    srl_file.write_text(json.dumps(MOCK_SRL))
-+    result = load_srl(str(srl_file))
-+    for key in ("target_gpus", "watch_list", "uma_platforms", "vram_gating_logic"):
-+        assert key in result
-+
-+
-+def test_load_srl_raises_on_missing_file():
-+    with pytest.raises(FileNotFoundError):
-+        load_srl("/nonexistent/path/srl.json")
-+
-+
-+# --- build_substitutions ---
-+
-+
-+def test_build_substitutions_returns_all_four_keys():
-+    result = build_substitutions(MOCK_SRL)
-+    for key in ("TARGETS", "UMA_MIN_RAM_GB", "UMA_CHIP_PATTERNS", "TARGET_GPU_LIST"):
-+        assert key in result
-+
-+
-+def test_target_gpu_list_contains_gpu_names():
-+    result = build_substitutions(MOCK_SRL)
-+    assert "RTX 3080" in result["TARGET_GPU_LIST"]
-+    assert "RTX 4090" in result["TARGET_GPU_LIST"]
-+
-+
-+def test_targets_includes_watch_list_names():
-+    result = build_substitutions(MOCK_SRL)
-+    assert "RTX 5090" in result["TARGETS"]
-+    assert "GB200" in result["TARGETS"]
-+
-+
-+def test_uma_min_ram_gb_is_string_of_value():
-+    result = build_substitutions(MOCK_SRL)
-+    assert result["UMA_MIN_RAM_GB"] == "64"
-+
-+
-+def test_uma_chip_patterns_comma_separated():
-+    result = build_substitutions(MOCK_SRL)
-+    assert result["UMA_CHIP_PATTERNS"] == "M3 Max, M4 Ultra"
-+
-+
-+# --- inject_file ---
-+
-+
-+def test_inject_file_replaces_content_between_markers(tmp_path):
-+    f = tmp_path / "prompt.txt"
-+    f.write_text(
-+        "before\n<!-- BEGIN_INJECT:TARGETS -->\nstale content\n<!-- END_INJECT:TARGETS -->\nafter\n",
-+        encoding="utf-8",
-+    )
-+    count = inject_file(str(f), {"TARGETS": "fresh content"})
-+    content = f.read_text(encoding="utf-8")
-+    assert "fresh content" in content
-+    assert "<!-- BEGIN_INJECT:TARGETS -->" in content
-+    assert "<!-- END_INJECT:TARGETS -->" in content
-+    assert "stale content" not in content
-+    assert count == 1
-+
-+
-+def test_inject_file_is_idempotent(tmp_path):
-+    f = tmp_path / "prompt.txt"
-+    f.write_text(
-+        "<!-- BEGIN_INJECT:TARGETS -->\nold\n<!-- END_INJECT:TARGETS -->\n",
-+        encoding="utf-8",
-+    )
-+    inject_file(str(f), {"TARGETS": "value"})
-+    after_first = f.read_text(encoding="utf-8")
-+    count2 = inject_file(str(f), {"TARGETS": "value"})
-+    after_second = f.read_text(encoding="utf-8")
-+    assert after_first == after_second
-+    assert count2 >= 1
-+
-+
-+def test_inject_file_no_markers_returns_zero(tmp_path):
-+    f = tmp_path / "prompt.txt"
-+    original = "no markers here\n"
-+    f.write_text(original, encoding="utf-8")
-+    count = inject_file(str(f), {"TARGETS": "value"})
-+    assert count == 0
-+    assert f.read_text(encoding="utf-8") == original
-+
-+
-+def test_inject_file_raises_on_missing_file():
-+    with pytest.raises(FileNotFoundError):
-+        inject_file("/nonexistent/prompt.txt", {"TARGETS": "v"})
-+
-+
-+def test_inject_file_replacement_count(tmp_path):
-+    f = tmp_path / "prompt.txt"
-+    f.write_text(
-+        "<!-- BEGIN_INJECT:TARGETS -->\nold\n<!-- END_INJECT:TARGETS -->\n"
-+        "<!-- BEGIN_INJECT:UMA_MIN_RAM_GB -->\nold\n<!-- END_INJECT:UMA_MIN_RAM_GB -->\n",
-+        encoding="utf-8",
-+    )
-+    count = inject_file(str(f), {"TARGETS": "t", "UMA_MIN_RAM_GB": "64"})
-+    assert count == 2
-+
-+
-+# --- main integration ---
-+
-+
-+def test_main_injects_all_three_prompt_files(tmp_path, monkeypatch):
-+    srl = {
-+        **MOCK_SRL,
-+        "target_gpus": {"RTX 4090": {}},
-+        "watch_list": [{"name": "RTX 5090"}],
-+    }
-+    srl_file = tmp_path / "srl.json"
-+    srl_file.write_text(json.dumps(srl))
-+
-+    prompts = {}
-+    for name in ("comet_discovery_agent.txt", "alternative_silicon_gemini.txt", "alternative_silicon_perplexity.txt"):
-+        p = tmp_path / name
-+        p.write_text(
-+            "<!-- BEGIN_INJECT:TARGETS -->\nold\n<!-- END_INJECT:TARGETS -->\n"
-+            "<!-- BEGIN_INJECT:UMA_MIN_RAM_GB -->\nold\n<!-- END_INJECT:UMA_MIN_RAM_GB -->\n",
-+            encoding="utf-8",
++    def test_egpu_oculink_returns_zero(self):
++        analysis = self._make_analysis(
++            exact_model_name="ASUS ROG Flow X13", egpu_model="Minisforum DEG2 OCuLink"
 +        )
-+        prompts[name] = p
++        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
 +
-+    import inject_config
++    def test_egpu_thunderbolt5_returns_zero(self):
++        analysis = self._make_analysis(
++            exact_model_name="ASUS ROG Flow X13", egpu_model="Razer Core X Thunderbolt 5"
++        )
++        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
 +
-+    monkeypatch.setattr(inject_config, "SRL_PATH", str(srl_file))
-+    monkeypatch.setattr(inject_config, "PROMPT_FILES", [str(p) for p in prompts.values()])
++    def test_egpu_tb5_shorthand_returns_zero(self):
++        analysis = self._make_analysis(
++            exact_model_name="ASUS ROG Flow X13", egpu_model="Some Dock TB5"
++        )
++        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
 +
-+    inject_config.main()
++    def test_zero_penalty_condition_system_ram_32(self):
++        analysis = self._make_analysis(
++            exact_model_name="ASUS ROG Flow X13", egpu_model="Razer Core X", system_ram=32
++        )
++        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
 +
-+    for p in prompts.values():
-+        content = p.read_text(encoding="utf-8")
-+        assert "<!-- BEGIN_INJECT:TARGETS -->" in content
-+        assert "<!-- END_INJECT:TARGETS -->" in content
-+        assert "RTX 4090" in content
-diff --git a/tests/test_prompt_markers.py b/tests/test_prompt_markers.py
-new file mode 100644
-index 0000000..5ebc089
---- /dev/null
-+++ b/tests/test_prompt_markers.py
-@@ -0,0 +1,15 @@
-+from pathlib import Path
-+
-+
-+def test_prompt_files_have_sentinel_markers():
-+    prompt_dir = Path(__file__).parent.parent / "prompts"
-+    expected = {
-+        "comet_discovery_agent.txt": ["TARGETS"],
-+        "alternative_silicon_gemini.txt": ["UMA_MIN_RAM_GB", "UMA_CHIP_PATTERNS", "TARGET_GPU_LIST"],
-+        "alternative_silicon_perplexity.txt": ["UMA_MIN_RAM_GB", "UMA_CHIP_PATTERNS", "TARGET_GPU_LIST"],
-+    }
-+    for filename, markers in expected.items():
-+        content = (prompt_dir / filename).read_text()
-+        for name in markers:
-+            assert f"<!-- BEGIN_INJECT:{name} -->" in content, f"{filename} missing BEGIN_INJECT:{name}"
-+            assert f"<!-- END_INJECT:{name} -->" in content, f"{filename} missing END_INJECT:{name}"
++    def test_zero_penalty_condition_system_ram_64(self):
++        analysis = self._make_analysis(
++            exact_model_name="ASUS ROG Flow X13", egpu_model="Razer Core X", system_ram=64
++        )
++        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0

@@ -27,7 +27,7 @@ def run_deep_research(model: str = None) -> str:
         
     client = OpenAI(api_key=api_key, base_url=base_url)
     
-    prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "perplexity_deep_research.txt"
+    prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "perplexity_research_prompt_refined.md"
     if not prompt_path.exists():
         raise FileNotFoundError(f"Prompt not found at {prompt_path}")
         

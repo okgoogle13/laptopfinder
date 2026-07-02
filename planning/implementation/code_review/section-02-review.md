@@ -1,33 +1,20 @@
-# Code Review — section-02-inject-config
+# Code Review — section-02-egpu-interconnect-penalty
 
-## Finding 1 (HIGH): TARGETS and TARGET_GPU_LIST inject identical content
+## HIGH — TB5 returns oculink_pts instead of thunderbolt_5_pts
+Both OCuLink and TB5 use `cfg.get("oculink_pts", 0)`. SRL has a separate `thunderbolt_5_pts`
+key. Both are 0 now so tests pass, but if either key changes the wrong enclosure type is affected.
+**Fix:** Split OCuLink and TB5 into separate return paths using their respective SRL keys.
 
-`build_substitutions` sets both `TARGETS` and `TARGET_GPU_LIST` to `gpu_names + watch_names`. But `watch_list` items (RTX 5090, GB200 etc.) carry `routing_behaviour: "MONITOR overrides all positive signals"` — they are explicitly NOT confirmed targets. Injecting them into `TARGET_GPU_LIST` (used by alt-silicon prompts) will instruct those agents to seek listings the decision engine is designed to reject. The two tokens should differ: `TARGET_GPU_LIST` = `gpu_names` only; `TARGETS` may optionally include watch-list names as awareness context.
+## HIGH — Minisforum DEG2 (OCuLink) incorrectly gets TB3/4 penalty
+SRL `egpu_enclosures` has "Minisforum DEG2" (no "OCuLink" in name). `_has_egpu_bundle` returns
+True for it, but `"oculink" in egpu_lower` is False → falls through to -3 penalty.
+Test covers "Minisforum DEG2 OCuLink" (not a real seller string).
+**Fix:** Add `oculink_enclosures` key to SRL; check against it in addition to the keyword.
 
-## Finding 2 (HIGH): Prompt file changes absent from diff
+## MEDIUM — Truthiness check on numeric field
+`if system_ram and system_ram >= 32:` conflates None with 0.
+**Fix:** `if system_ram is not None and system_ram >= 32:`
 
-Prompt sentinels were committed in section-01. Reviewer notes they can't verify placement — not actionable here, context limitation.
-
-## Finding 3 (MEDIUM): inject_file writes unconditionally
-
-Line 63 calls `p.write_text()` even when `count == 0`, touching mtime and producing VCS noise. Should be gated on `count > 0`.
-
-## Finding 4 (MEDIUM): Idempotency test uses weak assertion
-
-`assert count2 >= 1` should be `assert count2 == 1`. A double-replacement bug would pass the current assertion.
-
-## Finding 5 (MEDIUM): No test for partial marker corruption
-
-If `END_INJECT` is deleted, `inject_file` silently returns 0. No test covers this failure mode. Should add a test verifying the function returns 0 (not raises) and file is unchanged.
-
-## Finding 6-7 (LOW): Missing SRL key guards
-
-Project philosophy: schema constraints replace Python validation. Let go.
-
-## Finding 8 (LOW): test_load_srl write_text missing encoding
-
-`srl_file.write_text(json.dumps(MOCK_SRL))` should be `write_text(..., encoding="utf-8")`.
-
-## Finding 9 (LOW): Integration test only asserts TARGETS
-
-The integration test should also assert `UMA_MIN_RAM_GB` content was injected into the alt-silicon prompt stubs.
+## Additional (untested path, document)
+`egpu_model=None` + enclosure keyword only in `exact_model_name` → `_has_egpu_bundle` True,
+`egpu_lower=""`, no keyword match → returns -3. Conservative but untested. Add a test.

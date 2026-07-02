@@ -18,6 +18,8 @@ Whenever thresholds change, the following locations must remain perfectly aligne
    - SRL: `vram_gating_logic.uma_unified_min_gb`
    - Prompt: `prompts/claude_code_audit.txt` (Rule 4.c)
    - Rules: `CLAUDE.md` (Decision Engine Rule 3)
+   - Prompt (manual, no injection): `prompts/perplexity_space_description.txt` ("Strict Memory Gates" section)
+   - Reference doc: `memory/reference/pipeline.md` (Terminology table + Decision Priority Order) — this file was found stale (64GB) during the 2026-07 doc audit; the correct value is 32GB.
 2. **Standard VRAM threshold:** 
    - SRL: `vram_gating_logic.standard_mobile_min_gb`
    - Prompt: `prompts/claude_code_audit.txt` (Rule 4.d)
@@ -26,6 +28,13 @@ Whenever thresholds change, the following locations must remain perfectly aligne
    - SRL: `vram_gating_logic.touchscreen_exception_min_gb`
    - Prompt: `prompts/claude_code_audit.txt` (Rule 4.e)
    - Rules: `CLAUDE.md` (Decision Engine Rule 4)
+4. **UMA score ceiling (removed 2026-06-30):**
+   - SRL: `apple_silicon.score_ceiling` (must remain `null`)
+   - Any prompt describing `llm_index_score` scoring guidance for Apple Silicon/UMA (e.g. `prompts/alternative_silicon_gemini.txt` Section 3 "SCORING GUIDANCE") must NOT state a point cap for UMA platforms.
+5. **Target GPU / watch list membership:**
+   - SRL: `target_gpus`, `watch_list`
+   - Auto-synced via injection markers: `prompts/comet_discovery_agent.txt`, `prompts/alternative_silicon_gemini.txt`, `prompts/alternative_silicon_perplexity.txt` (see `scripts/inject_config.py`)
+   - NOT auto-synced — must be checked/updated manually: `prompts/perplexity_space_description.txt` (no injection markers; this file drifted out of sync with SRL during the 2026-07 doc audit and was manually corrected — re-check it by hand on every target-list change until it is wired into the injection system)
 
 ## Action Plan
 - Run `make inject-config` to propagate the latest GPU target list and UMA RAM thresholds to dynamically-injected blocks inside `prompts/comet_discovery_agent.txt` and alternate silicon prompts.

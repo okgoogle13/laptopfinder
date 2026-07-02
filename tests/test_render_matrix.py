@@ -1,10 +1,8 @@
 """Tests for scripts/render_matrix.py"""
 import importlib.util
-import json
 import sys
 from pathlib import Path
 
-import pytest
 
 # Load render_matrix as a module from scripts/ (not a package)
 _script = Path(__file__).parent.parent / "scripts" / "render_matrix.py"
@@ -141,7 +139,7 @@ class TestRenderTable:
         ]
         output = render_table(candidates)
         # Header + separator + 2 data rows
-        data_rows = [l for l in output.splitlines() if l.startswith("|") and "---" not in l and "Rank" not in l]
+        data_rows = [line for line in output.splitlines() if line.startswith("|") and "---" not in line and "Rank" not in line]
         assert len(data_rows) == 2
 
 

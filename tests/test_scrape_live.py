@@ -1,9 +1,4 @@
 """Tests for scrape_live — zero live HTTP calls, all Firecrawl mocked."""
-import sys
-import textwrap
-import types
-from io import StringIO
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest

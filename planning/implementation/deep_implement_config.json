@@ -33,6 +33,14 @@
     "section-05-makefile-and-integration": {
       "status": "complete",
       "commit_hash": "625b611"
+    },
+    "section-01-discovery-prompt-fix": {
+      "status": "complete",
+      "commit_hash": "beb1918"
+    },
+    "section-02-egpu-interconnect-penalty": {
+      "status": "complete",
+      "commit_hash": "b17173c"
     }
   },
   "pre_commit": {

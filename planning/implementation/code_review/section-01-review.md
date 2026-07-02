@@ -1,31 +1,31 @@
-# Code Review — section-01-prerequisites
+# Code Review — section-01-discovery-prompt-fix
 
-## Finding 1 (HIGH): UMA_MIN_RAM_GB sentinel creates stale-value conflict
+## HIGH — Inline sentinel incompatible with inject_file replacement template
 
-In both `prompts/alternative_silicon_gemini.txt` and `prompts/alternative_silicon_perplexity.txt`, the `BEGIN_INJECT:UMA_MIN_RAM_GB` / `END_INJECT:UMA_MIN_RAM_GB` pair was placed *after* the line that already hardcodes the value:
+`inject_config.py` uses `replacement = rf"\1\n{value}\n\2"` — always wraps with newlines.
+The inline sentinel `<!-- BEGIN_INJECT:UMA_MIN_RAM_GB -->32<!-- END_INJECT:UMA_MIN_RAM_GB -->` 
+becomes `\n32\n` after first `make inject-config` run, breaking the line into:
 
-```
-  * UMA Platforms (Apple Silicon, Strix Halo): minimum 64 GB total system RAM to qualify.
-<!-- BEGIN_INJECT:UMA_MIN_RAM_GB -->
-<!-- END_INJECT:UMA_MIN_RAM_GB -->
-```
+    minimum <!-- BEGIN_INJECT:UMA_MIN_RAM_GB -->
+    32
+    <!-- END_INJECT:UMA_MIN_RAM_GB --> GB unified/system RAM.
 
-When inject_config.py populates the block, the LLM sees the hardcoded "64 GB" immediately above the injected value. If the SRL threshold changes, the static text becomes stale while the injected value is correct — contradictory thresholds. The sentinel should replace or wrap the hardcoded numeric value, not trail it.
+LLM reads: `minimum \n32\n GB` — number and unit on different lines, no syntactic glue.
+All other UMA_MIN_RAM_GB sentinels in repo (alt-silicon prompts) are block-format.
 
-The `UMA_CHIP_PATTERNS` sentinel is additive (appends after hardcoded list), which risks duplicate entries if inject_config.py emits patterns already in the static list.
+**Fix:** Restructure to block-format sentinel.
 
-## Finding 2 (MEDIUM): scripts/sync_agent_hooks.py is a scope leak
+## MEDIUM — test_prompt_parity.py has no sync guard for comet's new UMA_MIN_RAM_GB sentinel
 
-The diff stages `scripts/sync_agent_hooks.py` as a new file, but it pre-existed as an untracked file before this section ran. Section 01's scope is creating `scripts/.gitkeep` only. Sweeping in sync_agent_hooks.py conflates commits and muddles git bisect attribution.
+`test_prompt_parity.py:_read_inject_block()` uses `\n(.*?)\n` pattern requiring newlines
+immediately after BEGIN tag — inline format wouldn't match. Even after the block-format fix,
+no sync assertion exists for comet's sentinel (alt-silicon prompts have them at lines 104-117).
 
-Also: `sync_agent_hooks.py` has no `path.parent.mkdir(parents=True, exist_ok=True)` guard — latent crash on fresh clone.
+**Fix:** Add a sync assertion for comet's UMA_MIN_RAM_GB in test_prompt_parity.py.
 
-## Finding 3 (LOW): firecrawl-py version constraint too loose
+## LOW — TASKS.md revert unrelated to section goal
 
-`pyproject.toml` specifies `firecrawl-py>=4.31.0`. Should be `~=4.31` (compatible-release) to protect against a future major version breaking the v1 `from firecrawl import Firecrawl` import path.
+The diff reverts architecture_adjustments [x] → [ ] with no explanation in the diff context.
+Correct (the function IS a stub), but should be called out in the commit message explicitly.
 
-## Other notes
-
-- `.gitignore` negation (`!.env.example`) is correct.
-- `comet_discovery_agent.txt` sentinel replacement is clean (replaced a placeholder, no hardcoded value conflict).
-- `alternative_silicon_gemini.txt` line ~147 still references "all UMA platforms capped at 75 total" (stale UMA ceiling reference) — pre-dates this diff, out of scope here.
+**Fix:** Mention in commit message: "also corrects TASKS.md: architecture penalty stub was incorrectly marked done".

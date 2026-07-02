@@ -85,9 +85,6 @@
 - [x] `config/silicon_profiles.yaml` — `text_centric_llm_inference`: added `ram_floors` sub-key from telemetry
 - [x] 108 tests green
 
-**Sprint 3 stub (architecture_adjustments not yet wired):**
-- [ ] Wire `architecture_adjustments.turing_vs_ada_same_vram_penalty_pts` into `decide.py` via `_apply_architecture_penalty()` — currently a documented no-op stub (pairwise comparison context required; see docstring)
-
 ---
 
 ## ACTIVE: Pipeline Audit (June–July 2026)
@@ -129,21 +126,20 @@
 
 ---
 
-## ACTIVE: Sprint 3 — Prompt Hygiene + eGPU Scoring (2026-07)
+## COMPLETE: Sprint 3 — Prompt Hygiene + eGPU Scoring (2026-07)
 
 **Goal:** Close the UMA discovery gap, wire the eGPU interconnect penalty, and put all hardcoded thresholds in prompts under inject_config control.
 
 ### Discovery Threshold Fix
-- [ ] S3-01: Fix UMA RAM threshold in `prompts/comet_discovery_agent.txt` (currently `64GB+` — must be `32GB+` to match `uma_unified_min_gb` in SRL)
-- [ ] S3-01: Add inject_config sentinel pairs around UMA RAM floor, VRAM thresholds in the discovery prompt so `inject_config.py` keeps them in sync with SRL
+- [x] S3-01: Fix UMA RAM threshold in `prompts/comet_discovery_agent.txt` (was `64GB+` — now `32GB+` to match `uma_unified_min_gb` in SRL)
+- [x] S3-01: Add inject_config sentinel pairs around UMA RAM floor, VRAM thresholds in the discovery prompt
 
 ### eGPU Interconnect Penalty
-- [ ] S3-02: Add `_apply_egpu_interconnect_penalty(analysis, ref)` to `decide.py` — reads `egpu_interconnect_penalty` from SRL, applies −3 pts for TB3/4 when eGPU bundle detected; 0 for OCuLink/TB5 or system_ram_gb ≥ 32
-- [ ] S3-02: Add tests in `test_decide.py` for TB3/4 penalty, OCuLink zero-penalty, and system_ram_gb ≥ 32 zero-penalty override
+- [x] S3-02: Add `_apply_egpu_interconnect_penalty(analysis, ref)` to `decide.py` — reads `egpu_interconnect_penalty` from SRL, applies −3 pts for TB3/4; 0 for OCuLink/TB5 or system_ram_gb ≥ 32
+- [x] S3-02: Tests added in `test_decide.py` for TB3/4 penalty, OCuLink zero-penalty, system_ram_gb ≥ 32 zero-penalty override
 
 ### Prompt Audit
-- [ ] S3-03: Grep `prompts/` for hardcoded VRAM/RAM values (`16`, `12`, `32`, `64`, `512`) — add sentinel pairs for any that duplicate SRL config keys
-- [ ] S3-03: `make test` green after sentinel pair additions
+- [x] S3-03: Grep `prompts/` for hardcoded VRAM/RAM values — no FIX items found; all hits are DONE (sentineled), PROSE (query strings), TELEMETRY (evidence pipeline), or CLEAN. See `planning/sections-sprint3/section-03-prompt-audit.md`.
 
 ---
 
@@ -172,6 +168,7 @@
 
 ## BACKLOG
 
+- [ ] Wire `architecture_adjustments.turing_vs_ada_same_vram_penalty_pts` into `decide.py` via `_apply_architecture_penalty()` — no-op stub; requires pairwise comparison context that doesn't exist in single-listing scoring path (see docstring at `decide.py:315`)
 - [ ] Playwright-based scraper for live eBay fetching (eBay blocks simple requests)
 - [ ] FB Marketplace: evaluate JSON-LD availability in "Save Page As" vs DevTools intercept
 - [ ] Gumtree: verify `price-amount` selector against a real saved page

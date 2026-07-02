@@ -55,9 +55,9 @@ SECTION 1 — ALTERNATIVE SILICON MARKET SCOUTING
 
 Scan the Australian used-hardware market (June 2026) across three vectors to establish real price baselines and supply depth.
 
-1A. APPLE SILICON UMA (64 GB+ RAM only)
+1A. APPLE SILICON UMA (32 GB+ RAM gate, 64 GB+ recommended comfort tier)
 
-Search for the following exact configurations and report for each:
+Search for the following exact configurations and report for each, prioritizing 32 GB and 64 GB configs separately where available:
   - Mac Studio M1 Max 64 GB / 128 GB
   - Mac Studio M2 Max 96 GB
   - Mac Studio M2 Ultra 192 GB
@@ -77,9 +77,9 @@ For each configuration, describe:
 
 Also investigate: Has the June 2026 DRAM shortage affected AU used-market supply or pricing for these systems? Report qualitative evidence of price floor increases or supply contraction.
 
-1B. STRIX HALO UMA (64 GB+ RAM only)
+1B. STRIX HALO UMA (32 GB+ RAM gate, 64 GB+ recommended comfort tier)
 
-Search for Ryzen AI Max+ 395 (Strix Halo APU) devices in 64 GB RAM configurations:
+Search for Ryzen AI Max+ 395 (Strix Halo APU) devices in 32 GB and 64 GB RAM configurations:
   - ASUS ROG NUC (mini-PC)
   - Minisforum HX100G or successor model
   - ASUS ROG Flow Z13 / ProArt PX13 (laptop)

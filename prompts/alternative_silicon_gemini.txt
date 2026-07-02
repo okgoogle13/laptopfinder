@@ -8,10 +8,11 @@ Do NOT mention, analyse, compare, or reference NVIDIA, CUDA, GeForce, RTX, Tenso
 
 PIPELINE GATE THRESHOLDS (these exact values govern shortlist eligibility in the decision engine)
 
-  * UMA Platforms (Apple Silicon, Strix Halo):
+  * UMA Platforms (Apple Silicon, Strix Halo) — SHORTLIST gate:
 <!-- BEGIN_INJECT:UMA_MIN_RAM_GB -->
 32
 <!-- END_INJECT:UMA_MIN_RAM_GB -->
+    NOTE: this injected value (32 GB) is the live SRL shortlist gate (`vram_gating_logic.uma_unified_min_gb`). Sections 1.2 and 2.2 below still direct research at a 64 GB "minimum eligibility threshold" — 64 GB is SRL's `ram_floors.recommended_for_uma_gb` (a *comfort recommendation*, not the routing gate) and predates the 2026-06-30 UMA scoring change. Investigate the full 32–64 GB+ range; do not exclude 32–63 GB configs as ineligible.
   * Discrete Radeon Mobile GPUs: minimum 16 GB VRAM to qualify.
 <!-- BEGIN_INJECT:TARGET_GPU_LIST -->
 - RTX 3080
@@ -61,7 +62,7 @@ Output a bandwidth-to-model-tier mapping table. Be explicit about which configur
 
 1.2 DEPRECIATION CURVE — OLDER APPLE SILICON AS ENTRY POINTS
 
-Investigate AU used-market pricing for M1 Max and M2 Max systems (Mac Studio, MacBook Pro 16). The minimum eligibility threshold is 64 GB RAM.
+Investigate AU used-market pricing for M1 Max and M2 Max systems (Mac Studio, MacBook Pro 16). The shortlist gate is 32 GB RAM, but 64 GB+ remains the recommended comfort tier for older Apple Silicon.
 
 For each eligible configuration, report:
   - Exact chip + RAM (e.g., "M1 Max 64 GB")
@@ -73,7 +74,7 @@ For each eligible configuration, report:
   - Practical inference capability verdict (e.g., "handles 70B Q4 comfortably at ~15 tok/s")
   - Pipeline gate status: SHORTLIST-ELIGIBLE or INELIGIBLE
 
-Explicitly exclude and flag any configuration with < 64 GB RAM encountered during search. Do not recommend it even as a budget option.
+Explicitly exclude and flag any configuration with < 32 GB RAM encountered during search. For 32–63 GB configs, note that they are shortlist-eligible but sit below the recommended comfort tier.
 
 1.3 JUNE 2026 DRAM SHORTAGE IMPACT
 
@@ -117,8 +118,8 @@ Pipeline gate status for RX 7900M: SHORTLIST-ELIGIBLE (16 GB VRAM meets threshol
 
 Investigate the Ryzen AI Max+ 395 "Strix Halo" APU as a UMA inference device:
 
-  a) AU form factors at 64 GB+ RAM: ASUS ROG NUC, Minisforum HX100G, ASUS ROG Flow Z13, ProArt PX13. Which are listed on AU used markets with 64 GB RAM? Fewer than 3 listings per device → "INSUFFICIENT AU DATA."
-  b) AU used pricing: report price ranges for 64 GB configurations only. Explicitly exclude and flag 32 GB configs as INELIGIBLE.
+  a) AU form factors at 32 GB+ RAM: ASUS ROG NUC, Minisforum HX100G, ASUS ROG Flow Z13, ProArt PX13. Which are listed on AU used markets with 32 GB or 64 GB RAM? Fewer than 3 listings per device → "INSUFFICIENT AU DATA."
+  b) AU used pricing: report price ranges for 32 GB and 64 GB configurations separately when available. Explicitly flag 32 GB configs as shortlist-eligible but below the recommended comfort tier.
   c) ROCm 7.2.2 on Strix Halo: confirmed working for iGPU inference? Known driver issues? Which inference stack (ROCm HIP, Vulkan, DirectML) shows best real-world results for llama.cpp/Ollama? (cite source; label UNCONFIRMED if not verified)
   d) Memory bandwidth: 256 GB/s vs Apple M1 Max 400 GB/s — is the gap reflected in observed token throughput for 32B Q4 models?
   e) Unified memory ceiling: confirm the GPU-addressable VRAM allocation cap under Linux ROCm. Is there an allocation ceiling distinct from total system RAM?
@@ -163,7 +164,7 @@ SCORING GUIDANCE for LLM Score Tier (derived from the pipeline's llm_index_score
     - extreme tier (32 GB+): 60 pts
   Generation modifier (add to capacity points):
     - RDNA3 platforms: +15 pts
-    - Apple Silicon (any M-series): +20 pts (all UMA platforms capped at 75 total)
+    - Apple Silicon (any M-series): +20 pts (UMA score ceiling removed 2026-06-30 — UMA platforms compete at the full 0–100 scale, no cap)
   Assign tier label based on combined total.
 
 Pipeline Status guidance:

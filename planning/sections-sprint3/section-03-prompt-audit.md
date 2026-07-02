@@ -63,4 +63,45 @@ grep -n "16\|12\|32\|64\|512\|1024\|GB\b" prompts/*.txt prompts/*.md 2>/dev/null
 
 ## Actual Findings
 
-*(Populated during implementation)*
+**Audit run:** 2026-07-02
+
+### `comet_discovery_agent.txt`
+**PROSE** — Boolean eBay query strings contain `16GB`, `12GB`, `32GB`, `64GB`. Values are embedded inside quoted search operator expressions; injecting raw numbers would break the surrounding `(16GB OR 16 GB)` format. S3-01 already fixed the UMA gate line from `64GB+` to `32GB+`.
+
+### `alternative_silicon_gemini.txt`
+**DONE** — `UMA_MIN_RAM_GB` sentinel pair present and injected.
+
+### `alternative_silicon_perplexity.txt`
+**DONE** — `UMA_MIN_RAM_GB` sentinel pair present and injected. Remaining prose references to `64GB` are the recommended comfort tier (not the gated threshold), appearing in model-config enumeration lists.
+
+### `ai_studio_runtime.txt`
+**CLEAN** — No numeric threshold hits. No action needed.
+
+### `claude_evidence_analyzer.txt`
+**TELEMETRY** — Values (`32GB`, `64GB`, `512GB`) come from the evidence pipeline (observed workload telemetry), not SRL config keys. Intentionally separate governance layer.
+
+### `gemini_evidence_parser.txt`
+**TELEMETRY** — Same rationale as `claude_evidence_analyzer.txt`.
+
+### `system_context.md`
+**PROSE** — `≥64GB` appears in a bias-diversity check hint ("ensure at least one UMA candidate at 64GB+"). This is a recommended comfort tier description, not a hard gate threshold. The gated threshold (`uma_unified_min_gb: 32`) is enforced in `decide.py`, not here.
+
+### `bias_guard_prompt.md`
+**PROSE** — Same as `system_context.md`. The `≥64GB` lines describe the recommended tier for bias-check sampling diversity, not a config-governed gate.
+
+### Summary
+
+| File | Disposition | Notes |
+|------|-------------|-------|
+| `comet_discovery_agent.txt` | PROSE | eBay Boolean query strings; S3-01 already fixed UMA gate line |
+| `alternative_silicon_gemini.txt` | DONE | Sentinel injected |
+| `alternative_silicon_perplexity.txt` | DONE | Sentinel injected |
+| `ai_studio_runtime.txt` | CLEAN | No hits |
+| `claude_evidence_analyzer.txt` | TELEMETRY | Evidence pipeline — intentionally separate from SRL |
+| `gemini_evidence_parser.txt` | TELEMETRY | Evidence pipeline — intentionally separate from SRL |
+| `system_context.md` | PROSE | Recommended comfort tier hint, not a gate threshold |
+| `bias_guard_prompt.md` | PROSE | Recommended comfort tier hint, not a gate threshold |
+
+**No FIX items found.** All threshold references in prompts are either already sentineled, embedded in prose/query context that cannot be injected, or belong to the separate evidence pipeline governance layer.
+
+`make test` — 178 passed. `make inject-config` — no errors. `make lint` — clean.
