@@ -33,15 +33,6 @@
   },
   "watch_list": [
     {
-      "name": "RTX 5090",
-      "reason": "Blackwell mobile; AU retail launched early 2026. Current AU retail: $7,500–$9,000+ AUD — minimum 50% budget violation. ASUS ROG Zephyrus GX651AX and GU606AX variants confirmed above cap. No secondary market depreciation until corporate 36-month lease cycle ends (projected late 2028–2029).",
-      "routing_behaviour": "MONITOR overrides all positive signals until graduation_condition is confirmed.",
-      "graduation_condition": "AU used-market listings confirmed at or below 5,000 AUD on eBay AU, FB Marketplace, or Gumtree.",
-      "graduate_to": "target_gpus",
-      "graduate_vram_gb": 24,
-      "evidence_type": "Observed_AU"
-    },
-    {
       "name": "RTX 5000 Ada Mobile",
       "reason": "16 GB Ada Lovelace mobile workstation GPU; excellent 9B/13B host. AU used market non-existent until enterprise 36-month lease cycles expire (late 2026–2027).",
       "routing_behaviour": "MONITOR overrides all positive signals until graduation_condition is confirmed.",
@@ -136,6 +127,13 @@
       "market_verdict": "HOLD",
       "note": "Sporadically obtainable via clearance retail — Gigabyte A16 Pro (~$4,697 AUD, 115W TGP). Low secondary market saturation in Greater Melbourne as of July 2026. Blackwell architecture: GDDR7, 5th-gen Tensor Cores, native Flash Attention 3. TGP throttling at 115W has minimal impact on memory-bandwidth-bound LLM decode."
     },
+    "RTX 5090": {
+      "vram_gb": 24,
+      "platform_class": "gaming_laptop",
+      "evidence_type": "Observed_AU",
+      "market_verdict": "HOLD",
+      "note": "Kept as target because bargains occasionally drop into the budget window despite standard retail pricing."
+    },
     "RTX A5000": {
       "vram_gb": 16,
       "platform_class": "workstation",
@@ -181,14 +179,18 @@
       "architecture_note": "Turing SM75: no native Flash Attention support. Despite high VRAM, this is a hard architectural disqualifier for LLM inference. Do not shortlist regardless of price."
     },
     "RTX 4000 Ada": {
-      "vram_gb": 20,
+      "vram_gb": 12,
       "platform_class": "workstation",
-      "evidence_type": "Inferred_global"
+      "evidence_type": "Inferred_global",
+      "market_verdict": "HOLD",
+      "note": "12GB VRAM is viable under the touchscreen exception, but watch out for massive enterprise workstation premiums."
     },
     "RTX 3500 Ada": {
       "vram_gb": 12,
       "platform_class": "workstation",
-      "evidence_type": "Inferred_global"
+      "evidence_type": "Inferred_global",
+      "market_verdict": "HOLD",
+      "note": "12GB VRAM is viable under the touchscreen exception, but watch out for massive enterprise workstation premiums."
     },
     "RTX 3090": {
       "vram_gb": 24,

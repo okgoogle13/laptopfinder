@@ -3,6 +3,23 @@
 
 ---
 
+## Codebase Status Snapshot (2026-07-02)
+
+**Sprint completion state:** Sprints 1–3 are complete. 108 tests green. Evidence Pipeline and AU Market Alignment are shipped. No active sprint.
+
+**Remaining work:**
+- Five backlog items had no sprint assignments, tags, or testing guidance.
+- `_apply_architecture_penalty()` in `decide.py:315` is an intentional no-op pending pairwise context — resolved in Sprint 6 as a single-listing heuristic.
+- `batch_decide()` is documented in CLAUDE.md but not implemented — Sprint 5.
+- `scrape_benchmark.py` has extractors for EBAY_AU, FB_MARKETPLACE, GUMTREE with best-guess CSS/JSON selectors — none validated against real saved pages.
+- No live Firecrawl fetch path in `scrape_benchmark.py` (only in `scrape_live.py` / `make scrape-and-live`).
+
+**Platform priority:** eBay AU is the primary target for all remaining sprints. Gumtree AU is secondary/opportunistic. Facebook Marketplace is deferred to discovery-only; no full scraping parity.
+
+**Tooling constraint:** No Playwright or Browserbase introduced in this roadmap. Live fetching uses the existing Firecrawl path (`scrape_live.py` / `FIRECRAWL_API_KEY`). Manual batch export via Chrome data-export extensions (Instant Data Scraper / Web Scraper / Data Miner) for eBay search-results batches.
+
+---
+
 ## COMPLETE: Alternative-Silicon Scoring Layer (2026-06-30)
 
 - [x] A1: Create `config/silicon_profiles.yaml` — paradigm definitions + workload preferences
@@ -18,7 +35,7 @@
 - [x] D2: Update `memory/project/sprint.md`
 - [x] D3: Update `TASKS.md`
 
-**A9 (targets.json integration) blocked on human gate — see Evidence Pipeline below.**
+**A9 (targets.json integration) completed in Evidence Pipeline below.**
 
 ---
 
@@ -43,86 +60,54 @@
 - [x] Run `make evidence-run` to append 23 records to `aggregated.jsonl` and archive parsed JSONs
 - [x] Confirm `claude_handoff.txt` was generated in `data/evidence/`
 
-### Claude Pro Handoff (partially done — targets.json is STALE)
+### Claude Pro Handoff (done 2026-07-01)
 - [x] `claude_handoff.txt` generated with corrected `claude_evidence_analyzer.txt` prompt
-- [ ] **PENDING: Paste current `data/evidence/claude_handoff.txt` into Claude Pro**
-- [ ] **PENDING: Save Claude's JSON response as `data/evidence/targets.json` (current file is pre-correction)**
-- [ ] **PENDING: Validate new `targets.json` against `evidence_targets.schema.json`**
+- [x] Paste current `data/evidence/claude_handoff.txt` into Claude Pro
+- [x] Save Claude's JSON response as `data/evidence/targets.json`
+- [x] Validate `targets.json` against `evidence_targets.schema.json`
 
-### Pipeline improvements (done this session — 2026-06-30)
-- [x] Corrected `prompts/gemini_evidence_parser.txt` — added CONTEXT/PAST FAILURES, HARD CONSTRAINTS, QUALITY CHECK, PIPELINE CLARIFICATION, SUMMARY blocks to enforce parse-only role
-- [x] Corrected `prompts/claude_evidence_analyzer.txt` — removed banned language (`bottleneck`, `contention`, `under strain`); replaced with neutral observational phrasing
-- [x] Added `make evidence-reset` (`--reset` flag): truncates `aggregated.jsonl` + removes `.claude_prompt.hash` sidecar for clean restarts
-- [x] Added prompt staleness check: `generate_claude_handoff()` hashes `claude_evidence_analyzer.txt` and warns if the handoff embeds a stale version of the prompt
-- [x] Deleted `normalize_archive.py` — one-off workaround; canonical path is `raw/ → make evidence-run → prompts_for_gemini/ → parsed/ → make evidence-run`
+### Pipeline improvements (done 2026-06-30)
+- [x] Corrected `prompts/gemini_evidence_parser.txt`
+- [x] Corrected `prompts/claude_evidence_analyzer.txt` — removed banned language
+- [x] Added `make evidence-reset`
+- [x] Added prompt staleness check in `generate_claude_handoff()`
+- [x] Deleted `normalize_archive.py`
 
-### Telemetry (2026-07-01)
-- [x] 2026-07-01: Gemma 2B/9B telemetry captured; 32 GB floor, 64 GB recommended RAM, 12–16 GB VRAM confirmed.
-
-### Claude Pro Handoff (2026-07-01)
-- [x] Paste `claude_handoff.txt` into Claude Pro; `targets.json` saved (min 32 GB RAM, min 12 GB VRAM, min 512 GB storage)
-- [x] `ram_floors` and VRAM thresholds reflected in `config/static_reference_layer.json` (2026-07-01)
-- [x] Integrate `storage_gb` spec from `targets.json` into SRL — `storage_floors` block at SRL:366 (min_gb: 512, recommended_gb: 1024)
+### Telemetry + config integration (done 2026-07-01)
+- [x] Gemma 2B/9B telemetry captured; 32 GB floor, 64 GB recommended RAM, 12–16 GB VRAM confirmed
+- [x] `ram_floors` and VRAM thresholds reflected in `config/static_reference_layer.json`
+- [x] `storage_floors` block integrated into SRL (min_gb: 512, recommended_gb: 1024)
 - [x] `make test` green after storage integration
 
 ---
 
 ## COMPLETE: AU Market Alignment — Config Update (2026-07-01)
 
-**Source:** Gemini Deep Research + Perplexity AU secondary market mapping (July 2026) + Gemma 2 telemetry.
-
 - [x] `config/static_reference_layer.json` — added RTX 3080 (Observed_AU), RTX 4080, RTX 5070 to `target_gpus`
-- [x] `config/static_reference_layer.json` — enriched all 13 `target_gpus` entries with `platform_class`, `budget_band`, `evidence_type`, and AU price ranges where observed
+- [x] `config/static_reference_layer.json` — enriched all 13 `target_gpus` entries with `platform_class`, `budget_band`, `evidence_type`, and AU price ranges
 - [x] `config/static_reference_layer.json` — added RTX 3080/4080/5070/5090 to `gpu_generation_by_name`
-- [x] `config/static_reference_layer.json` — watch_list: updated RTX 5090 (evidence_type Observed_AU); added RTX 5000 Ada Mobile (HOLD) and RTX PRO 5000 Blackwell Mobile (DEFER)
+- [x] `config/static_reference_layer.json` — watch_list: updated RTX 5090; added RTX 5000 Ada Mobile HOLD and RTX PRO 5000 Blackwell Mobile DEFER
 - [x] `config/static_reference_layer.json` — `egpu_enclosures`: added Razer Core X Chroma and Minisforum DEG2
 - [x] `config/static_reference_layer.json` — `target_models`: added ASUS ProArt P16 and Lenovo Legion 7 Pro
 - [x] `config/static_reference_layer.json` — added top-level `ram_floors`, `egpu_interconnect_penalty`, `architecture_adjustments` blocks
-- [x] `config/static_reference_layer.json` — **bug fix**: `standard_mobile_min_gb` corrected 12→16 (test contract + CLAUDE.md logic; test count restored to 108)
-- [x] `config/silicon_profiles.yaml` — `discrete_cuda`: added `architecture_tiers` (Turing/Ada/Blackwell annotations)
-- [x] `config/silicon_profiles.yaml` — `discrete_rocm`: added `ecosystem_score: 15` + known S3/LM Studio/Ollama issues + review condition
-- [x] `config/silicon_profiles.yaml` — new top-level `egpu_interconnect` block (TB3/4 −3 pts, OCuLink/TB5 0 pts)
-- [x] `config/silicon_profiles.yaml` — `text_centric_llm_inference`: added `ram_floors` sub-key from telemetry
+- [x] `config/static_reference_layer.json` — **bug fix**: `standard_mobile_min_gb` corrected 12→16
+- [x] `config/silicon_profiles.yaml` — `discrete_cuda`: added `architecture_tiers` (Turing/Ada/Blackwell)
+- [x] `config/silicon_profiles.yaml` — `discrete_rocm`: added `ecosystem_score: 15` + known issues
+- [x] `config/silicon_profiles.yaml` — new top-level `egpu_interconnect` block
+- [x] `config/silicon_profiles.yaml` — `text_centric_llm_inference`: added `ram_floors` sub-key
 - [x] 108 tests green
 
 ---
 
-## ACTIVE: Pipeline Audit (June–July 2026)
+## COMPLETE: Pipeline Audit (June–July 2026)
 
-**Goal:** Validate and expand the pipeline's hardware coverage based on what's actually appearing on AU used markets.
-
-### Market Gap Analysis (done 2026-07-01)
-- [x] Identify high-VRAM GPUs appearing on used markets but absent from target lists → RTX 3080, RTX 4080, RTX 5070 added
+- [x] Identify high-VRAM GPUs on AU market absent from target lists → RTX 3080, 4080, 5070 added
 - [x] Identify laptop/workstation models absent from target_models → ASUS ProArt P16, Lenovo Legion 7 Pro added
-- [x] Check watch list graduation for RTX 5080 & 5090 → 5090 updated Observed_AU/DEFER (>7,500 AUD); RTX 5000 Ada Mobile HOLD added
-- [x] Identify new UMA platforms → Mac mini M4 (24 GB) and M4 Pro (48 GB) mapped; chassis remain out-of-scope for SRL (desktop consumer)
-
-### Secondary Market Topology Report Ingestion (done 2026-07-01)
-**Source:** `research/Secondary-Market Hardware Topologies for Local Large Language Model Inference (July 2026).md`
-- [x] Ingest GRADUATE/HOLD/DEFER verdicts across all evaluated AU market hardware
-- [x] `config/static_reference_layer.json` — RTX 3080 vram_gb corrected 12→16 (16GB is the graduation target variant); prices updated $1,200–$2,000 AUD Observed_AU
-- [x] `config/static_reference_layer.json` — RTX 3080 Ti prices added $1,800–$2,500 AUD, evidence_type → Observed_AU, budget_band → used_3k
-- [x] `config/static_reference_layer.json` — RTX 4090 and RTX 4080 prices updated (Observed_AU); market_verdict HOLD with notes on VRAM-to-price ratio
-- [x] `config/static_reference_layer.json` — RTX A4500 prices added ($3,000–$4,000 AUD); HOLD — enterprise premium disqualifies vs RTX 3080 16GB
-- [x] `config/static_reference_layer.json` — RTX 5080 market_verdict HOLD; price range updated to reflect Gigabyte A16 Pro clearance (~$4,697 AUD)
-- [x] `config/static_reference_layer.json` — Quadro RTX 5000 and RTX 6000 marked DEFER; architecture_note added (Turing SM75, no native Flash Attention)
-- [x] `config/static_reference_layer.json` — `vram_tiers` updated: mid max_gb 16→23, high max_gb 24→31 (aligned to report tier hierarchy)
-- [x] `config/static_reference_layer.json` — `radeon_mobile_gpus`: added RX 6800M (vram_gb: 12, DEFER, RDNA2 ROCm volatility note)
-- [x] `config/static_reference_layer.json` — RTX 5090 watch_list reason enriched with 2028–2029 graduation timeline and confirmed budget violation
-- [x] `data/evidence/targets.json` — NVIDIA platform class: added architecture_minimum (Ampere SM86), throughput_target_tok_s: 25, Turing DEFER rationale
-- [x] `data/evidence/targets.json` — AMD platform class: RDNA2/RDNA3 ecosystem notes added
-
-### Spec Comparison (addressed by market report 2026-07-01)
-- [x] Top tier: RTX 3080 16GB ($1,200–$2,000 AUD, 25+ tok/s 13B Q4) vs RTX 3080 Ti 16GB ($1,800–$2,500 AUD) — both GRADUATE
-- [x] Mid tier HOLD: RTX 4090 16GB ($3,500–$4,500 AUD), RTX A4500 16GB ($3,000–$4,000 AUD), RTX 5080 16GB (~$4,697 AUD clearance)
-- [x] Floor tier HOLD: RTX 4080 12GB ($2,200–$2,800 AUD) — 12GB VRAM ceiling limits 13B model viability
-- [x] DEFER: Quadro RTX 5000/6000 (Turing, no Flash Attention), RX 6800M (RDNA2 ROCm volatile), RTX 5090 (>$7,500 AUD)
-
-### Pipeline Enhancements (done 2026-07-01)
-- [x] Config JSON fragments for `target_gpus`, `target_models`, `egpu_enclosures`, `watch_list` — applied
-- [x] RDNA3/ROCm ecosystem score held at 15; Turing gen-points gap (5 vs Ada 20) documented
-- [x] Identify 5–10 high-value search terms/variants for the discovery prompt — 8 Boolean strings wired into `prompts/comet_discovery_agent.txt:37-44`
-- [x] Document 1–3 systematic blind spots — documented in `CLAUDE.md` (RAM/VRAM conflation, mislabelled eGPU bundles, niche workstation imports)
+- [x] Check watch list graduation for RTX 5080 & 5090
+- [x] Identify new UMA platforms → Mac mini M4 mapped; desktop chassis out-of-scope for SRL
+- [x] Secondary Market Topology Report ingested; GRADUATE/HOLD/DEFER verdicts propagated to SRL
+- [x] 8 Boolean search strings wired into `prompts/comet_discovery_agent.txt:37-44`
+- [x] 3 systematic blind spots documented in CLAUDE.md
 
 ---
 
@@ -130,46 +115,345 @@
 
 **Goal:** Close the UMA discovery gap, wire the eGPU interconnect penalty, and put all hardcoded thresholds in prompts under inject_config control.
 
-### Discovery Threshold Fix
-- [x] S3-01: Fix UMA RAM threshold in `prompts/comet_discovery_agent.txt` (was `64GB+` — now `32GB+` to match `uma_unified_min_gb` in SRL)
-- [x] S3-01: Add inject_config sentinel pairs around UMA RAM floor, VRAM thresholds in the discovery prompt
-
-### eGPU Interconnect Penalty
-- [x] S3-02: Add `_apply_egpu_interconnect_penalty(analysis, ref)` to `decide.py` — reads `egpu_interconnect_penalty` from SRL, applies −3 pts for TB3/4; 0 for OCuLink/TB5 or system_ram_gb ≥ 32
+- [x] S3-01: Fix UMA RAM threshold in `prompts/comet_discovery_agent.txt` (64GB+ → 32GB+)
+- [x] S3-01: Add inject_config sentinel pairs around UMA RAM floor, VRAM thresholds
+- [x] S3-02: Add `_apply_egpu_interconnect_penalty(analysis, ref)` to `decide.py`
 - [x] S3-02: Tests added in `test_decide.py` for TB3/4 penalty, OCuLink zero-penalty, system_ram_gb ≥ 32 zero-penalty override
-
-### Prompt Audit
-- [x] S3-03: Grep `prompts/` for hardcoded VRAM/RAM values — no FIX items found; all hits are DONE (sentineled), PROSE (query strings), TELEMETRY (evidence pipeline), or CLEAN. See `planning/sections-sprint3/section-03-prompt-audit.md`.
+- [x] S3-03: Grep `prompts/` for hardcoded VRAM/RAM values — all hits are DONE, PROSE, TELEMETRY, or CLEAN
 
 ---
 
 ## COMPLETE: Sprint 2 — Config Injection, Live Scraping, Decision Matrix (2026-07)
 
-**Plan:** `planning/claude-plan.md` · **Sections:** `planning/sections/`
-
-### Prerequisites
-- [x] S2-01: Create `scripts/` directory (`.gitkeep`)
-- [x] S2-02: `uv add firecrawl-py` (pinned); add `FIRECRAWL_API_KEY` to `.env.example`
-- [x] S2-03: Update `.gitignore` — add `data/feed_live/`, `data/purchase_matrix.md`
-- [x] S2-04: Add sentinel marker pairs to 3 prompt files (one-time manual edit per section-01)
-
-### Components
-- [x] S2-05: Write + test `scripts/inject_config.py` (`load_srl`, `build_substitutions`, `inject_file`, `main`)
-- [x] S2-06: Write + test `src/laptopfinder/scrape_live.py` (`read_urls`, `strip_nav`, `normalise_md`, `fetch_markdown`, `main`)
-- [x] S2-07: Write + test `scripts/render_matrix.py` (`load_candidates`, `sort_candidates`, `render_table`, `main`)
-- [x] S2-08: Add `tests/test_prompt_markers.py` — asserts real prompt files contain sentinel pairs
-
-### Integration
-- [x] S2-09: Add `inject-config`, `scrape-and-live` (with zero-results guard), `render-matrix` Makefile targets
+- [x] S2-01: Create `scripts/` directory
+- [x] S2-02: `uv add firecrawl-py`; add `FIRECRAWL_API_KEY` to `.env.example`
+- [x] S2-03: Update `.gitignore`
+- [x] S2-04: Add sentinel marker pairs to 3 prompt files
+- [x] S2-05: Write + test `scripts/inject_config.py`
+- [x] S2-06: Write + test `src/laptopfinder/scrape_live.py`
+- [x] S2-07: Write + test `scripts/render_matrix.py`
+- [x] S2-08: Add `tests/test_prompt_markers.py`
+- [x] S2-09: Add `inject-config`, `scrape-and-live`, `render-matrix` Makefile targets
 - [x] S2-10: Create `data/urls.txt` sample file
-- [x] S2-11: `make test` — all new and existing tests pass (49 Sprint 2 tests green)
+- [x] S2-11: `make test` — all tests pass
+
+---
+
+## Sprint 4 — Light Fixture Collection: eBay AU + Gumtree (primary), FB Marketplace (minimal)
+
+**Goal:** Obtain a small set of high-quality real-world fixtures for eBay AU and Gumtree, confirm extractors work at a basic level, and establish a Chrome data-export → pipeline converter for eBay batch collection. Tests remain lean and directly protective.
+
+### eBay AU — Chrome Export → Converter Script
+
+- `[HUMAN]` Open an eBay AU laptop search results page in Chrome. Use Instant Data Scraper, Web Scraper, or Data Miner to export a batch of listings as JSON or CSV. Target fields: title, listing URL, price text, and condition. Save the export to `data/fixtures/ebay_export_raw.json` (or `.csv`).
+- `[IDE/DEV]` Write `scripts/ebay_export_to_jsonl.py`: reads the Chrome-extension JSON/CSV export, maps fields to the `scrape_benchmark.py` raw-record shape (`title`, `price_raw`, `url`, `seller_name: null`, `seller_rating: null`, `full_listing_text: <title + price stub>`), writes to `data/fixtures/ebay_export.jsonl`.
+- `[IDE/DEV]` Add a minimal test in `tests/test_ebay_export_converter.py`: load a two-record sample fixture from `tests/fixtures/ebay_export_sample.json`, run the converter, assert both output records have non-null `title` and `price_raw`.
+- `[HUMAN]` Run `python scripts/ebay_export_to_jsonl.py --in data/fixtures/ebay_export_raw.json --out data/fixtures/ebay_export.jsonl` and inspect the first three records for field completeness.
+- `[IDE/DEV]` Pipe the JSONL output through `to_stage2_fixture()` and confirm the handoff_packet shape is valid (no schema errors from `run_stage2_from_fixture`).
+
+### eBay AU — Saved-Page Extractor Verification
+
+- `[HUMAN]` Open one individual eBay AU laptop listing in Chrome. Use File → Save Page As (complete) to save `tests/fixtures/saved_pages/ebay_rtx3080_sample.html`.
+- `[HUMAN]` Run `python -m laptopfinder.scrape_benchmark --html-file tests/fixtures/saved_pages/ebay_rtx3080_sample.html --out /tmp/ebay_verify.jsonl` and record which fields are null.
+- `[IDE/DEV]` Patch `extract_ebay()` CSS regex selectors in `scrape_benchmark.py` for any fields that returned null (title, price, full_listing_text are the mandatory three).
+- `[IDE/DEV]` Add `tests/test_scrape_benchmark_ebay.py`: load the saved HTML fixture, call `html_to_raw()`, assert `title`, `price_raw`, and `full_listing_text` are all non-null.
+
+### Gumtree AU — Minimal Selector Verification
+
+- `[HUMAN]` Open one real Gumtree AU laptop listing in Chrome. Inspect the price element in DevTools to confirm the actual CSS class name; compare against the `price-amount|listing-price` regex in `extract_gumtree()`.
+- `[HUMAN]` Use File → Save Page As to save `tests/fixtures/saved_pages/gumtree_laptop_sample.html`.
+- `[IDE/DEV]` Patch `extract_gumtree()` in `scrape_benchmark.py` if the observed class name does not match the regex.
+- `[IDE/DEV]` Add `tests/test_scrape_benchmark_gumtree.py`: load the saved Gumtree fixture, call `html_to_raw()`, assert `title` and `price_raw` are non-null.
+
+### Facebook Marketplace — Minimal Discovery Only
+
+- `[HUMAN]` Open one FB Marketplace laptop listing in Chrome. Attempt File → Save Page As and run scrape_benchmark on it. Record which fallback path fires (JSON-LD, Relay blob, OG meta, or visible text). No patching required unless title and full_listing_text are both null.
+- `[IDE/DEV]` If both title and full_listing_text are null: apply a targeted patch to `extract_facebook()` to fix the highest-priority fallback path only. No new test file required for FB at this stage.
+
+### Sprint 4 Validation
+
+- `[IDE/DEV]` Run `make test` — all 108+ tests green.
+- `[HUMAN]` Confirm `ebay_export_to_jsonl.py` converts a real eBay Chrome export to valid JSONL with non-null title + price for ≥3 records.
+- `[HUMAN]` Confirm the eBay saved-page extractor test passes on the real HTML fixture.
+- `[HUMAN]` Confirm the Gumtree saved-page extractor test passes on the real HTML fixture.
+
+---
+
+## Sprint 5 — Firecrawl Live Wiring + batch_decide
+
+**Goal:** Add a Firecrawl live-fetch path to `scrape_benchmark.py` so it can retrieve and parse structured fields from live eBay AU URLs, wire it into a new Makefile feed target, and implement the missing `batch_decide()` function.
+
+### Firecrawl Live Fetch in scrape_benchmark.py
+
+- `[IDE/DEV]` Add `fetch_live_firecrawl(url: str) -> str | None` to `scrape_benchmark.py`: checks for `FIRECRAWL_API_KEY` in env (via `python-dotenv`), instantiates the existing `Firecrawl` client (already a dependency from Sprint 2), calls `app.scrape_url(url, params={"formats": ["html"]})`, returns the raw HTML string or `None` on error. Gate the function behind a `FIRECRAWL_API_KEY` presence check that prints a clear error and returns `None` if unset.
+- `[IDE/DEV]` Add `--live` flag to `scrape_benchmark.py` CLI: when set, routes each URL from `--urls FILE` through `fetch_live_firecrawl()` instead of `fetch_html()`. Existing extractors (`extract_ebay`, `extract_gumtree`) parse the returned HTML normally.
+- `[IDE/DEV]` Add `make benchmark-live` Makefile target:
+  ```
+  benchmark-live:
+      .venv/bin/python -m laptopfinder.scrape_benchmark \
+          --urls data/urls.txt --live \
+          --out data/feed_live/benchmark_live.jsonl
+  ```
+- `[IDE/DEV]` Add `make benchmark-to-feed` Makefile target and companion script `scripts/benchmark_to_feed.py`: reads `data/feed_live/benchmark_live.jsonl`, writes each `full_listing_text` value as a standalone `data/feed_live/listing-NNN.txt` file, then the existing `make live` loop can process them.
+- `[IDE/DEV]` Add one focused test in `tests/test_scrape_live.py` (or a new `tests/test_scrape_benchmark_live.py`): mock the Firecrawl client to return a known HTML string for an eBay URL; assert `fetch_live_firecrawl()` returns non-null and the downstream `extract_ebay()` call produces a non-null title.
+- `[HUMAN]` Populate `data/urls.txt` with 3–5 real eBay AU laptop listing URLs.
+- `[HUMAN]` Run `make benchmark-live` and inspect `data/feed_live/benchmark_live.jsonl` for non-null title + price + full_listing_text.
+- `[HUMAN]` Run `make benchmark-to-feed` and confirm `data/feed_live/listing-*.txt` files are created.
+- `[HUMAN]` Run `make live SOURCE=data/feed_live/listing-001.txt` on one file and confirm Stage 1 → Stage 2 → Decision runs without error.
+
+### batch_decide
+
+- `[IDE/DEV]` Implement `batch_decide(taxonomy_path: str | Path, workload: str = "text_llm_default", ref: dict | None = None) -> list[dict]` in `decide.py`:
+  - Loads `data/hardware_taxonomy.json` (or the path argument).
+  - Loads scoring weights via `load_scoring_weights(workload)`.
+  - Calls `score_text_llm_candidate(entry, weights)` for each entry in the taxonomy.
+  - Returns a list of dicts `{"paradigm": ..., "ram_gb": ..., "bandwidth_gbps": ..., "score": ...}` sorted descending by score.
+- `[IDE/DEV]` Add two focused tests in `tests/test_decide.py`:
+  - `test_batch_decide_returns_all_paradigms`: assert `batch_decide()` returns ≥4 entries covering all paradigms present in `hardware_taxonomy.json`.
+  - `test_batch_decide_uma_leads_for_text_llm`: assert the apple_silicon_uma entry score > discrete_cuda entry score for the `text_llm_default` workload.
+- `[IDE/DEV]` Update the `batch_decide` reference in `CLAUDE.md` under "Hardware Taxonomy" to note the function now exists in `decide.py`.
+
+### Sprint 5 Validation
+
+- `[IDE/DEV]` Run `make test` — all tests green.
+- `[HUMAN]` `make benchmark-live` produces a non-empty JSONL file from ≥3 real eBay AU URLs.
+- `[HUMAN]` `make benchmark-to-feed` writes ≥3 `listing-*.txt` files to `data/feed_live/`.
+- `[HUMAN]` `make live SOURCE=<any listing file>` runs to completion without crash or schema error.
+- `[IDE/DEV]` `batch_decide()` returns a ranked list; `test_batch_decide_uma_leads_for_text_llm` passes.
+
+---
+
+## Sprint 6 — Architecture Penalty + eBay-First End-to-End Validation
+
+**Goal:** Resolve the architecture penalty stub as a per-listing heuristic, run a full end-to-end live pass on eBay AU, capture any runtime failures as fixtures, and produce a plausible purchase matrix.
+
+### Architecture Penalty — Single-Listing Heuristic
+
+- `[IDE/DEV]` Implement `_apply_architecture_penalty(gpu: str | None, tier: str | None, ref: dict) -> int` in `decide.py`:
+  - Read `architecture_adjustments.turing_vs_ada_same_vram_penalty_pts` from SRL.
+  - Read Turing GPU names from `config/silicon_profiles.yaml` key `discrete_cuda.architecture_tiers.turing.gpus` (or equivalent key structure in the YAML).
+  - If `gpu` matches a Turing-tier name (case-insensitive substring match against the list), return the penalty value (negative int).
+  - Otherwise return 0.
+  - Add a comment: "Single-listing heuristic — cannot resolve Turing vs Ada for same-VRAM pairwise comparison in per-listing scoring path. Turing tier identified by GPU name lookup against silicon_profiles.yaml."
+- `[IDE/DEV]` Wire the penalty into `calculate_llm_index_score()`: subtract `_apply_architecture_penalty(gpu, tier, ref)` from the raw score before clamping.
+- `[IDE/DEV]` Add three focused tests in `tests/test_decide.py`:
+  - `test_turing_gpu_receives_architecture_penalty`: pass a fixture with a Turing GPU (e.g. `"Quadro RTX 5000"`); assert `llm_index_score` is lower than an otherwise-identical Ada GPU fixture.
+  - `test_ada_gpu_receives_no_architecture_penalty`: pass a fixture with `"RTX 4090"`; assert penalty contribution is 0.
+  - `test_uma_platform_receives_no_architecture_penalty`: pass a UMA fixture; assert penalty contribution is 0.
+- `[IDE/DEV]` Run `make test` — all tests green.
+- `[IDE/DEV]` Update CLAUDE.md invariants to note `_apply_architecture_penalty()` is now a per-listing Turing heuristic, not a pairwise comparator.
+
+### End-to-End eBay AU Live Validation
+
+- `[HUMAN]` Verify `data/urls.txt` contains ≥3 real eBay AU laptop listing URLs (from Sprint 5 or fresh).
+- `[HUMAN]` Run `make inject-config` to sync all SRL values into prompt sentinel pairs.
+- `[HUMAN]` Run `make scrape-and-live` (uses `scrape_live.py` Firecrawl path + existing `make live` loop). Monitor console output for schema errors, firewall rejections, or crashes.
+- `[HUMAN]` For any listing that crashes or is rejected: save the feed file as a fixture in `tests/fixtures/stage2/` (with a `_failing` suffix), note the failure reason.
+- `[IDE/DEV]` For each captured failure fixture: diagnose the root cause (schema mismatch, grounding firewall, bad null handling), apply a targeted fix to the responsible code path, add a regression test, re-run `make test`.
+- `[HUMAN]` Assemble SHORTLIST outputs from the console into `data/shortlist_candidates.jsonl` (one JSON object per line, manually edited with pipeline outputs).
+- `[HUMAN]` Run `make render-matrix` and review `data/purchase_matrix.md` for plausible ranking order (RTX 3080 16GB / RTX 3080 Ti 16GB should rank above RTX 4090 on price-to-VRAM ratio).
+- `[IDE/DEV]` If matrix ranking is wrong, identify the responsible scoring path, add a test fixture that isolates the regression, patch `decide.py` or the SRL, re-run `make test`.
+- `[HUMAN]` Run `make scan-gaps` on the live feed files and review any `[GRADUATION_ALERT]`, `[PRICE_DRIFT_ALERT]`, or `[NEW_SIGHTING_ALERT]` output. Log any actionable alerts as new entries in the BACKLOG section below.
+
+### Sprint 6 Validation
+
+- `[IDE/DEV]` Run `make test` — all tests green (≥111 tests expected after Sprint 6 additions).
+- `[IDE/DEV]` Confirm `_apply_architecture_penalty()` is wired: `make decide FIXTURE=tests/fixtures/stage2/ebay_facts_grounded.json` shows a non-zero penalty for a Turing GPU fixture.
+- `[HUMAN]` `make scrape-and-live` runs to completion on ≥3 eBay AU listings without unhandled crash.
+- `[HUMAN]` `data/purchase_matrix.md` renders with ≥1 SHORTLIST candidate and a plausible ranking.
+- `[HUMAN]` `make scan-gaps` produces output (even if zero alerts).
 
 ---
 
 ## BACKLOG
 
-- [ ] Wire `architecture_adjustments.turing_vs_ada_same_vram_penalty_pts` into `decide.py` via `_apply_architecture_penalty()` — no-op stub; requires pairwise comparison context that doesn't exist in single-listing scoring path (see docstring at `decide.py:315`)
-- [ ] Playwright-based scraper for live eBay fetching (eBay blocks simple requests)
-- [ ] FB Marketplace: evaluate JSON-LD availability in "Save Page As" vs DevTools intercept
-- [ ] Gumtree: verify `price-amount` selector against a real saved page
-- [ ] Wire `scrape_benchmark.py` output directly into `make live`
+Items not yet sprint-assigned. Promote to next sprint planning cycle as capacity allows.
+
+- [ ] Wire `architecture_adjustments.turing_vs_ada_same_vram_penalty_pts` pairwise comparison — Sprint 6 resolves this as a single-listing heuristic; revisit true pairwise scoring only if batch comparison context becomes available (e.g. a shortlist-ranking pass over multiple Stage 2 outputs).
+- [ ] FB Marketplace full scraping parity — defer until eBay AU pipeline is stable. Evaluate JSON-LD vs DevTools relay-blob capture on a real listing before committing to an approach.
+- [ ] Gumtree discovery-mode search results — after Sprint 4 verifies the individual listing extractor, evaluate whether Chrome export covers search-results pages or requires a separate parser.
+- [ ] Playwright / Browserbase evaluation — do not introduce without first checking `tool_assessment.md` in the Antigravity brain and adding an explicit plan-level note. Firecrawl is the current live-fetch strategy.
+- [ ] `make benchmark-live` Gumtree URL support — after Sprint 4, test `--live` flag against Gumtree URLs and patch `fetch_live_firecrawl()` if Firecrawl renders Gumtree pages differently from eBay.
+
+---
+
+## User Testing Guide
+
+> Written for a non-developer operator. Use these walkthroughs to validate each sprint's work. Exact commands are provided; expected output is noted. "Pass" and "fail" criteria are explicit.
+
+---
+
+### eBay AU Testing Walkthrough
+
+**What you need before starting:**
+- Project dependencies installed (`uv sync` from the project root)
+- A terminal open in the project root (`/Users/okgoogle13/Projects/laptopfinder`)
+- `.env` file with valid `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `FIRECRAWL_API_KEY`, `PERPLEXITY_API_KEY`
+
+**Step 1 — Export a batch of eBay AU listings using a Chrome extension**
+
+1. Open Chrome and go to `https://www.ebay.com.au/sch/i.html?_nkw=rtx+3080+laptop&_sop=15` (RTX 3080 laptops, newest first).
+2. Open Instant Data Scraper (or Web Scraper / Data Miner) from the Chrome extensions toolbar.
+3. Click "Auto-detect data". Verify the highlighted fields include listing title, price, and URL. If not, manually select those three elements.
+4. Click "Export to CSV" or "Export to JSON". Save the file as `data/fixtures/ebay_export_raw.json` (or `.csv`) inside the project folder.
+
+**Step 2 — Convert the export to pipeline-ready JSONL**
+
+```bash
+.venv/bin/python scripts/ebay_export_to_jsonl.py \
+  --in data/fixtures/ebay_export_raw.json \
+  --out data/fixtures/ebay_export.jsonl
+```
+
+Expected terminal output:
+```
+[CONVERT] 12 records read
+[CONVERT] 12 records written → data/fixtures/ebay_export.jsonl
+```
+
+**Pass:** JSONL file exists and `wc -l data/fixtures/ebay_export.jsonl` shows ≥3 lines.  
+**Fail:** Any "ERROR" or "0 records" message — check that the input file contains the expected field names.
+
+**Step 3 — Run the live Firecrawl scrape on a short URL list**
+
+Open `data/urls.txt` in a text editor and add 3–5 eBay AU laptop listing URLs (one per line, no blank lines). Then run:
+
+```bash
+make benchmark-live
+```
+
+Expected terminal output:
+```
+[LIVE] https://www.ebay.com.au/itm/... → title: "ASUS ROG Zephyrus RTX 3080 16GB..." price: "$1,850.00"
+[LIVE] ...
+[DONE] 3 records → data/feed_live/benchmark_live.jsonl
+```
+
+**Pass:** `benchmark_live.jsonl` exists; open it and confirm `title` and `price_raw` are non-null in each line.  
+**Fail:** "FIRECRAWL_API_KEY not set" → add the key to your `.env` file. "0 records" → check that URLs in `data/urls.txt` are real active listings.
+
+**Step 4 — Convert to feed text files and run the live pipeline**
+
+```bash
+make benchmark-to-feed
+```
+
+Then, for each listing file created:
+
+```bash
+make live SOURCE=data/feed_live/listing-001.txt
+```
+
+Expected terminal output (abbreviated):
+```
+[Stage 1] Discovered 1 candidate: "ASUS ROG Zephyrus G15 RTX 3080 16GB"
+[Stage 2] Analysis complete. GPU: RTX 3080, VRAM: 16GB, Risk: 1.5
+[Decision] SHORTLIST — llm_index_score: 72
+```
+
+**Pass:** Decision printed without Python traceback; `recommended_action` is SHORTLIST, MONITOR, or SKIP.  
+**Fail:** `ValueError: grounding firewall` → the LLM fabricated a fact not in the listing text; this is expected occasionally and not a bug. `JSONDecodeError` → the LLM returned malformed JSON; retry once, then file as a fixture-level issue.
+
+**Step 5 — Render the purchase matrix**
+
+Manually assemble any SHORTLIST outputs (the JSON printed to terminal) into `data/shortlist_candidates.jsonl` (one JSON object per line). Then:
+
+```bash
+make render-matrix
+```
+
+Open `data/purchase_matrix.md` in any text editor or Markdown viewer.
+
+**Pass:** Table renders with ≥1 row; RTX 3080 16GB ranks above RTX 4090 16GB (better VRAM-to-price ratio).  
+**Fail:** "No candidates found" → `data/shortlist_candidates.jsonl` is empty or malformed. Confirm each line is valid JSON.
+
+**Step 6 — Scan for market gaps**
+
+```bash
+make scan-gaps
+```
+
+**Pass:** Script runs without crash; prints `[GRADUATION_ALERT]`, `[PRICE_DRIFT_ALERT]`, `[NEW_SIGHTING_ALERT]` lines, or "No alerts" if feed files have no relevant sightings.  
+**Fail:** `FileNotFoundError` → no feed files in `data/feed_live/`. Run `make benchmark-to-feed` first.
+
+---
+
+### Gumtree AU Testing Walkthrough
+
+**What you need:** A real Gumtree AU laptop listing saved locally (from Sprint 4). Chrome DevTools access.
+
+**Step 1 — Save a Gumtree listing page**
+
+1. Open a Gumtree AU laptop listing URL in Chrome.
+2. Right-click the price element on the page and choose "Inspect". In DevTools, note the exact CSS class name on the `<span>` or `<strong>` element that contains the price.
+3. Go to File → Save Page As → "Complete" and save to `tests/fixtures/saved_pages/gumtree_laptop_sample.html`.
+
+**Step 2 — Run the extractor against the saved page**
+
+```bash
+.venv/bin/python -m laptopfinder.scrape_benchmark \
+  --html-file tests/fixtures/saved_pages/gumtree_laptop_sample.html \
+  --out /tmp/gumtree_test.jsonl
+```
+
+**Pass:** Terminal prints a line with non-null `title` and `price_raw`. Open `/tmp/gumtree_test.jsonl` and confirm.  
+**Fail:** `price_raw: null` → the `price-amount|listing-price` regex did not match. Note the actual class name from DevTools and report it so `extract_gumtree()` can be patched.
+
+**Step 3 — Run the test suite**
+
+```bash
+.venv/bin/python -m pytest tests/test_scrape_benchmark_gumtree.py -v
+```
+
+**Pass:** All tests green.  
+**Fail:** `AssertionError: price_raw is None` → extractor needs patching. `FileNotFoundError` → the saved-page fixture is missing.
+
+---
+
+### Facebook Marketplace Testing Walkthrough
+
+> FB Marketplace is secondary. The goal here is to confirm what fallback path the extractor uses, not to achieve full parity.
+
+**Step 1 — Save an FB Marketplace listing**
+
+1. Open a Facebook Marketplace laptop listing in Chrome while logged into Facebook.
+2. File → Save Page As → "Complete". Save to `tests/fixtures/saved_pages/fb_laptop_sample.html`.
+
+**Step 2 — Run the extractor**
+
+```bash
+.venv/bin/python -m laptopfinder.scrape_benchmark \
+  --html-file tests/fixtures/saved_pages/fb_laptop_sample.html \
+  --out /tmp/fb_test.jsonl
+```
+
+**Pass:** `full_listing_text` is non-null (even if title is null). Note which fallback path fired.  
+**Fail:** Both `title` and `full_listing_text` are null — the page was too heavily client-rendered at save time. Try: (a) logging into FB first before saving, (b) using DevTools Network tab to intercept the GraphQL/Relay XHR response and saving that JSON directly to a `fb_*.json` file, then running scrape_benchmark on the JSON file.
+
+---
+
+### Common Failure Modes
+
+**`ValueError: grounding firewall`**  
+The Stage 2 LLM stated a fact (GPU name, VRAM size) that does not appear verbatim in the listing text. This is correct behaviour — the firewall is working. Retry the listing once (LLM output is non-deterministic). If it fails repeatedly, the listing text is too sparse; mark the listing as insufficient and skip.
+
+**`JSONDecodeError` from Stage 1 or Stage 2 runner**  
+The LLM returned a response that is not valid JSON. Retry once. If persistent, check whether the prompt was correctly injected (`make inject-config`) and whether the model name in the runner is correct.
+
+**`FIRECRAWL_API_KEY not set`**  
+The `.env` file is missing the key or was not loaded. Confirm `.env` exists at the project root with `FIRECRAWL_API_KEY=fc-...`. Run `make benchmark-live` again.
+
+**`ERROR: scrape produced no listing files`**  
+`make scrape-and-live` uses `scrape_live.py`. If no `listing-*.txt` files appear in `data/feed_live/`, the Firecrawl scrape returned empty responses. Check that URLs in `data/urls.txt` are real live listings (not ended/removed). Check `FIRECRAWL_API_KEY` credits.
+
+**`AssertionError: title is None` in tests**  
+A scraper test fixture is mismatched against the extractor. The saved HTML page uses class names different from the regex in the extractor. Run the extractor manually on the saved HTML, inspect the output, and patch the CSS regex in `scrape_benchmark.py`.
+
+**`KeyError` or `AttributeError` in `decide.py`**  
+A listing's Stage 2 analysis is missing a field the decision engine expects. Save the failing analysis JSON as a fixture in `tests/fixtures/stage2/` and add a regression test that isolates the missing field. Then patch `decide.py` to handle the null case (never infer — return null or 0).
+
+**`make render-matrix` produces "No candidates"**  
+`data/shortlist_candidates.jsonl` is empty or malformed. Each line must be a single valid JSON object (the full decision dict printed to terminal). Confirm the file has no trailing commas or blank lines.
+
+**GPU appearing in `[NEW_SIGHTING_ALERT]` from `make scan-gaps`**  
+A GPU was seen in feed files but is absent from both `target_gpus` and `watch_list` in `config/static_reference_layer.json`. Evaluate the hardware against the current market topology and add it to the appropriate list in the SRL if warranted. Run `make test` after any SRL change.
