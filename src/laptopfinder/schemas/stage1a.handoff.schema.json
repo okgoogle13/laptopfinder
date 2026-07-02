@@ -15,7 +15,7 @@
     "discovery_flags"
   ],
   "properties": {
-    "source_platform": {"type": "string"},
+    "source_platform": {"enum": ["EBAY_AU", "FB_MARKETPLACE", "GUMTREE", "UNKNOWN"]},
     "listing_title": {"type": "string"},
     "listing_price_aud": {"type": ["number", "null"]},
     "listing_url_or_identifier": {"type": ["string", "null"]},

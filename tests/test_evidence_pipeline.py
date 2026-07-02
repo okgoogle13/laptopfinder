@@ -9,10 +9,13 @@ from pathlib import Path
 from unittest.mock import patch
 import json
 
+import pytest
+
 from laptopfinder.runners.evidence_pipeline import (
     generate_gemini_prompt,
     generate_claude_handoff,
     GEMINI_EVIDENCE_SCHEMA,
+    validate_evidence_record,
 )
 
 
@@ -113,3 +116,76 @@ def test_gemini_schema_keys_match_canonical():
     ) == set(
         canonical["properties"]["observed_telemetry"]["properties"].keys()
     ), "observed_telemetry property keys drifted between inline schema and JSON file"
+
+    assert GEMINI_EVIDENCE_SCHEMA["required"] == canonical["required"]
+    assert (
+        GEMINI_EVIDENCE_SCHEMA["properties"]["source_kind"]["enum"]
+        == canonical["properties"]["source_kind"]["enum"]
+    )
+    assert (
+        GEMINI_EVIDENCE_SCHEMA["properties"]["data_confidence"]["enum"]
+        == canonical["properties"]["data_confidence"]["enum"]
+    )
+    assert (
+        GEMINI_EVIDENCE_SCHEMA["properties"]["observed_telemetry"]["required"]
+        == canonical["properties"]["observed_telemetry"]["required"]
+    )
+    assert (
+        GEMINI_EVIDENCE_SCHEMA["properties"]["observed_telemetry"]["properties"][
+            "memory_pressure_state"
+        ]["enum"]
+        == canonical["properties"]["observed_telemetry"]["properties"]["memory_pressure_state"]["enum"]
+    )
+
+
+def test_validate_evidence_record_accepts_canonical_shape():
+    record = {
+        "event_timestamp": None,
+        "source_file": "capture.log",
+        "scenario_label": "idle_browser",
+        "source_kind": "terminal_log",
+        "collection_notes": None,
+        "data_confidence": "medium",
+        "observed_telemetry": {
+            "memory_pressure_state": "Normal",
+            "physical_memory_gb": 32,
+            "app_memory_gb": 8.5,
+            "wired_memory_gb": 4.0,
+            "compressed_memory_gb": 1.0,
+            "cached_files_gb": 3.0,
+            "swap_used_gb": 0.0,
+            "cpu_telemetry": None,
+            "gpu_telemetry": None,
+            "inference_telemetry": None,
+        },
+        "active_processes": ["Safari", "Claude"],
+        "uncertainty_flags": ["ocr_noise"],
+    }
+
+    assert validate_evidence_record(record) == record
+
+
+def test_validate_evidence_record_rejects_invalid_record():
+    record = {
+        "event_timestamp": None,
+        "source_file": "capture.log",
+        "scenario_label": "idle_browser",
+        "source_kind": "terminal_log",
+        "collection_notes": None,
+        "data_confidence": "medium",
+        "observed_telemetry": {
+            "memory_pressure_state": "Normal",
+            "physical_memory_gb": 32,
+            "app_memory_gb": 8.5,
+            "wired_memory_gb": 4.0,
+            "compressed_memory_gb": 1.0,
+            "cached_files_gb": 3.0,
+            "swap_used_gb": 0.0,
+            "unexpected_field": 123,
+        },
+        "active_processes": ["Safari", "Claude"],
+        "uncertainty_flags": ["ocr_noise"],
+    }
+
+    with pytest.raises(ValueError):
+        validate_evidence_record(record)

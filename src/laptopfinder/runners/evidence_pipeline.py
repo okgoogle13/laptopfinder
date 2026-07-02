@@ -5,6 +5,7 @@ import shutil
 from pathlib import Path
 
 from dotenv import load_dotenv
+from laptopfinder.core import validate
 
 load_dotenv()
 
@@ -112,6 +113,11 @@ GEMINI_EVIDENCE_SCHEMA = {
         "uncertainty_flags"
     ]
 }
+
+
+def validate_evidence_record(record: dict) -> dict:
+    validate(record, "evidence_normalized.schema.json")
+    return record
 
 def build_telemetry_prompt(
     file_path: Path,
@@ -297,7 +303,9 @@ def main() -> None:
         with DB_FILE.open("a", encoding="utf-8") as db:
             for file in parsed_files:
                 try:
-                    record = json.loads(file.read_text(encoding="utf-8"))
+                    record = validate_evidence_record(
+                        json.loads(file.read_text(encoding="utf-8"))
+                    )
                     db.write(json.dumps(record) + "\n")
                     records_total += 1
                     if not args.dry_run:
