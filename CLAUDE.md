@@ -127,6 +127,7 @@ Synthesised alternative silicon findings (AU market, June 2026). Source for agen
 - **Karpathy-style Python.** Flat structures, no deep OOP, no custom exceptions. Schema constraints replace Python validation.
 - **`score_text_llm_candidate()` is taxonomy-driven.** It operates on `data/hardware_taxonomy.json` entries, not Stage 2 analysis dicts. Per-paradigm scores come from `config/scoring_weights.yaml`, not Python literals.
 - **UMA ceiling removed.** `apple_silicon.score_ceiling` is `null` in the SRL. Do not re-add a ceiling — UMA platforms compete at full 0–100 `llm_index_score` scale.
+- **`_apply_architecture_penalty()` is a per-listing Turing heuristic, not a pairwise comparator.** `decide()` scores one listing at a time, so it cannot resolve a true Turing-vs-Ada same-VRAM comparison. Instead it applies the SRL's `architecture_adjustments.turing_vs_ada_same_vram_penalty_pts` whenever a listing's GPU resolves to the `Turing` generation (via the same `gpu_generation_by_name` lookup `_gpu_generation_points()` uses, exposed as the shared helper `_resolve_gpu_generation()`) and a VRAM tier is present — regardless of whether an Ada-generation comparator exists in the same batch. True pairwise resolution is a BACKLOG item for a future batch/shortlist-ranking pass.
 
 ## Tooling context
 

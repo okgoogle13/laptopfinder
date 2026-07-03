@@ -92,7 +92,7 @@ class TestIsTarget:
 
 class TestIsWatch:
     def test_watch_gpu(self):
-        assert _is_watch("RTX 5090", REF) is True
+        assert _is_watch("GB200", REF) is True
 
     def test_non_watch_gpu(self):
         assert _is_watch("RTX 4090", REF) is False
@@ -141,7 +141,7 @@ class TestDecide:
             "metadata": {
                 "source_platform": "EBAY_AU",
                 "listing_url_or_identifier": None,
-                "listing_title": "RTX 5090 GPU",
+                "listing_title": "GB200 GPU",
                 "listing_price_aud": 3000.0,
                 "seller_name_or_identifier": None,
                 "seller_rating_or_profile_signal": None,
@@ -150,7 +150,7 @@ class TestDecide:
                 "exact_model_name": None,
                 "component_category": "GPU",
                 "cpu": None,
-                "gpu": "RTX 5090",
+                "gpu": "GB200",
                 "ram": None,
                 "storage": None,
                 "vram_capacity": "32GB",
@@ -729,14 +729,21 @@ class TestUmaScoreCeiling:
 
 
 class TestApplyArchitecturePenalty:
-    def test_turing_gpu_returns_penalty(self):
-        assert _apply_architecture_penalty("Quadro RTX 5000", "mid", REF) == 0
+    def test_turing_gpu_receives_architecture_penalty(self):
+        expected = REF["architecture_adjustments"]["turing_vs_ada_same_vram_penalty_pts"]
+        assert _apply_architecture_penalty("Quadro RTX 5000", "mid", REF) == expected
 
-    def test_ada_gpu_returns_zero(self):
+    def test_ada_gpu_receives_no_architecture_penalty(self):
         assert _apply_architecture_penalty("RTX 4090", "mid", REF) == 0
 
     def test_none_gpu_returns_zero(self):
         assert _apply_architecture_penalty(None, "mid", REF) == 0
+
+    def test_none_tier_returns_zero_even_for_turing_gpu(self):
+        assert _apply_architecture_penalty("Quadro RTX 5000", None, REF) == 0
+
+    def test_unrecognized_gpu_returns_zero(self):
+        assert _apply_architecture_penalty("Some Unknown GPU 9999", "mid", REF) == 0
 
 
 class TestSrlStorageFloors:
@@ -745,6 +752,13 @@ class TestSrlStorageFloors:
 
     def test_storage_floors_recommended_gb(self):
         assert load_ref()["storage_floors"]["recommended_gb"] == 1024
+
+
+class TestArchitecturePenaltyIntegration:
+    def test_turing_gpu_scores_lower_than_equivalent_ada_gpu(self):
+        ada = load_fixture("ebay_rtx4090_laptop.json")["analysis_output"]
+        turing = load_fixture("ebay_quadro_rtx5000_turing.json")["analysis_output"]
+        assert decide(turing, REF)["llm_index_score"] < decide(ada, REF)["llm_index_score"]
 
 
 class TestApplyEgpuInterconnectPenalty:

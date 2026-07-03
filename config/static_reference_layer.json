@@ -379,7 +379,7 @@
   },
   "architecture_adjustments": {
     "turing_vs_ada_same_vram_penalty_pts": -2,
-    "applies_when": "vram_tier_equal AND generation_A == 'Turing' AND generation_B == 'Ada Lovelace'",
-    "_comment": "Reserved for future pairwise comparison logic. Penalty is additive to the existing gen-points gap (Turing=5 vs Ada=20)."
+    "applies_when": "generation == 'Turing' AND vram_tier is known (single-listing heuristic — decide() scores one listing at a time, so a true pairwise generation_A/generation_B comparison against a same-tier Ada listing is not resolvable here)",
+    "_comment": "Applied per-listing whenever the GPU resolves to Turing generation with a known VRAM tier, regardless of whether an Ada comparator is present in the same batch. Additive to the existing gen-points gap (Turing=5 vs Ada=20). True pairwise resolution is a BACKLOG item for a future batch/shortlist-ranking pass."
   }
 }

@@ -22,6 +22,7 @@ MEMORY GATE THRESHOLDS (non-negotiable memory boundaries for local LLM inference
 - RTX 4090
 - RTX 5070
 - RTX 5080
+- RTX 5090
 - RTX A5000
 - RTX A3000
 - RTX 5000 Ada

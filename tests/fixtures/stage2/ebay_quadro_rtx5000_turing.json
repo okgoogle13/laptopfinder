@@ -1,0 +1,62 @@
+{
+  "handoff_packet": {
+    "source_platform": "EBAY_AU",
+    "listing_title": "Dell Precision 7760 Workstation – Quadro RTX 5000",
+    "listing_price_aud": 4200.0,
+    "listing_url_or_identifier": "saved_pages/ebay_quadro_rtx5000.html",
+    "inferred_component_category": "SYSTEM",
+    "inferred_model_hint": "Precision 7760",
+    "inferred_gpu_hint": "Quadro RTX 5000",
+    "inferred_vram_hint": "16 GB",
+    "inferred_condition_hint": "Pristine",
+    "discovery_flags": []
+  },
+  "full_listing_text": "Dell Precision 7760 Workstation – Quadro RTX 5000 Brand: Dell\n        Model: Precision 7760\n        GPU: NVIDIA Quadro RTX 5000 Laptop GPU\n        VRAM: 16 GB GDDR6 Selling my pristine condition Dell Precision 7760 mobile workstation. It has the NVIDIA Quadro RTX 5000 card, 32GB of RAM, and a 2TB SSD. Works perfectly. No scratches, practically brand new. Pickup only from Preston VIC, cash on pickup.",
+  "_meta": {
+    "seller_name_or_identifier": "established_computer_reseller_au",
+    "seller_rating_or_profile_signal": "99.5% Positive Feedback",
+    "scrape_source": "benchmark_scraper"
+  },
+  "analysis_output": {
+    "metadata": {
+      "source_platform": "EBAY_AU",
+      "listing_url_or_identifier": "saved_pages/ebay_quadro_rtx5000.html",
+      "listing_title": "Dell Precision 7760 Workstation – Quadro RTX 5000",
+      "listing_price_aud": 4200.0,
+      "seller_name_or_identifier": "established_computer_reseller_au",
+      "seller_rating_or_profile_signal": "99.5% Positive Feedback"
+    },
+    "extracted_data": {
+      "exact_model_name": "Precision 7760",
+      "component_category": "SYSTEM",
+      "cpu": null,
+      "gpu": "Quadro RTX 5000",
+      "ram": "32GB",
+      "storage": "2TB",
+      "vram_capacity": {
+        "semantic_value": 16.0,
+        "verbatim_quote": "16 GB"
+      },
+      "stated_condition": "pristine condition",
+      "shipping_or_pickup_signal": "PICKUP_ONLY",
+      "missing_information": {
+        "gpu": false,
+        "vram": false,
+        "cpu": true,
+        "ram": false,
+        "storage": false,
+        "condition": false
+      },
+      "total_system_ram": null,
+      "egpu_model": null,
+      "touchscreen_digitizer": null
+    },
+    "analysis": {
+      "risk_score": 1.0,
+      "risk_flags": [],
+      "stated_pickup_location": "Preston",
+      "confidence": 0.9,
+      "seller_classification": "ESTABLISHED_RESELLER"
+    }
+  }
+}

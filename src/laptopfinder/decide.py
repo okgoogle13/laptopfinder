@@ -222,6 +222,23 @@ def _capacity_points(tier: str | None, ref: dict) -> int:
     return cfg.get(tier, 0) if tier else 0
 
 
+def _resolve_gpu_generation(gpu: str | None, ref: dict) -> str | None:
+    """Return the matched GPU's architecture generation name (e.g. 'Turing', 'Ada Lovelace'),
+    or None if gpu is absent or unrecognized. Case-insensitive substring match against
+    llm_index_score.gpu_generation_by_name."""
+    if not gpu:
+        return None
+    cfg = ref.get("llm_index_score", {})
+    gpu_lower = gpu.lower()
+    gen_by_name_lower = ref.get("_gen_by_name_lower") or {
+        k.lower(): v for k, v in cfg.get("gpu_generation_by_name", {}).items()
+    }
+    for name_lower, generation in gen_by_name_lower.items():
+        if name_lower in gpu_lower:
+            return generation
+    return None
+
+
 def _gpu_generation_points(gpu: str | None, is_uma: bool, ref: dict) -> int:
     """Points for GPU architecture generation. Max 25.
 
@@ -233,16 +250,10 @@ def _gpu_generation_points(gpu: str | None, is_uma: bool, ref: dict) -> int:
     points_by_gen = cfg.get("gpu_generation_points", {})
     if is_uma:
         return points_by_gen.get("Apple Silicon", 0)
-    if not gpu:
+    generation = _resolve_gpu_generation(gpu, ref)
+    if generation is None:
         return 0
-    gpu_lower = gpu.lower()
-    gen_by_name_lower = ref.get("_gen_by_name_lower") or {
-        k.lower(): v for k, v in cfg.get("gpu_generation_by_name", {}).items()
-    }
-    for name_lower, generation in gen_by_name_lower.items():
-        if name_lower in gpu_lower:
-            return points_by_gen.get(generation, 0)
-    return 0
+    return points_by_gen.get(generation, 0)
 
 
 def _log_undiscovered_hardware(
@@ -313,13 +324,19 @@ def _deduction_points(analysis: dict, ref: dict) -> int:
 
 
 def _apply_architecture_penalty(gpu: str | None, tier: str | None, ref: dict) -> int:
-    """Return the SRL architecture adjustment when the comparison context is available.
-
-    The current `decide()` path scores one listing at a time, so the Turing-vs-Ada
-    same-VRAM comparison cannot be resolved safely here. Keep this as a no-op until
-    pairwise comparison context exists.
+    """Single-listing heuristic — cannot resolve Turing vs Ada for a same-VRAM pairwise
+    comparison in the per-listing scoring path (decide() scores one listing at a time).
+    Turing is identified via the same llm_index_score.gpu_generation_by_name lookup
+    _gpu_generation_points uses (not config/silicon_profiles.yaml — decide.py does not
+    load that file at runtime; see CLAUDE.md Architecture: Silicon Profiles). If the GPU
+    resolves to Turing and a VRAM tier is present, apply the SRL's
+    turing_vs_ada_same_vram_penalty_pts. Otherwise 0.
     """
-    return 0
+    if tier is None:
+        return 0
+    if _resolve_gpu_generation(gpu, ref) != "Turing":
+        return 0
+    return ref.get("architecture_adjustments", {}).get("turing_vs_ada_same_vram_penalty_pts", 0)
 
 
 def _apply_egpu_interconnect_penalty(analysis: dict, ref: dict) -> int:

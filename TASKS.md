@@ -227,21 +227,23 @@
 
 **Goal:** Resolve the architecture penalty stub as a per-listing heuristic, run a full end-to-end live pass on eBay AU, capture any runtime failures as fixtures, and produce a plausible purchase matrix.
 
+**Status (2026-07-03):** Architecture Penalty section complete (`[IDE/DEV]` items). End-to-End Live Validation remains open — `[HUMAN]` items require real eBay AU URLs and valid API keys not available in the automated session that implemented the penalty.
+
 ### Architecture Penalty — Single-Listing Heuristic
 
-- `[IDE/DEV]` Implement `_apply_architecture_penalty(gpu: str | None, tier: str | None, ref: dict) -> int` in `decide.py`:
-  - Read `architecture_adjustments.turing_vs_ada_same_vram_penalty_pts` from SRL.
-  - Read Turing GPU names from `config/silicon_profiles.yaml` key `discrete_cuda.architecture_tiers.turing.gpus` (or equivalent key structure in the YAML).
-  - If `gpu` matches a Turing-tier name (case-insensitive substring match against the list), return the penalty value (negative int).
-  - Otherwise return 0.
-  - Add a comment: "Single-listing heuristic — cannot resolve Turing vs Ada for same-VRAM pairwise comparison in per-listing scoring path. Turing tier identified by GPU name lookup against silicon_profiles.yaml."
-- `[IDE/DEV]` Wire the penalty into `calculate_llm_index_score()`: subtract `_apply_architecture_penalty(gpu, tier, ref)` from the raw score before clamping.
-- `[IDE/DEV]` Add three focused tests in `tests/test_decide.py`:
-  - `test_turing_gpu_receives_architecture_penalty`: pass a fixture with a Turing GPU (e.g. `"Quadro RTX 5000"`); assert `llm_index_score` is lower than an otherwise-identical Ada GPU fixture.
-  - `test_ada_gpu_receives_no_architecture_penalty`: pass a fixture with `"RTX 4090"`; assert penalty contribution is 0.
-  - `test_uma_platform_receives_no_architecture_penalty`: pass a UMA fixture; assert penalty contribution is 0.
-- `[IDE/DEV]` Run `make test` — all tests green.
-- `[IDE/DEV]` Update CLAUDE.md invariants to note `_apply_architecture_penalty()` is now a per-listing Turing heuristic, not a pairwise comparator.
+- `[x]` `[IDE/DEV]` Implement `_apply_architecture_penalty(gpu: str | None, tier: str | None, ref: dict) -> int` in `decide.py`:
+  - Reads `architecture_adjustments.turing_vs_ada_same_vram_penalty_pts` from SRL.
+  - **Correction from the original spec above:** Turing is *not* read from `config/silicon_profiles.yaml` — that key path (`discrete_cuda.architecture_tiers.turing.gpus`) does not exist (the real structure is `architecture_tiers.turing_sm75`/`ada_sm89` with capability flags only, no GPU name list), and CLAUDE.md documents that `silicon_profiles.yaml` is not loaded at runtime by `decide.py`. Instead, Turing generation is resolved via a new shared helper `_resolve_gpu_generation(gpu, ref)` (extracted from the existing `_gpu_generation_points()` substring-match loop) against the SRL's `llm_index_score.gpu_generation_by_name`.
+  - If `_resolve_gpu_generation(gpu, ref) == "Turing"` and `tier` is not `None`, returns the penalty value (negative int). Otherwise returns 0.
+  - SRL's `architecture_adjustments.applies_when`/`_comment` text updated to describe this per-listing heuristic (no numeric threshold/weight changes).
+- `[x]` `[IDE/DEV]` Wire the penalty into `calculate_llm_index_score()` — already wired via the pre-existing `raw += _apply_architecture_penalty(gpu, tier, ref)` call site; no call-site change needed.
+- `[x]` `[IDE/DEV]` Tests in `tests/test_decide.py`:
+  - `test_turing_gpu_receives_architecture_penalty`: asserts the penalty equals `REF["architecture_adjustments"]["turing_vs_ada_same_vram_penalty_pts"]` for `"Quadro RTX 5000"`.
+  - `test_ada_gpu_receives_no_architecture_penalty`: asserts 0 for `"RTX 4090"`.
+  - `TestArchitecturePenaltyIntegration::test_turing_gpu_scores_lower_than_equivalent_ada_gpu`: asserts `llm_index_score` is lower for a new Turing fixture (`tests/fixtures/stage2/ebay_quadro_rtx5000_turing.json`) than an otherwise-identical Ada fixture (`ebay_rtx4090_laptop.json`).
+  - Also added: `test_none_gpu_returns_zero`, `test_none_tier_returns_zero_even_for_turing_gpu`, `test_unrecognized_gpu_returns_zero`. (No dedicated `test_uma_platform_receives_no_architecture_penalty` — UMA listings pass through `_gpu_generation_points`'s separate `is_uma` branch and never reach `_apply_architecture_penalty` with a Turing-resolving `gpu` string, so this is implicitly covered rather than needing its own fixture.)
+- `[x]` `[IDE/DEV]` `make test` — 183 tests green (see Sprint 6 Validation below for the up-to-date count).
+- `[x]` `[IDE/DEV]` CLAUDE.md invariants updated to note `_apply_architecture_penalty()` is a per-listing Turing heuristic, not a pairwise comparator.
 
 ### End-to-End eBay AU Live Validation
 
@@ -257,11 +259,11 @@
 
 ### Sprint 6 Validation
 
-- `[IDE/DEV]` Run `make test` — all tests green (≥111 tests expected after Sprint 6 additions).
-- `[IDE/DEV]` Confirm `_apply_architecture_penalty()` is wired: `make decide FIXTURE=tests/fixtures/stage2/ebay_facts_grounded.json` shows a non-zero penalty for a Turing GPU fixture.
-- `[HUMAN]` `make scrape-and-live` runs to completion on ≥3 eBay AU listings without unhandled crash.
-- `[HUMAN]` `data/purchase_matrix.md` renders with ≥1 SHORTLIST candidate and a plausible ranking.
-- `[HUMAN]` `make scan-gaps` produces output (even if zero alerts).
+- `[x]` `[IDE/DEV]` Run `make test` — 183 tests green (up from 180 pre-Sprint-6; +3 from the rewritten/expanded `TestApplyArchitecturePenalty` class and the new `TestArchitecturePenaltyIntegration` test).
+- `[x]` `[IDE/DEV]` Confirm `_apply_architecture_penalty()` is wired: `make decide FIXTURE=tests/fixtures/stage2/ebay_quadro_rtx5000_turing.json` shows a non-zero penalty for the Turing GPU fixture (**correction:** `ebay_facts_grounded.json`, named in the original spec above, is not a Turing fixture — the new `ebay_quadro_rtx5000_turing.json` fixture is the correct target for this check).
+- `[ ]` `[HUMAN]` `make scrape-and-live` runs to completion on ≥3 eBay AU listings without unhandled crash.
+- `[ ]` `[HUMAN]` `data/purchase_matrix.md` renders with ≥1 SHORTLIST candidate and a plausible ranking.
+- `[ ]` `[HUMAN]` `make scan-gaps` produces output (even if zero alerts).
 
 ---
 

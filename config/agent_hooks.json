@@ -39,6 +39,15 @@
             "command": "INPUT=$(cat); cmd=$(echo \"$INPUT\" | python3 -c \"import sys,json; print(json.load(sys.stdin).get('command',''))\"); if echo \"$cmd\" | grep -qE 'git (add|commit|push|diff)'; then echo 'Blocked: git operations are forbidden for Claude in this project. Delegate to @copilot.'; exit 1; fi"
           }
         ]
+      },
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/deep_plan_peer_review.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -52,10 +61,6 @@
           {
             "type": "command",
             "command": "INPUT=$(cat); fp=$(echo \"$INPUT\" | python3 -c \"import sys,json; print(json.load(sys.stdin).get('file_path',''))\"); if echo \"$fp\" | grep -q 'static_reference_layer.json'; then echo 'SRL modified — running test suite...'; make test 2>&1 | tail -20; fi"
-          },
-          {
-            "type": "command",
-            "command": "INPUT=$(cat); fp=$(echo \"$INPUT\" | python3 -c \"import sys,json; print(json.load(sys.stdin).get('file_path',''))\"); if echo \"$fp\" | grep -q 'implementation_plan.md'; then echo '\\n\\n>>> 🛑 PAUSE FOR PEER REVIEW: Do NOT execute this plan yet. Instruct the user to run \"review plan\" in their Codex terminal, then wait for them to paste the brief PASS/FAIL result back here. <<<\\n'; exit 1; fi"
           }
         ]
       }
