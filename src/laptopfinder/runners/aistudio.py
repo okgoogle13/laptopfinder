@@ -49,7 +49,7 @@ def run_stage2_analysis(handoff_packet: dict, full_listing_text: str, model: str
         model=model,
         contents=[
             types.Content(role="user", parts=[
-                types.Part.from_text(f"{system_prompt}\n\n{user_prompt}")
+                types.Part.from_text(text=f"{system_prompt}\n\n{user_prompt}")
             ])
         ],
         config=types.GenerateContentConfig(

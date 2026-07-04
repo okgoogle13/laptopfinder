@@ -1,19 +1,20 @@
 """eBay API Pipeline Runner.
 
 Fetches structured listings directly from the eBay Browse API, maps them to the
-Stage 2 analysis dict format, applies a lightweight LLM fallback for missing GPU/VRAM facts,
-and runs the decision engine.
+Stage 2 analysis dict format, and runs the decision engine.
 """
 import os
 import sys
 import json
+import re
+import urllib.request
+import urllib.parse
+import urllib.error
 from pathlib import Path
-import requests
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
 
-from laptopfinder.decide import decide
+from laptopfinder.core import validate
+from laptopfinder.decide import decide, load_ref
 
 load_dotenv()
 
@@ -35,22 +36,35 @@ def search_ebay(token: str, query: str = "(RTX 4090, RTX 4080, M3 Max, M3 Ultra,
     params = {
         "q": query,
         "filter": "price:[1000..5500],priceCurrency:AUD,itemLocationCountry:AU",
-        "category_ids": "175672", # Laptops & Netbooks
+        "category_ids": "175672",  # Laptops & Netbooks
         "limit": str(limit),
     }
     
-    response = requests.get(url, headers=headers, params=params)
-    if response.status_code != 200:
-        print(f"Error searching eBay: {response.status_code} {response.text}", file=sys.stderr)
+    query_string = urllib.parse.urlencode(params)
+    full_url = f"{url}?{query_string}"
+    req = urllib.request.Request(full_url, headers=headers, method="GET")
+    try:
+        with urllib.request.urlopen(req) as resp:
+            if resp.status != 200:
+                print(f"Error searching eBay: {resp.status}", file=sys.stderr)
+                return []
+            data = json.loads(resp.read().decode("utf-8"))
+            return data.get("itemSummaries", [])
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace") if hasattr(e, "read") else str(e)
+        print(f"Error searching eBay: {e.code} {err_body}", file=sys.stderr)
         return []
-    
-    return response.json().get("itemSummaries", [])
+    except Exception as e:
+        print(f"Error searching eBay: {e}", file=sys.stderr)
+        return []
 
 def compute_risk_score(item: dict) -> float:
     """Deterministic risk score replacing LLM heuristic."""
     score = 0.0
     seller = item.get("seller", {})
-    if float(seller.get("feedbackPercentage", 100)) < 97.0:
+    fb_pct_raw = seller.get("feedbackPercentage")
+    fb_pct = float(fb_pct_raw) if fb_pct_raw is not None else 100.0
+    if fb_pct < 97.0:
         score += 1.5
     
     # Check conditions
@@ -68,34 +82,44 @@ def compute_risk_score(item: dict) -> float:
 
 def build_analysis_dict(item: dict) -> dict:
     # 1. Deterministic Extraction from itemSpecifics
-    aspects = {a["name"]: a["values"][0] for a in item.get("localizedAspects", []) if "values" in a}
+    aspects = {}
+    for a in item.get("localizedAspects", []):
+        name = a.get("name")
+        if not name:
+            continue
+        if "values" in a and a["values"]:
+            aspects[name] = a["values"][0]
+        elif "value" in a and a["value"] is not None:
+            aspects[name] = a["value"]
     
     title = item.get("title", "")
-    price_aud = float(item.get("price", {}).get("value", 0.0))
+    price_val = item.get("price", {}).get("value")
+    price_aud = float(price_val) if price_val is not None else None
     url = item.get("itemWebUrl", "")
-    ships_from_overseas = item.get("itemLocation", {}).get("country") != "AU"
     seller_name = item.get("seller", {}).get("username")
     seller_fb_score = item.get("seller", {}).get("feedbackScore", 0)
     seller_fb_perc = item.get("seller", {}).get("feedbackPercentage", 100)
     
     # 2. Field Mapping
     gpu_str = aspects.get("GPU")
-    if "4090" in title and not gpu_str: gpu_str = "RTX 4090"
-    elif "4080" in title and not gpu_str: gpu_str = "RTX 4080"
+    if "4090" in title and not gpu_str:
+        gpu_str = "RTX 4090"
+    elif "4080" in title and not gpu_str:
+        gpu_str = "RTX 4080"
         
-    vram_raw = aspects.get("GPU Memory Size") or aspects.get("Maximum Resolution")
+    vram_raw = aspects.get("GPU Memory Size") or aspects.get("Video Memory")
     vram_obj = None
     if vram_raw:
-        import re
-        m = re.search(r'(\d+)', vram_raw)
+        m = re.search(r"(\d+)", vram_raw)
         if m:
             vram_obj = {
                 "semantic_value": float(m.group(1)),
-                "verbatim_quote": vram_raw
+                "verbatim_quote": vram_raw,
             }
 
     cpu_str = aspects.get("Processor")
     ram_str = aspects.get("RAM Size")
+    storage_val = aspects.get("SSD Capacity") or aspects.get("Hard Drive Capacity")
 
     risk_score = compute_risk_score(item)
     
@@ -121,7 +145,7 @@ def build_analysis_dict(item: dict) -> dict:
             "cpu": cpu_str,
             "gpu": gpu_str,
             "ram": ram_str,
-            "storage": aspects.get("SSD Capacity") or aspects.get("Hard Drive Capacity"),
+            "storage": storage_val,
             "vram_capacity": vram_obj,
             "stated_condition": item.get("condition", ""),
             "shipping_or_pickup_signal": "UNKNOWN",
@@ -130,8 +154,8 @@ def build_analysis_dict(item: dict) -> dict:
                 "vram": not bool(vram_obj),
                 "cpu": not bool(cpu_str),
                 "ram": not bool(ram_str),
-                "storage": False,
-                "condition": not bool(item.get("condition"))
+                "storage": not bool(storage_val),
+                "condition": not bool(item.get("condition")),
             },
             "total_system_ram": ram_str,
             "egpu_model": None,
@@ -143,7 +167,7 @@ def build_analysis_dict(item: dict) -> dict:
             "stated_pickup_location": None,
             "confidence": 1.0,
             "seller_classification": seller_classification,
-        }
+        },
     }
     return analysis
 
@@ -162,13 +186,27 @@ def main():
         
     print(f"Found {len(items)} items. Running decision engine...\n")
     
+    ref = load_ref()
+    exclusion_pattern = ref.get("data_integrity", {}).get("exclusion_regex")
+    
     shortlist = []
     for i, item in enumerate(items, 1):
-        print(f"[{i}/{len(items)}] Processing: {item.get('title')[:50]}...")
+        title = item.get("title", "")
+        print(f"[{i}/{len(items)}] Processing: {title[:50]}...")
         analysis_dict = build_analysis_dict(item)
         
-        # Load the default static reference layer (ref=None means decide loads it automatically)
-        decision = decide(analysis_dict)
+        # Enforce Stage 2 invariants: schema validation & data integrity (parts-only exclusion)
+        try:
+            validate(analysis_dict, "stage2.analysis.schema.json")
+        except ValueError as e:
+            print(f"     [FIREWALL REJECTED - SCHEMA]: {e}")
+            continue
+
+        if exclusion_pattern and re.search(exclusion_pattern, title):
+            print("     [FIREWALL REJECTED - DATA INTEGRITY]: Parts-only / salvaged listing detected in title")
+            continue
+            
+        decision = decide(analysis_dict, ref=ref)
         
         if decision["recommended_action"] == "SHORTLIST":
             shortlist.append((decision["llm_index_score"], item, decision, analysis_dict))

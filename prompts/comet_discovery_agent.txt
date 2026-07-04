@@ -36,7 +36,7 @@ Target Hardware & Keywords:
 <!-- END_INJECT:UMA_MIN_RAM_GB -->
 
 AU Marketplace Search Heuristics (eBay AU primary):
-Use the Boolean strings defined in prompts/search_queries.txt as discovery seeds when scanning or querying marketplace text. Verify VRAM vs system RAM manually on any hit — marketplace algorithms conflate "16GB RAM" (system) with "16GB VRAM". Search ordering should bias toward portable chassis, mobile workstation, creator laptop, and notebook phrasing before considering desktop-adjacent comparators.
+Use the query strings defined in prompts/search_queries.txt as discovery seeds when scanning or querying marketplace text. Verify VRAM vs system RAM manually on any hit — marketplace algorithms conflate "16GB RAM" (system) with "16GB VRAM". Search ordering should bias toward portable chassis, mobile workstation, creator laptop, and notebook phrasing before considering desktop-adjacent comparators.
 
 
 General Constraints:

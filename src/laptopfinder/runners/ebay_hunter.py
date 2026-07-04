@@ -388,7 +388,7 @@ def triage_corpus(client: genai.Client, model: str, corpus: list[dict]) -> dict[
         for r in corpus
     ]
     parts = [types.Part.from_text(
-        f"{TRIAGE_INSTRUCTION}\n\nLISTINGS:\n{json.dumps(slim, ensure_ascii=False)}"
+        text=f"{TRIAGE_INSTRUCTION}\n\nLISTINGS:\n{json.dumps(slim, ensure_ascii=False)}"
     )]
     try:
         result = _gemini_json(client, model, parts)
@@ -488,7 +488,7 @@ def recover_vram_from_images(client: genai.Client, model: str, detail: dict) -> 
     if not urls:
         return None
 
-    parts: list = [types.Part.from_text(VISION_INSTRUCTION)]
+    parts: list = [types.Part.from_text(text=VISION_INSTRUCTION)]
     fetched = 0
     for url in urls:
         got = _fetch_image_bytes(url)
@@ -546,7 +546,7 @@ Judge risk_score from seller signals, completeness, and any red flags."""
 
 
 def enrich_listing(client: genai.Client, model: str, detail: dict, listing_text: str) -> dict:
-    parts = [types.Part.from_text(f"{ENRICH_INSTRUCTION}\n\nFULL LISTING TEXT:\n{listing_text}")]
+    parts = [types.Part.from_text(text=f"{ENRICH_INSTRUCTION}\n\nFULL LISTING TEXT:\n{listing_text}")]
     return _gemini_json(client, model, parts)
 
 
@@ -637,7 +637,8 @@ def enrich_and_decide(
         log(f"{item_id}: firewall rejected — {exc}")
         return None
 
-    decision = decide(analysis, ref, workload="text_llm")
+    workload = os.environ.get("EBAY_HUNTER_WORKLOAD") or None
+    decision = decide(analysis, ref, workload=workload)
     return {
         "item_id": item_id,
         "item_web_url": analysis["metadata"]["listing_url_or_identifier"],

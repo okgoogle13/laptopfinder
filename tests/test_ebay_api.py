@@ -42,3 +42,31 @@ def test_ebay_api_builds_valid_stage2_schema():
     assert analysis_dict["analysis"]["seller_classification"] == "ESTABLISHED_RESELLER"
     assert analysis_dict["extracted_data"]["missing_information"]["gpu"] is False
     assert analysis_dict["extracted_data"]["missing_information"]["vram"] is False
+    assert analysis_dict["extracted_data"]["missing_information"]["storage"] is False
+
+
+def test_ebay_api_edge_cases():
+    mock_item = {
+        "title": "ASUS Laptop 16GB RAM",
+        "price": {},
+        "itemWebUrl": "https://www.ebay.com.au/itm/000",
+        "itemLocation": {"country": "AU"},
+        "condition": "USED_EXCELLENT",
+        "seller": {
+            "username": "test_user",
+            "feedbackScore": 5,
+            "feedbackPercentage": None,  # Should not raise TypeError
+        },
+        "localizedAspects": [
+            {"name": "Maximum Resolution", "value": "1920 x 1080"},  # Should NOT be parsed as VRAM
+            {"name": "RAM Size", "value": "16 GB"},  # Scalar value instead of values list
+        ],
+    }
+    
+    analysis = build_analysis_dict(mock_item)
+    assert analysis["metadata"]["listing_price_aud"] is None
+    assert analysis["extracted_data"]["vram_capacity"] is None
+    assert analysis["extracted_data"]["missing_information"]["vram"] is True
+    assert analysis["extracted_data"]["missing_information"]["storage"] is True
+    assert analysis["extracted_data"]["ram"] == "16 GB"
+    assert analysis["extracted_data"]["missing_information"]["ram"] is False

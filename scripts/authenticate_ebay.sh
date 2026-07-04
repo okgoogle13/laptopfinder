@@ -31,7 +31,7 @@ RESPONSE=$(curl -s -X POST "${TOKEN_URL}" \
   -d 'grant_type=client_credentials&scope=https%3A%2F%2Fapi.ebay.com%2Foauth%2Fapi_scope')
 
 # Extract token (requires 'jq' to be installed)
-TOKEN=$(echo $RESPONSE | jq -r .access_token)
+TOKEN=$(echo "$RESPONSE" | jq -r .access_token)
 
 if [ "$TOKEN" != "null" ] && [ -n "$TOKEN" ]; then
     echo "✅ Authentication successful!"
