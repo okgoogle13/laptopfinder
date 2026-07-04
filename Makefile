@@ -70,6 +70,11 @@ render-matrix:
 	.venv/bin/python scripts/render_matrix.py --in data/shortlist_candidates.jsonl --out data/purchase_matrix.md
 	@echo "Matrix written to data/purchase_matrix.md"
 
+# Run the new live API pipeline that bypasses scraping
+# Usage: make live-api
+live-api:
+	.venv/bin/python -m laptopfinder.runners.ebay_api
+
 # Run batch CSV ingestion and update the decision matrix
 # Usage: make process_csv
 process_csv:

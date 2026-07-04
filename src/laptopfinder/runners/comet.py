@@ -28,6 +28,15 @@ def run_comet_discovery(raw_text: str, model: str = "gemini-3.5-flash") -> list[
     with open(prompt_path, "r", encoding="utf-8") as f:
         system_prompt = f.read()
         
+    queries_path = Path(__file__).parent.parent.parent.parent / "prompts" / "search_queries.txt"
+    if queries_path.exists() and "prompts/search_queries.txt" in system_prompt:
+        with open(queries_path, "r", encoding="utf-8") as qf:
+            queries_text = qf.read()
+        system_prompt = system_prompt.replace(
+            "prompts/search_queries.txt",
+            f"prompts/search_queries.txt (inlined below):\n\n{queries_text}"
+        )
+        
     # Load schema
     schema_path = Path(__file__).parent.parent / "schemas" / "stage1.discovery.schema.json"
     with open(schema_path, "r", encoding="utf-8") as f:
@@ -46,7 +55,7 @@ def run_comet_discovery(raw_text: str, model: str = "gemini-3.5-flash") -> list[
         model=model,
         contents=[
             types.Content(role="user", parts=[
-                types.Part.from_text(f"{system_prompt}\n\nRAW TEXT TO PROCESS:\n{raw_text}")
+                types.Part.from_text(text=f"{system_prompt}\n\nRAW TEXT TO PROCESS:\n{raw_text}")
             ])
         ],
         config=types.GenerateContentConfig(

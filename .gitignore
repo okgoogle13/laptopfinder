@@ -23,6 +23,9 @@ node_modules/
 !.env.example
 .envrc
 .direnv/
+# eBay OAuth tokens (live credentials — never commit)
+.ebay_access_token
+.ebay_token_cache.json
 
 # Logs
 *.log
@@ -36,3 +39,6 @@ restored_conversations/
 # Live scrape output and rendered matrices (generated build artifacts)
 data/feed_live/
 data/purchase_matrix.md
+
+# eBay hunter runtime artifacts (generated each run)
+data/ebay/

@@ -54,7 +54,7 @@ def run_claude_audit(analysis_payload: dict, decision_payload: dict, model: str 
             model="gemini-3.1-pro",
             contents=[
                 types.Content(role="user", parts=[
-                    types.Part.from_text(f"{system_prompt}\n\n{input_text}")
+                    types.Part.from_text(text=f"{system_prompt}\n\n{input_text}")
                 ])
             ]
         )
