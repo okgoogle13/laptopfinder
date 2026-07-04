@@ -1,0 +1,144 @@
+# AU Marketplace Search Queries — eBay Browse API
+# Used by: prompts/comet_discovery_agent.txt
+# Cross-referenced: config/static_reference_layer.json · data/evidence/targets.json · data/hardware_taxonomy.json
+# Updated: 2026-07-05
+#
+# FORMAT: Plain-keyword strings for eBay Browse API q= parameter.
+# Boolean operators (AND/OR/NOT) are not supported in Browse API — use structured
+# filter params (categoryIds, conditions, price, itemLocation, marketplace_id=EBAY_AU)
+# as separate API parameters alongside each query string.
+#
+# VRAM vs RAM: Verify VRAM vs system RAM manually on any hit — marketplace search
+# conflates "16GB RAM" (system) with "16GB VRAM".
+#
+# OVERSEAS_IMPORT: Enterprise workstation units from international resellers incur
+# a -10 seller penalty in the scoring engine. Still worth querying — flag for
+# manual review on high-VRAM units where the penalty doesn't block SHORTLIST.
+#
+# TOUCHSCREEN EXCEPTION: GPUs with 12GB VRAM qualify for SHORTLIST only when the
+# listing confirms a touchscreen digitizer (VRAM >= 12GB + touchscreen_digitizer present).
+# Queries marked [touchscreen] target this exception path exclusively — do not
+# advance 12GB listings without digitizer confirmation.
+#
+
+# --- NVIDIA Gaming Laptops — GRADUATE (primary targets, used_3k band) ---
+# Best VRAM-to-price ratio on AU secondary market per July 2026 market dossier.
+# RTX 3080 16GB: $1,200–$2,000 AUD. RTX 3080 Ti 16GB: $1,800–$2,500 AUD.
+
+1.  RTX 3080 laptop 16GB VRAM
+2.  RTX 3080 Ti laptop 16GB VRAM
+
+
+# --- NVIDIA Gaming Laptops — HOLD (watch_stretch_5k / new_5k band) ---
+# RTX 4090 16GB: $3,500–$4,500 AUD. RTX 5080 16GB: ~$4,500–$5,000 AUD.
+# RTX 5090 24GB: >$7,500 AUD, DEFER on price — monitor for price correction.
+# RTX 5070 16GB: new market, limited AU stock.
+# RTX 4080 12GB: SHORTLIST via touchscreen exception only (see note above).
+
+3.  RTX 4090 laptop
+4.  RTX 5080 laptop
+5.  RTX 5090 laptop 24GB
+6.  RTX 5070 laptop 16GB
+7.  RTX 4080 laptop touchscreen digitizer                  [touchscreen — 12GB VRAM, exception path only]
+
+
+# --- NVIDIA Workstation Mobile — Ampere (RTX A-series) ---
+# Heavy international reseller presence — expect OVERSEAS_IMPORT -10 penalty.
+# A4500 16GB: $3,000–$4,000 AUD. A5000 16GB / A5500 16GB: enterprise pricing.
+# A3000 12GB: touchscreen exception path only.
+
+8.  RTX A4500 laptop workstation
+9.  RTX A5000 laptop workstation
+10. RTX A5500 laptop workstation
+11. RTX A3000 laptop workstation touchscreen               [touchscreen — 12GB VRAM, exception path only]
+
+
+# --- NVIDIA Workstation Mobile — Ada Lovelace ---
+# RTX 5000 Ada 16GB: in SRL target_gpus. RTX 4000 Ada / 3500 Ada 12GB: touchscreen only.
+# All: heavy international reseller mix — expect OVERSEAS_IMPORT -10 penalty.
+
+12. RTX 5000 Ada laptop workstation 16GB
+13. RTX 4000 Ada laptop workstation touchscreen            [touchscreen — 12GB VRAM, exception path only]
+14. RTX 3500 Ada laptop touchscreen                        [touchscreen — 12GB VRAM, exception path only]
+
+
+# --- NVIDIA Watch List — Laptop Form Factor ---
+# RTX 5000 Ada Mobile 16GB: HOLD, no AU used stock yet — monitor for first listings.
+# RTX PRO 5000 Blackwell Mobile 32GB: DEFER — no AU consumer stock (excluded).
+
+15. RTX 5000 Ada Mobile laptop workstation
+
+
+# --- AMD Discrete Mobile — HOLD ---
+# RX 7900M 16GB VRAM, RDNA3, partial ROCm support. Evaluated at same risk threshold as NVIDIA.
+# RX 6800M is DEFER (RDNA2 kernel panics during generation) — excluded.
+
+16. RX 7900M laptop 16GB VRAM
+
+
+# --- eGPU Bundles ---
+# Desktop GPU in external enclosure. RTX 3090 and RTX 4060 Ti 16GB are desktop-only
+# SKUs that appear in this context exclusively.
+# OCuLink: zero interconnect penalty. TB3/TB4: -3 pts per SRL egpu_interconnect_penalty.
+
+17. OCuLink eGPU laptop RTX
+18. Razer Core X laptop eGPU RTX
+19. ROG XG Mobile eGPU laptop
+20. Minisforum DEG2 eGPU laptop
+21. RTX 3090 eGPU OCuLink laptop
+22. RTX 4060 Ti 16GB eGPU laptop
+
+
+# --- Apple Silicon MacBook Pro — 64GB+ (UMA, laptop form factor only) ---
+# Unified memory pool covers CPU + GPU from a single 64GB+ pool.
+# 64GB is the recommended floor per targets.json. Laptops only — no Mac Studio, Mac mini.
+# M1/M2 Max top at 64GB; M3/M4 Max reach 96GB+ in some configs.
+
+23. MacBook Pro M1 Max 64GB
+24. MacBook Pro M2 Max 64GB
+25. MacBook Pro M3 Max laptop
+26. MacBook Pro M4 Max laptop
+
+
+# --- AMD UMA Laptops — Strix Halo (Ryzen AI Max 395) ---
+# Laptop form factor only — no GMKtec EVO-X2 or other mini-PC chassis.
+# ASUS ROG Zephyrus G16 (2025) and HP OmniBook Ultra 14 are primary AU laptop SKUs.
+# ROCm/Vulkan ecosystem maturing — verify inference stack compatibility before purchase.
+
+27. Zephyrus G16 Ryzen AI Max 395
+28. HP OmniBook Ultra Ryzen AI Max
+29. ASUS laptop Ryzen AI Max 395
+
+
+# --- Workstation Laptop Models — GPU Often Omitted from Title ---
+# Enterprise chassis that ship with RTX A-series or Ada workstation GPUs.
+# From SRL target_models. Confirm GPU model and VRAM via listing specs before advancing.
+# All carry OVERSEAS_IMPORT risk from international resellers.
+
+30. ThinkPad P16 laptop workstation
+31. ThinkPad P15 laptop workstation
+32. ThinkPad P1 Gen 5 laptop
+33. ThinkPad P1 Gen 6 laptop
+34. Dell Precision 7680 laptop
+35. Dell Precision 7780 laptop
+36. HP ZBook Fury laptop workstation
+37. ProArt Studiobook Pro 16 laptop
+
+
+# --- Touchscreen Exception — High-Signal Models ---
+# Chassis confirmed to ship with touchscreen digitizer and discrete GPU.
+# From SRL target_models. 12GB VRAM listings on these models qualify for touchscreen exception.
+
+38. ProArt PX13 touchscreen laptop
+39. Flow Z13 touchscreen laptop RTX
+
+
+# --- EXCLUDED (documented) ---
+# RTX 3090: desktop_egpu platform in SRL — no laptop GPU SKU (eGPU context only, query 21)
+# RTX 4060 Ti: desktop_egpu platform in SRL — no laptop GPU SKU (eGPU context only, query 22)
+# RTX A3000 standalone: 12GB — touchscreen exception only (query 11)
+# Quadro RTX 5000: DEFER — Turing SM75, no native Flash Attention 2
+# Quadro RTX 6000: DEFER — Turing SM75, no native Flash Attention 2
+# RX 6800M: DEFER — RDNA2, persistent kernel panics during autoregressive generation
+# RTX PRO 5000 Blackwell Mobile: DEFER — no AU consumer stock confirmed
+# GB200 / B200: data-centre accelerators, no laptop form factor

@@ -36,16 +36,8 @@ Target Hardware & Keywords:
 <!-- END_INJECT:UMA_MIN_RAM_GB -->
 
 AU Marketplace Search Heuristics (eBay AU primary):
-Use these Boolean strings as discovery seeds when scanning or querying marketplace text. Verify VRAM vs system RAM manually on any hit — marketplace algorithms conflate "16GB RAM" (system) with "16GB VRAM".
-1. ("RTX 3080" OR "3080Ti") AND ("16GB" OR "16G" OR "16 GB VRAM") AND laptop -desktop -pc
-2. ("RTX 4090" OR "RTX 5080" OR "RTX5080") AND laptop
-3. ("RTX 4080" OR "RTX4080") AND ("12GB" OR "12G") AND laptop -desktop
-4. ("ROG Strix SCAR" OR "Zephyrus" OR "Legion 7" OR "Titan") AND ("64GB RAM" OR "32GB RAM") AND ("3080" OR "4080" OR "4090")
-5. ("RTX A4500" OR "A4500") AND laptop -desktop
-6. ("ProArt P16" OR "ProArt") AND "64GB" AND laptop
-7. "eGPU" OR "Razer Core" OR "XG Mobile" OR "OCuLink"
-8. ("RTX 5000 Ada" OR "RTX 4000 Ada") AND laptop -desktop
-Search ordering should bias toward portable chassis, mobile workstation, creator laptop, and notebook phrasing before considering desktop-adjacent comparators.
+Use the Boolean strings defined in prompts/search_queries.txt as discovery seeds when scanning or querying marketplace text. Verify VRAM vs system RAM manually on any hit — marketplace algorithms conflate "16GB RAM" (system) with "16GB VRAM". Search ordering should bias toward portable chassis, mobile workstation, creator laptop, and notebook phrasing before considering desktop-adjacent comparators.
+
 
 General Constraints:
 - Extract strictly into the JSON schema layout defined in stage1.discovery.schema.json. Populate all required keys.

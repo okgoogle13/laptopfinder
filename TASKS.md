@@ -106,7 +106,7 @@
 - [x] Check watch list graduation for RTX 5080 & 5090
 - [x] Identify new UMA platforms → Mac mini M4 mapped; desktop chassis out-of-scope for SRL
 - [x] Secondary Market Topology Report ingested; GRADUATE/HOLD/DEFER verdicts propagated to SRL
-- [x] 8 Boolean search strings wired into `prompts/comet_discovery_agent.txt:37-44`
+- [x] 8 Boolean search strings extracted to `prompts/search_queries.txt`; `comet_discovery_agent.txt` references by pointer
 - [x] 3 systematic blind spots documented in CLAUDE.md
 
 ---
