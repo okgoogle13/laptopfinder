@@ -7,7 +7,21 @@ metadata:
 
 # Usage Guide — Live Tooling
 
-Relocated 2026-07-02 from `planning/implementation/usage.md` (originally built by `/deep-implement` from `planning/sections/` during Sprint 2) — this file documents still-active tooling, so it lives here in `memory/reference/` alongside the other stable reference docs rather than in the historical `planning/` tree. See [[tooling]] for IDE/MCP setup and [[pipeline]] for pipeline terminology.
+Relocated 2026-07-02 from `planning/implementation/usage.md` (originally built by `/deep-implement` from `planning/sections/` during Sprint 2) — this file now holds both the active setup notes and the operational guide, so it lives here in `memory/reference/` alongside the other stable reference docs rather than in the historical `planning/` tree. See [[pipeline]] for pipeline terminology.
+
+## Tooling Setup
+
+**Primary workflow:** Antigravity IDE (VS Code fork) + Claude Code CLI in the integrated terminal.
+
+- Antigravity provides file explorer, git panel, and integrated terminal
+- Claude Code CLI runs in Antigravity's terminal via `claude` command; no extension needed
+- `CLAUDE.md` is read automatically by Claude Code
+- `AGENTS.md` is a symlink to `CLAUDE.md`, so Antigravity's Gemini agent reads the same project rules
+- Both tools share the same source-of-truth project guidance
+
+**MCP:** Desktop Commander and Filesystem MCP are redundant here. Claude Code has native file access and shell execution, so no extra MCP servers are needed for this project.
+
+**Python environment:** uv-managed `.venv`. Always invoke as `.venv/bin/python` or `.venv/bin/pytest`, never system Python.
 
 Covers `inject_config.py`, `scrape_live.py`, `render_matrix.py`, and their Makefile targets.
 

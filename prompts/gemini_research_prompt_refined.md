@@ -1,4 +1,4 @@
-Relocated 2026-07-02 from `research/gemini_research_prompt_refined.md` during the documentation consolidation audit — this is a prompt template (used to generate `research/Gemini Deep Research - Comprehensive Analysis of Australian Secondary-Market Hardware for Local LLMs (July 2026).md`), not a research finding, so it belongs alongside the rest of the prompt library rather than under `research/`.
+Relocated 2026-07-02 from `research/gemini_research_prompt_refined.md` during the documentation consolidation audit — this is a prompt template (used to generate the raw Gemini output now archived at `research/archive/Gemini Deep Research - Comprehensive Analysis of Australian Secondary-Market Hardware for Local LLMs (July 2026).md`), not a research finding, so it belongs alongside the rest of the prompt library rather than under `research/`.
 
 ---
 

@@ -1,4 +1,4 @@
-Relocated 2026-07-02 from `research/perplexity_research_prompt_refined.md` during the documentation consolidation audit — this is a prompt template (used to generate `research/Perplexity Deep Research  AU Secondary Laptop & eGPU Market Mapping for Local LLMs (July 2026).md`), not a research finding, so it belongs alongside the rest of the prompt library rather than under `research/`.
+Relocated 2026-07-02 from `research/perplexity_research_prompt_refined.md` during the documentation consolidation audit — this is a prompt template (used to generate the raw Perplexity output now archived at `research/archive/Perplexity Deep Research  AU Secondary Laptop & eGPU Market Mapping for Local LLMs (July 2026).md`), not a research finding, so it belongs alongside the rest of the prompt library rather than under `research/`.
 
 ---
 

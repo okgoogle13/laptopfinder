@@ -3,7 +3,7 @@
 
 ## Purpose
 
-Local, text-centric LLM inference planning for AU hardware procurement. Goal: identify hardware that runs large models (≥13B parameters) entirely in memory, with low noise, low power, and sustainable thermals for sustained interactive use.
+Local, text-centric LLM inference planning for AU hardware procurement. Goal: identify hardware that runs large models (≥13B parameters) entirely in memory, with low noise, low power, and sustainable thermals for sustained interactive use. Prefer portable or fieldable systems first; treat desktop Mac Studio, mini-PC, and eGPU examples as secondary comparators rather than the default target.
 
 ## Paradigm Priority
 
@@ -17,7 +17,7 @@ Do **not** default to CUDA/NVIDIA unless:
 ## Shortlist Requirements for Text-Centric Workloads
 
 Any shortlist produced for text-centric inference must include:
-- ≥1 Apple Silicon UMA candidate (Mac Studio or MacBook Pro M-series, ≥64GB)
+- ≥1 Apple Silicon UMA candidate, preferably a MacBook Pro M-series or other portable form factor, with ≥64GB as the comfort tier
 - ≥1 AMD UMA candidate (GMKtec EVO-X2, Minisforum UM890 XTX, Lenovo Yoga Pro 7a, or equivalent)
 
 If neither category is represented, the shortlist is incomplete.
@@ -25,7 +25,7 @@ If neither category is represented, the shortlist is incomplete.
 ## Reference Material
 
 Ground recommendations in:
-- `research/alternative_silicon_dossier_june2026.md` — synthesised market and technical findings
+- `research/alternative_silicon_dossier_july2026.md` — canonical market and technical findings
 - `config/silicon_profiles.yaml` — paradigm definitions and workload preferences
 - `config/scoring_weights.yaml` — per-workload scoring weight profiles
 - `data/hardware_taxonomy.json` — representative hardware entries by paradigm

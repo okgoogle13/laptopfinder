@@ -107,8 +107,8 @@ Per-workload weight profiles for `score_text_llm_candidate()`. Profiles: `text_l
 **Hardware Taxonomy** (`data/hardware_taxonomy.json`)  
 Representative hardware entries by paradigm (bandwidth_gbps, ram_gb, inference_stack). Input to `score_text_llm_candidate()` via `batch_decide()`.
 
-**Research Dossier** (`research/alternative_silicon_dossier_june2026.md`)  
-Synthesised alternative silicon findings (AU market, June 2026). Source for agent and prompt grounding.
+**Research Dossier** (`research/alternative_silicon_dossier_july2026.md`)  
+Canonical alternative silicon findings (AU market, July 2026). Source for agent and prompt grounding. Legacy raw outputs live under `research/archive/`.
 
 **Live Pipeline Runners** (`src/laptopfinder/runners/`)  
 - `comet.py` — Gemini 3.1 Pro via `google-genai`; runs the `prompts/comet_discovery_agent.txt` prompt to produce Stage 1 JSON
