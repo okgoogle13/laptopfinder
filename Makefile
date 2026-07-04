@@ -1,4 +1,4 @@
-.PHONY: test lint decide pipeline live evidence-run evidence-run-dry evidence-reset inject-config scrape-and-live render-matrix scan-gaps
+.PHONY: test lint decide pipeline live evidence-run evidence-run-dry evidence-reset inject-config scrape-and-live render-matrix scan-gaps process_csv
 
 # Overrideable variables
 FIRECRAWL_URLS ?= data/urls.txt
@@ -69,6 +69,14 @@ scrape-and-live:
 render-matrix:
 	.venv/bin/python scripts/render_matrix.py --in data/shortlist_candidates.jsonl --out data/purchase_matrix.md
 	@echo "Matrix written to data/purchase_matrix.md"
+
+# Run batch CSV ingestion and update the decision matrix
+# Usage: make process_csv
+process_csv:
+	@echo "Starting batch CSV ingestion workflow..."
+	.venv/bin/python src/laptopfinder/ingest_csv.py
+	$(MAKE) render-matrix
+	@echo "Batch CSV ingestion completed successfully."
 
 # Sweep feed files for price drift, watch-list graduation candidates, and unrecognised GPU sightings.
 # Usage: make scan-gaps

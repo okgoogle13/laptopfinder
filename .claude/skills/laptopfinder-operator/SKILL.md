@@ -139,10 +139,12 @@ Phase 0-5, pausing at the three checkpoints above.
 - Run the matrix-rendering command against the (now-approved) shortlist file.
 - Run the market-gap scan command against the live feed files.
 - Summarize the top-ranked candidates and any alerts.
-- Run one automated sanity check: for otherwise comparable listings, a 16GB
-  RTX 3080/3080 Ti priced meaningfully below a 16GB RTX 4090 should be
-  ranked higher on price-to-VRAM; if the matrix reverses this, treat it as a
-  regression signal worth human attention, not a hard failure.
+- Run one automated sanity check based on the project's own invariant: for
+  otherwise comparable listings, a 16GB RTX 3080 or 3080 Ti priced
+  meaningfully below a 16GB RTX 4090 should be ranked higher on
+  price-to-VRAM; if the matrix consistently reverses this (RTX 4090 above a
+  cheaper 3080/3080 Ti at the same VRAM tier), treat it as a regression
+  signal worth human attention, not a hard failure.
 
 **Phase 5 — Reporting (confirm: pre_tasks_md_write)**
 - Assemble an end-of-run report summarizing everything Phases 0-4 did.

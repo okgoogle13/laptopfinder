@@ -658,7 +658,7 @@ def to_stage2_fixture(raw: dict) -> dict:
             "listing_title": title,
             "listing_price_aud": price,
             "listing_url_or_identifier": url,
-            "inferred_component_category": None,
+            "inferred_component_category": raw.get("inferred_component_category", "SYSTEM"),
             "inferred_model_hint": None,
             "inferred_gpu_hint": None,
             "inferred_vram_hint": None,

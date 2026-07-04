@@ -24,14 +24,14 @@ def load_candidates(path: str) -> list[dict]:
 
 
 def sort_candidates(candidates: list[dict]) -> list[dict]:
-    """Sort by action priority group: SHORTLIST=0, MONITOR=1, SKIP=2, unknown=3.
+    """Sort by action priority group: SHORTLIST=0, MONITOR=1, MANUAL_REVIEW=2, SKIP=3, unknown=4.
     Within each group, sort descending by llm_index_score.
     Treat missing or null llm_index_score as -1 (sorts last in group).
     Does not mutate the input list."""
-    priority = {"SHORTLIST": 0, "MONITOR": 1, "SKIP": 2}
+    priority = {"SHORTLIST": 0, "MONITOR": 1, "MANUAL_REVIEW": 2, "SKIP": 3}
 
     def sort_key(c):
-        group = priority.get(c.get("recommended_action"), 3)
+        group = priority.get(c.get("recommended_action"), 4)
         v = c.get("llm_index_score")
         score = -(v if v is not None else -1)
         return (group, score)

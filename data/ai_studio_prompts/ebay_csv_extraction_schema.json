@@ -1,0 +1,56 @@
+{
+  "type": "array",
+  "description": "An array of extracted hardware specifications from laptop listings.",
+  "items": {
+    "type": "object",
+    "properties": {
+      "listing_id": {
+        "type": "string",
+        "description": "The listing_id provided in the input."
+      },
+      "gpu_name": {
+        "type": "string",
+        "description": "GPU model name. Empty string if absent."
+      },
+      "vram_capacity": {
+        "type": "integer",
+        "description": "VRAM in GB as a whole number. Return 0 if absent."
+      },
+      "cpu_name": {
+        "type": "string",
+        "description": "CPU model. Empty string if absent."
+      },
+      "total_system_ram": {
+        "type": "integer",
+        "description": "System RAM in GB as a whole number. Return 0 if absent."
+      },
+      "storage": {
+        "type": "string",
+        "description": "Storage spec. Empty string if absent."
+      },
+      "egpu_model": {
+        "type": "string",
+        "description": "eGPU enclosure name if mentioned. Empty string if absent."
+      },
+      "touchscreen_digitizer": {
+        "type": "boolean",
+        "description": "true if title explicitly mentions touchscreen or digitizer."
+      },
+      "exact_model_name": {
+        "type": "string",
+        "description": "Exact laptop chassis model. Empty string if absent."
+      }
+    },
+    "required": [
+      "listing_id",
+      "gpu_name",
+      "vram_capacity",
+      "cpu_name",
+      "total_system_ram",
+      "storage",
+      "egpu_model",
+      "touchscreen_digitizer",
+      "exact_model_name"
+    ]
+  }
+}

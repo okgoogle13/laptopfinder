@@ -145,11 +145,11 @@
 
 ### eBay AU — Chrome Export → Converter Script
 
-- `[HUMAN]` Open an eBay AU laptop search results page in Chrome. Use Instant Data Scraper, Web Scraper, or Data Miner to export a batch of listings as JSON or CSV. Target fields: title, listing URL, price text, and condition. Save the export to `data/fixtures/ebay_export_raw.json` (or `.csv`).
-- `[IDE/DEV]` Write `scripts/ebay_export_to_jsonl.py`: reads the Chrome-extension JSON/CSV export, maps fields to the `scrape_benchmark.py` raw-record shape (`title`, `price_raw`, `url`, `seller_name: null`, `seller_rating: null`, `full_listing_text: <title + price stub>`), writes to `data/fixtures/ebay_export.jsonl`.
-- `[IDE/DEV]` Add a minimal test in `tests/test_ebay_export_converter.py`: load a two-record sample fixture from `tests/fixtures/ebay_export_sample.json`, run the converter, assert both output records have non-null `title` and `price_raw`.
-- `[HUMAN]` Run `python scripts/ebay_export_to_jsonl.py --in data/fixtures/ebay_export_raw.json --out data/fixtures/ebay_export.jsonl` and inspect the first three records for field completeness.
-- `[IDE/DEV]` Pipe the JSONL output through `to_stage2_fixture()` and confirm the handoff_packet shape is valid (no schema errors from `run_stage2_from_fixture`).
+- `[x]` `[HUMAN]` Open an eBay AU laptop search results page in Chrome. Use Instant Data Scraper, Web Scraper, or Data Miner to export a batch of listings as JSON or CSV. Target fields: title, listing URL, price text, and condition. Save the export to `data/fixtures/ebay_export_raw.json` (or `.csv`).
+- `[x]` `[IDE/DEV]` Write `scripts/ebay_export_to_jsonl.py`: reads the Chrome-extension JSON/CSV export, maps fields to the `scrape_benchmark.py` raw-record shape (`title`, `price_raw`, `url`, `seller_name: null`, `seller_rating: null`, `full_listing_text: <title + price stub>`), writes to `data/fixtures/ebay_export.jsonl`.
+- `[x]` `[IDE/DEV]` Add a minimal test in `tests/test_ebay_export_converter.py`: load a two-record sample fixture from `tests/fixtures/ebay_export_sample.json`, run the converter, assert both output records have non-null `title` and `price_raw`.
+- `[x]` `[HUMAN]` Run `python scripts/ebay_export_to_jsonl.py --in data/fixtures/ebay_export_raw.json --out data/fixtures/ebay_export.jsonl` and inspect the first three records for field completeness.
+- `[x]` `[IDE/DEV]` Pipe the JSONL output through `to_stage2_fixture()` and confirm the handoff_packet shape is valid (no schema errors from `run_stage2_from_fixture`).
 
 ### eBay AU — Saved-Page Extractor Verification
 

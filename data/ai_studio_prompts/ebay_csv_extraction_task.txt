@@ -1,0 +1,269 @@
+Extract hardware specs from these 66 eBay laptop listings.
+
+## Input Listings
+[
+  {
+    "listing_id": "ebay_au:267710656346",
+    "title": "Razer Blade 18 Ultra 9 275HX RTX 5090 64GB 4TB UHD 240Hz/FHD 440Hz Gaming Laptop"
+  },
+  {
+    "listing_id": "ebay_au:267691380950",
+    "title": "Dell Pro Max 16 Plus Ultra 7 265HX RTX PRO 2000 64GB 1TB 4K OLED Touch Laptop"
+  },
+  {
+    "listing_id": "ebay_au:267581800889",
+    "title": "Alienware Aurora R12 Gaming PC i9 11900K 32GB RAM 2TB SSD RTX 3090 Win 11"
+  },
+  {
+    "listing_id": "ebay_au:327221351223",
+    "title": "Dell Precision 7670 Workstation i9 64GB RTX A4500 1.5TB 4K Touch Win 11 Pro AI"
+  },
+  {
+    "listing_id": "ebay_au:406841817003",
+    "title": "Dell Precision 7550 Laptop: i7-10850H 32GB RAM 1TB SSD Quadro RTX 5000 Warranty"
+  },
+  {
+    "listing_id": "ebay_au:406793622034",
+    "title": "Dell Pro Max 18 Plus Laptop: Ultra 9 285HX, 64GB RAM, 1TB SSD, RTX 3000 Warranty"
+  },
+  {
+    "listing_id": "ebay_au:358672186388",
+    "title": "Acer Predator Helios 18\u201d Gaming Laptop, 250Hz, RTX 4090, I9-14900HX, 32GB, 1TB"
+  },
+  {
+    "listing_id": "ebay_au:277283436885",
+    "title": "AORUS 17X AZF 17.3\" 2560x1440 240Hz i9-13950HX 32GB 2TB SSD RTX 4090 W11H"
+  },
+  {
+    "listing_id": "ebay_au:358683902569",
+    "title": "Dell Precision 7670 16\" i9-12950HX RTX 3080 Ti 16GB 64GB RAM 512GB SSD Win11 Pro"
+  },
+  {
+    "listing_id": "ebay_au:358683915614",
+    "title": "Dell Precision 7670 16\" i9-12950HX RTX 3080 Ti 16GB 8GB RAM 512GB SSD Win11 Pro"
+  },
+  {
+    "listing_id": "ebay_au:407031055086",
+    "title": "Acer Predator  PH18-72 Intel i9-14900HX 32Gb RAM 1TB SSD 16Gb RTX4090 18\" 250Hz"
+  },
+  {
+    "listing_id": "ebay_au:326825976757",
+    "title": "ThinkPad P15 Gen 2 i9 5.0GHz RTX A5000 4K UHD HDR 600Nits 64GB 2TB Premier+ADP"
+  },
+  {
+    "listing_id": "ebay_au:117240217407",
+    "title": "HP ZBook Fury 16 G9 16\" 12th Gen i7/i9 16/64GB RAM 256/1TB SSD RTX3000A GPU, G"
+  },
+  {
+    "listing_id": "ebay_au:366395675100",
+    "title": "HyperX OMEN MAX Gaming Laptop 16\" 2.5K OLED Ultra 9 290HX 32GB 1TB SSD RTX5090"
+  },
+  {
+    "listing_id": "ebay_au:366348476691",
+    "title": "HP OMEN MAX Gaming Laptop 16\"WQXGA AI 9 HX 375 32GB 1TBSSD RTX5080"
+  },
+  {
+    "listing_id": "ebay_au:336626690031",
+    "title": "HP Z4 G4 Workstation - Xeon W-2245 64GB RAM 1TB SSD RTX 3090 24GB W11P - 1YrWty"
+  },
+  {
+    "listing_id": "ebay_au:366504869607",
+    "title": "ROG Strix RTX 4090 18inch Laptop"
+  },
+  {
+    "listing_id": "ebay_au:366496934240",
+    "title": "MSI Stealth A18 HX AI+ GeForce Ultra 9 64G 2TB RTX 5090 Win 11 Pro (Like New!!)"
+  },
+  {
+    "listing_id": "ebay_au:336085396364",
+    "title": "Alienware Aurora R12 Gaming PC i9-11900KF 32GB RAM 1TB SSD 2TB HDD RTX 3090 24GB"
+  },
+  {
+    "listing_id": "ebay_au:298378728125",
+    "title": "Acer Predator Triton 17 X QHD+ 2.2GHz i9-13900HX 64GB 2TB SSD RTX 4090 Very Good"
+  },
+  {
+    "listing_id": "ebay_au:227393223086",
+    "title": "Acer Predator Helios 18 i9-14900HX 2.2GHz 64GB RAM 1TB SSD GeForce RTX 4080"
+  },
+  {
+    "listing_id": "ebay_au:147384310689",
+    "title": "Lenovo ThinkPad P15 Gen 1 15.6\" 4K OLED Touch Xeon W-10885M 64GB RAM 2TB SSD RTX"
+  },
+  {
+    "listing_id": "ebay_au:117267040798",
+    "title": "Lenovo ThinkPad P17 Gen 1 4K i9-10885H 2.40GHz 32GB 1TB SSD Quadro RTX 3000"
+  },
+  {
+    "listing_id": "ebay_au:178214868301",
+    "title": "Asus Rog Flow Z13 GZ302EA Ryzen AI MAX+ 395 32GB RAM 1TB SSD 13.4\" 2.5K Touch"
+  },
+  {
+    "listing_id": "ebay_au:188023133892",
+    "title": "Dell Precision 7760 Intel i5 11500H 2.90GHz 32GB RAM 256GB SSD 17.3\" Win 11 - B"
+  },
+  {
+    "listing_id": "ebay_au:127719846029",
+    "title": "Dell Precision 7560 15\" Touch FHD Core Xenon 10th1.5 TB SSD 64GB 16 GB RTX A4000"
+  },
+  {
+    "listing_id": "ebay_au:137199585020",
+    "title": "ROG Zephyrus Duo GX650RX 3080ti 4K"
+  },
+  {
+    "listing_id": "ebay_au:315419401198",
+    "title": "ASUS ROG Strix SCAR 16\" QHD 240Hz Gaming Laptop i9-13980HX 32GB 1TB SSD RTX 4080"
+  },
+  {
+    "listing_id": "ebay_au:267631290423",
+    "title": "HP ZBook Power 16 G11 Workstation 16\" WUXGA Touch Ultra 9 185H 64GB RAM 2TB SSD"
+  },
+  {
+    "listing_id": "ebay_au:267691382054",
+    "title": "Gigabyte Aorus Master 18\" U9 275HX RTX 5090 32GB 2TB QHD 240Hz Mini LED Laptop"
+  },
+  {
+    "listing_id": "ebay_au:236740339258",
+    "title": "ASUS ROG ZEPHYRUS DUO 16.0\" LAPTOP RYZEN 7 6800H 3.20GHz RTX-3070Ti 32GB 512GB"
+  },
+  {
+    "listing_id": "ebay_au:178206278028",
+    "title": "Asus ROG G635LW Strix Scar 16 Ultra 9 275HX 32GB RAM 1TB SSD RTX5080 16\" 2.5K"
+  },
+  {
+    "listing_id": "ebay_au:198170918806",
+    "title": "Dell Precision 7750 Laptop 17.3\u201d 32GB RAM |  1 TB SSD | 16GB GPU"
+  },
+  {
+    "listing_id": "ebay_au:267696137396",
+    "title": "MSI Raider GE78HX i9 13980HX RTX 4090 32GB 2TB QHD 240Hz Gaming Laptop"
+  },
+  {
+    "listing_id": "ebay_au:800005839650",
+    "title": "Acer Predator Helios Neo 18 AI - 18.0\" Intel Core Ultra 9 275HX - GeForce RTX 50"
+  },
+  {
+    "listing_id": "ebay_au:278082458240",
+    "title": "Lenovo ThinkPad P15 Gen 2 FHD i7-11800H 2.30GHz 32GB 1TB SSD RTX A4000 Very Good"
+  },
+  {
+    "listing_id": "ebay_au:236876060237",
+    "title": "LENOVO THINKPAD P16 | CORE i9 | RTX A4500 GFX | 64GB | 2TB | 3840x2400 | WRNTY"
+  },
+  {
+    "listing_id": "ebay_au:397837419713",
+    "title": "ASUS ROG Zephyrus duo 16\" QHD 240Hz Gaming Laptop Ryzen 9 32GB 1TB SSD RTX 4080"
+  },
+  {
+    "listing_id": "ebay_au:366348476692",
+    "title": "HP OMEN MAX Gaming Laptop16\" OLED Ultra 9 275HX 32GB 1TB SSD RTX5080"
+  },
+  {
+    "listing_id": "ebay_au:278093444445",
+    "title": "Acer Predator Helios Neo 18 \" 250hz U9 16gb Ddr5 1tb SSD RTX 5070 8gb W11 Pro _"
+  },
+  {
+    "listing_id": "ebay_au:267641691840",
+    "title": "MSI Vector 18 HX AI 18in 240Hz Ultra 9 275HX RTX 5080 1TB SSD 32gb DDR5"
+  },
+  {
+    "listing_id": "ebay_au:227393223080",
+    "title": "Dell Precision 7780 17.3\" i9-13950HX 2.2GHz 64GB RAM 1TB SSD RTX 3500 Ada"
+  },
+  {
+    "listing_id": "ebay_au:277903442793",
+    "title": "Acer Predator Triton 14 AI 14 120Hz TOUCH 3.3GHz Ultra 9 288V 32GB 2TB RTX 5070"
+  },
+  {
+    "listing_id": "ebay_au:198363360068",
+    "title": "Asus GX650PV ROG Zephyrus Duo16 R9 7945HX 32GB RAM 1TB SSD RTX4060 16\" + 14\" W11"
+  },
+  {
+    "listing_id": "ebay_au:800200905473",
+    "title": "Razer Blade 18 i9 14900HX RTX 4090 32GB 2TB QHD 300Hz Mini LED Gaming Laptop"
+  },
+  {
+    "listing_id": "ebay_au:357485578512",
+    "title": "ASUS TUF Gaming A18 FA808UP-S8017 / FreeDOS 18\" RTX5070 AMD 7 260 16GB/512GB"
+  },
+  {
+    "listing_id": "ebay_au:336647723910",
+    "title": "Predator Helios 18 AI Gaming Laptop CU9 275HX 192 GB 5 TB SSD RTX 5090 18\" W 11"
+  },
+  {
+    "listing_id": "ebay_au:366491967195",
+    "title": "ASUS ExpertBook 14 14' FHD Notebook AMD Ryzen 5 150 DDR5 16GB 512GB SSD Win11"
+  },
+  {
+    "listing_id": "ebay_au:188296491379",
+    "title": "Dell Precision 7670 Intel i7 12850HX 4.80GHz 32GB RAM 1TB SSD RTX A3000 16\" Win"
+  },
+  {
+    "listing_id": "ebay_au:358135333685",
+    "title": "ASUS ROG Strix G18 18\" i9-13980HX RTX4060 16GB/512GB Gaming Laptop / G814JV-N602"
+  },
+  {
+    "listing_id": "ebay_au:286722685916",
+    "title": "13th gen i7 HP Zbook Studio G10 16\" WUXGA Laptop, i7-13700H, 32GB RAM, 1TB SSD,"
+  },
+  {
+    "listing_id": "ebay_au:389927241205",
+    "title": "DELL PRECISION 5570 15.6\" 4K TOUCH, i9 12900H 32GB 1TB SSD RTX A2000 8GB WIN 11"
+  },
+  {
+    "listing_id": "ebay_au:168485245984",
+    "title": "MSI Titan 18 HX Dragon Edition Norse Myth"
+  },
+  {
+    "listing_id": "ebay_au:407022238689",
+    "title": "MSI TITAN 18 HX 5090 6TB w/2 chargers and a extra storage drive w/gaming mouse"
+  },
+  {
+    "listing_id": "ebay_au:377293014280",
+    "title": "Acer Predator Triton 14 AI Gaming Laptop Touch Ultra 9 32GB RAM 2TB SSD RTX 5070"
+  },
+  {
+    "listing_id": "ebay_au:366227557173",
+    "title": "Dell Precision 7750 17\" FHD Xeon W-10885 2.4GHz 128GB 2TB RTX 5000 W11P"
+  },
+  {
+    "listing_id": "ebay_au:158028390540",
+    "title": "HP ZBook Fury 16 G9 - 16\" FHD+, i9 12950HX, RTX A4500 16GB, 32GB RAM, 1TB SSD"
+  },
+  {
+    "listing_id": "ebay_au:187687118880",
+    "title": "Dell Precision 7560 15\" Touch Laptop i7-11850H 8-Cores 32GB 8GB RTX A4000 Mobile"
+  },
+  {
+    "listing_id": "ebay_au:198143249185",
+    "title": "Dell Precision 7550 Laptop | Intel Xeon W10855M CPU| 64GB| 1.5TB |16 GB RTX 5000"
+  },
+  {
+    "listing_id": "ebay_au:267684076539",
+    "title": "Alienware X15 R2 i9 12900H RTX 3080 Ti 32GB 2TB QHD 240Hz Laptop AZERTY seedesc*"
+  },
+  {
+    "listing_id": "ebay_au:267347223330",
+    "title": "ASUS ROG Strix Scar 18 (2025) Gaming Laptop, 18\u201d ROG Nebula HDR 16:10, RTX 5070"
+  },
+  {
+    "listing_id": "ebay_au:287111365810",
+    "title": "ACER PREDATOR HELIOS NEO 18 AI ULTRA 9 275HX RTX5070TI 64GB RAM 2TB SSD \u00a32999rrp"
+  },
+  {
+    "listing_id": "ebay_au:127783573861",
+    "title": "HP ZBook 8 G1i 16\" UWVA Touch Ultra 7 255H RTX 500 Ada 1TB SSD WUXGA 32GB Laptop"
+  },
+  {
+    "listing_id": "ebay_au:800113189613",
+    "title": "MSI Raider 18 HX Gaming Laptop Intel Core i9-14900HX RTX 4080 32GB 1TB 18\" W11H"
+  },
+  {
+    "listing_id": "ebay_au:116762331758",
+    "title": "Razer Blade Pro 17 17.3\" Intel Core i7-10875H Gaming Laptop"
+  },
+  {
+    "listing_id": "ebay_au:366519698304",
+    "title": "ROG Strix RTX 4090 18inch Laptop"
+  }
+]
