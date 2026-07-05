@@ -26,15 +26,20 @@ def load_candidates(path: str) -> list[dict]:
 def sort_candidates(candidates: list[dict]) -> list[dict]:
     """Sort by action priority group: SHORTLIST=0, MONITOR=1, MANUAL_REVIEW=2, SKIP=3, unknown=4.
     Within each group, sort descending by llm_index_score.
-    Treat missing or null llm_index_score as -1 (sorts last in group).
+    Treat missing, null, or non-numeric llm_index_score as -1 (sorts last in group).
     Does not mutate the input list."""
     priority = {"SHORTLIST": 0, "MONITOR": 1, "MANUAL_REVIEW": 2, "SKIP": 3}
 
+    def _score(c: dict) -> float:
+        v = c.get("llm_index_score")
+        try:
+            return float(v) if v is not None else -1.0
+        except (TypeError, ValueError):
+            return -1.0
+
     def sort_key(c):
         group = priority.get(c.get("recommended_action"), 4)
-        v = c.get("llm_index_score")
-        score = -(v if v is not None else -1)
-        return (group, score)
+        return (group, -_score(c))
 
     return sorted(candidates, key=sort_key)
 
@@ -48,7 +53,10 @@ def render_table(candidates: list[dict]) -> str:
     def cell(v) -> str:
         if v is None:
             return "—"
-        return str(v).replace("\n", " ").replace("|", r"\|")
+        # Collapse any nested structure to a string before sanitizing
+        s = v if isinstance(v, str) else str(v)
+        # Strip characters that break markdown table structure or trigger unwanted formatting
+        return s.replace("\n", " ").replace("\r", "").replace("|", r"\|").replace("*", r"\*").replace("_", r"\_")
 
     header = "| Rank | Action | Score | Title | GPU | Price | Notes |"
     separator = "|------|--------|-------|-------|-----|-------|-------|"

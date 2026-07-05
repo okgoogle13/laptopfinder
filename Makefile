@@ -98,7 +98,7 @@ scan-gaps:
 # Start eBay AU sniper as a background daemon
 start-sniper:
 	@mkdir -p data/logs
-	@nohup .venv/bin/python scripts/ebay_sniper.py > data/logs/sniper.log 2>&1 & echo $$! > data/sniper.pid
+	@nohup .venv/bin/python -u scripts/ebay_sniper.py > data/logs/sniper.log 2>&1 & echo $$! > data/sniper.pid
 	@echo "Sniper running in background (PID: $$(cat data/sniper.pid)). Logs at data/logs/sniper.log"
 
 # Stop eBay AU sniper background daemon

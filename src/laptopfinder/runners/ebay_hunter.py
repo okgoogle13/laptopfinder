@@ -36,7 +36,7 @@ Optional .env keys:
     EBAY_API_BASE_URL          (default https://api.ebay.com)
     EBAY_OAUTH_SCOPES          (default https://api.ebay.com/oauth/api_scope)
     EBAY_MARKETPLACE_ID        (default EBAY_AU)
-    EBAY_CATEGORY_IDS          (default 177 = PC Laptops & Netbooks; blank to disable)
+    EBAY_CATEGORY_IDS          (removed — category ID is now owned by SRL ebay_aspect_filter.category_id)
     GEMINI_MODEL               (default gemini-3.5-flash)
     SMTP_HOST                  (default smtp.gmail.com)
     SMTP_PORT                  (default 465, SSL; any other port uses STARTTLS)
@@ -69,6 +69,7 @@ from google.genai import types
 
 from ..core import run_stage2
 from ..decide import decide, load_ref
+from ..ebay_taxonomy import build_aspect_filter, ebay_category_id
 
 load_dotenv()
 
@@ -217,13 +218,17 @@ def ebay_get(path: str, params: dict, token: str) -> dict:
     raise RuntimeError(f"eBay {path} exhausted retries")
 
 
-def _build_filter() -> str:
-    return (
+def _build_filter(sellers: list[str] | None = None) -> str:
+    base = (
         f"price:[{PRICE_MIN_AUD}..{PRICE_MAX_AUD}],"
         "priceCurrency:AUD,"
         "conditions:{NEW|USED|SELLER_REFURBISHED|CERTIFIED_REFURBISHED},"
         "buyingOptions:{FIXED_PRICE|AUCTION|BEST_OFFER}"
     )
+    if sellers:
+        encoded = "|".join(sellers)
+        return f"{base},sellers:{{{encoded}}}"
+    return base
 
 
 def build_queries(ref: dict) -> list[str]:
@@ -248,23 +253,41 @@ def build_queries(ref: dict) -> list[str]:
     return ordered
 
 
-def browse_search(token: str, query: str, max_items: int) -> list[dict]:
-    """Page item_summary/search for one query up to max_items (Browse caps at 10k)."""
+def browse_search(
+    token: str,
+    query: str,
+    max_items: int,
+    *,
+    aspect_filter: str | None = None,
+    category_id: str = "175672",
+    filter_str: str | None = None,
+) -> list[dict]:
+    """Page item_summary/search for one query up to max_items (Browse caps at 10k).
+
+    aspect_filter: eBay aspect_filter string (e.g. GPU Memory Size values).
+    category_id:   Leaf category — 175672 (PC Laptops & Netbooks) is the SRL default.
+                   EBAY_CATEGORY_IDS env var overrides when set.
+    filter_str:    Full filter override (e.g. for seller-scoped sweeps). When None,
+                   uses _build_filter().
+    """
     collected: list[dict] = []
     offset = 0
     page = min(200, max_items)
-    category_ids = os.environ.get("EBAY_CATEGORY_IDS", "177").strip()
+    # SRL owns the category ID (config/static_reference_layer.json → ebay_aspect_filter.category_id).
+    # category_id param is passed from collect_corpus via ebay_category_id(ref).
+    cat = category_id
 
     while len(collected) < max_items and offset <= 9800:
-        params = {
+        params: dict = {
             "q": query,
-            "filter": _build_filter(),
+            "filter": filter_str if filter_str is not None else _build_filter(),
             "sort": "price",
             "limit": page,
             "offset": offset,
+            "category_ids": cat,
         }
-        if category_ids:
-            params["category_ids"] = category_ids
+        if aspect_filter:
+            params["aspect_filter"] = aspect_filter
         data = ebay_get("/buy/browse/v1/item_summary/search", params, token)
         items = data.get("itemSummaries") or []
         if not items:
@@ -310,11 +333,17 @@ def _num(val) -> float | None:
 
 
 def collect_corpus(token: str, ref: dict, max_per_query: int) -> list[dict]:
-    """Run the full query sweep, dedup by itemId, return normalized rows."""
+    """Run the full query sweep + seller-scoped sweeps, dedup by itemId."""
+    af = build_aspect_filter(ref)
+    cat_id = ebay_category_id(ref)
     by_id: dict[str, dict] = {}
+
     for query in build_queries(ref):
         try:
-            items = browse_search(token, query, max_per_query)
+            items = browse_search(
+                token, query, max_per_query,
+                aspect_filter=af, category_id=cat_id,
+            )
         except RuntimeError as exc:
             log(f"query failed ({query[:40]}...): {exc}")
             continue
@@ -323,6 +352,27 @@ def collect_corpus(token: str, ref: dict, max_per_query: int) -> list[dict]:
             if row["item_id"] and row["item_id"] not in by_id:
                 by_id[row["item_id"]] = row
         log(f"query '{query[:44]}...' → {len(items)} items (corpus {len(by_id)})")
+
+    # Seller-scoped sweeps: broad laptop search scoped to each watched seller.
+    neg = " ".join(f"-{kw}" for kw in NEGATIVE_KEYWORDS)
+    for seller in ref.get("watched_sellers", []):
+        try:
+            items = browse_search(
+                token, f"laptop {neg}", max_per_query,
+                aspect_filter=af, category_id=cat_id,
+                filter_str=_build_filter(sellers=[seller]),
+            )
+        except RuntimeError as exc:
+            log(f"seller sweep failed ({seller}): {exc}")
+            continue
+        added = 0
+        for item in items:
+            row = summary_to_row(item)
+            if row["item_id"] and row["item_id"] not in by_id:
+                by_id[row["item_id"]] = row
+                added += 1
+        log(f"seller '{seller}' → {len(items)} items (+{added} new, corpus {len(by_id)})")
+
     return list(by_id.values())
 
 
@@ -785,7 +835,10 @@ def run(args: argparse.Namespace) -> int:
         r for r in corpus
         if triage.get(r["item_id"], {}).get("is_relevant", not triage)  # if triage empty, take all
     ]
-    candidates.sort(key=lambda r: triage.get(r["item_id"], {}).get("priority", 0), reverse=True)
+    candidates.sort(
+        key=lambda r: float(triage.get(r["item_id"], {}).get("priority") or 0),
+        reverse=True,
+    )
     candidates = candidates[: args.enrich_top]
     log(f"Stage A+D — enriching top {len(candidates)} candidates (getItem + aspects + vision)...")
 
@@ -818,7 +871,7 @@ def run(args: argparse.Namespace) -> int:
         save_seen(seen | {r["item_id"] for r in fresh})
 
     # Console digest.
-    for r in sorted(top, key=lambda x: x["decision"]["llm_index_score"], reverse=True)[:10]:
+    for r in sorted(top, key=lambda x: float(x.get("decision", {}).get("llm_index_score") or 0), reverse=True)[:10]:
         d = r["decision"]
         log(f"  ★ {r['canonical_model']} | AUD {r['price_aud']} (Δ{r.get('price_delta_aud')}) "
             f"| {d['vram_gb']}GB | index {d['llm_index_score']} | {r['item_web_url']}")

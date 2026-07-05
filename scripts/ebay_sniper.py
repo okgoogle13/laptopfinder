@@ -158,7 +158,7 @@ def apply_firewall(title: str, srl: dict) -> bool:
 def run_strategy_flagship(token: str, seen: set[str], srl: dict, keywords: list[str], dry_run: bool = False) -> set[str]:
     print("[SNIPER] Running Strategy A: Flagship Sweep (National)...")
     params = {
-        "q": " OR ".join(f'"{k}"' for k in keywords),
+        "q": f"({', '.join(keywords)})",
         "category_ids": "175672",
         "filter": "itemLocationCountry:AU,priceCurrency:AUD",
         "sort": "newlyListed",
@@ -206,7 +206,7 @@ def run_strategy_local(token: str, seen: set[str], srl: dict, models: list[str],
         "X-EBAY-C-ENDUSERCTX": "contextualLocation=country=AU,zip=3070",
     }
     params = {
-        "q": " OR ".join(f'"{m}"' for m in models),
+        "q": f"({', '.join(models)})",
         "category_ids": "175672",
         "filter": (
             "pickupCountry:AU,"
@@ -305,6 +305,7 @@ def main_loop(interval_sec: int = 300, dry_run: bool = False, once: bool = False
             print("[SNIPER] Single-pass sweep completed.")
             break
 
+        print(f"[SNIPER] Sweep completed. Sleeping for {interval_sec} seconds...")
         time.sleep(interval_sec)
 
 
