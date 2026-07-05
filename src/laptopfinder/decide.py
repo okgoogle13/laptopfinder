@@ -51,6 +51,11 @@ def _precompute_ref(ref: dict) -> None:
         for name, gen in score_cfg.get("gpu_generation_by_name", {}).items()
     }
 
+    ref["_uma_soc_by_name_lower"] = {
+        name.lower(): tier
+        for name, tier in ref.get("uma_soc_by_name", {}).items()
+    }
+
     ref["_target_models_lower"] = [m.lower() for m in ref.get("target_models", [])]
 
 
@@ -256,6 +261,32 @@ def _gpu_generation_points(gpu: str | None, is_uma: bool, ref: dict) -> int:
     return points_by_gen.get(generation, 0)
 
 
+def _uma_soc_points(cpu: str | None, model: str | None, ref: dict) -> int:
+    """Points for UMA SoC bandwidth tier.
+    
+    If the SoC is not in uma_soc_by_name, falls back to the flat Apple Silicon value.
+    """
+    haystack = " ".join(filter(None, [model, cpu])).lower()
+    if not haystack:
+        return ref.get("llm_index_score", {}).get("gpu_generation_points", {}).get("Apple Silicon", 0)
+        
+    uma_soc_by_name_lower = ref.get("_uma_soc_by_name_lower") or {
+        name.lower(): tier for name, tier in ref.get("uma_soc_by_name", {}).items()
+    }
+    
+    matched_tier = None
+    for name_lower, tier in uma_soc_by_name_lower.items():
+        if name_lower in haystack:
+            matched_tier = tier
+            break
+            
+    if matched_tier is not None:
+        return ref.get("uma_soc_bandwidth_points", {}).get(matched_tier, 0)
+        
+    # Mandatory fallback
+    return ref.get("llm_index_score", {}).get("gpu_generation_points", {}).get("Apple Silicon", 0)
+
+
 def _log_undiscovered_hardware(
     analysis: dict,
     gpu: str | None,
@@ -368,6 +399,8 @@ def calculate_llm_index_score(
     analysis: dict,
     tier: str | None,
     gpu: str | None,
+    cpu: str | None,
+    model: str | None,
     is_uma: bool,
     ref: dict,
 ) -> int:
@@ -378,7 +411,7 @@ def calculate_llm_index_score(
     Clamped to [0, 100] after all adjustments.
     """
     capacity = _capacity_points(tier, ref)
-    generation = _gpu_generation_points(gpu, is_uma, ref)
+    generation = _uma_soc_points(cpu, model, ref) if is_uma else _gpu_generation_points(gpu, is_uma, ref)
     seller = _seller_reward_points(analysis, ref)
     deductions = _deduction_points(analysis, ref)
 
@@ -428,7 +461,7 @@ def decide(analysis: dict, ref: dict | None = None, workload: str | None = None)
     uma_tier = _vram_tier(uma_ram, ref) if is_uma else None
     radeon_match = _is_radeon_mobile(gpu, ref)
     has_egpu = _has_egpu_bundle(model, egpu_model, ref)
-    generation_points = _gpu_generation_points(gpu, is_uma, ref)
+    generation_points = _uma_soc_points(cpu, model, ref) if is_uma else _gpu_generation_points(gpu, is_uma, ref)
     _log_undiscovered_hardware(
         analysis,
         gpu,
@@ -441,7 +474,7 @@ def decide(analysis: dict, ref: dict | None = None, workload: str | None = None)
     )
 
     capacity_tier = uma_tier if is_uma else tier
-    llm_index_score = calculate_llm_index_score(analysis, capacity_tier, gpu, is_uma, ref)
+    llm_index_score = calculate_llm_index_score(analysis, capacity_tier, gpu, cpu, model, is_uma, ref)
 
     # Radeon ecosystem risk is surfaced as a buyer disclosure note, not added to risk_score.
     low_risk = _passes_risk_gate(analysis, ref, 0.0)

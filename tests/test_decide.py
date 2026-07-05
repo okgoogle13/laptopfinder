@@ -20,6 +20,7 @@ from laptopfinder.decide import (
     _has_egpu_bundle,
     _capacity_points,
     _gpu_generation_points,
+    _uma_soc_points,
     _seller_reward_points,
     _deduction_points,
     _apply_architecture_penalty,
@@ -417,6 +418,21 @@ class TestUmaDecide:
         assert result["is_uma_platform"] is True
         assert result["uma_ram_gb"] == 32.0
 
+    def test_higher_bandwidth_soc_scores_higher(self):
+        """At equal 64GB RAM, M3 Ultra should score higher than M1 Max
+        because of its higher bandwidth tier points."""
+        ultra = load_fixture("uma_m3_ultra_64gb.json")["analysis_output"]
+        maxx = load_fixture("uma_m1_max_64gb.json")["analysis_output"]
+        
+        ultra_result = decide(ultra, REF)
+        max_result = decide(maxx, REF)
+        
+        assert ultra_result["llm_index_score"] > max_result["llm_index_score"]
+        assert ultra_result["is_uma_platform"] is True
+        assert max_result["is_uma_platform"] is True
+        assert ultra_result["recommended_action"] == "SHORTLIST"
+        assert max_result["recommended_action"] == "SHORTLIST"
+
 
 # --- Radeon mobile (ROCm ecosystem risk penalty) ---
 
@@ -515,6 +531,23 @@ class TestGpuGenerationPoints:
 
     def test_none_gpu_no_uma_scores_zero(self):
         assert _gpu_generation_points(None, is_uma=False, ref=REF) == 0
+
+
+class TestUmaSocPoints:
+    def test_m3_ultra(self):
+        assert _uma_soc_points(None, "Mac Studio M3 Ultra", REF) == 25
+
+    def test_m1_max(self):
+        assert _uma_soc_points(None, "MacBook Pro M1 Max", REF) == 20
+
+    def test_strix_halo(self):
+        assert _uma_soc_points("Ryzen AI Max 395", "ASUS ROG Flow Z13", REF) == 15
+        
+    def test_fallback_scores_apple_silicon_flat_value(self):
+        """A UMA chip present in chip_patterns but absent from uma_soc_by_name
+        should fallback to the flat Apple Silicon value (20), not 0."""
+        # E.g. "M5 Max" might be in chip_patterns soon but not in uma_soc_by_name yet
+        assert _uma_soc_points(None, "Mac Studio M5 Max", REF) == 20
 
 
 class TestSellerRewardPoints:
