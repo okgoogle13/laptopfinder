@@ -291,19 +291,23 @@
 - `[x]` `[IDE/DEV]` C3 — `fieldgroups=EXTENDED` richer item summaries requested at Browse API edge.
 
 ### Remaining Quick Wins (for batch runner `ebay_hunter.py` / `ebay_api.py`)
-- `[ ]` `[IDE/DEV]` B1 — Taxonomy-driven high-VRAM `aspect_filter`: new `ebay_taxonomy.py` helper; thread an `aspect_filter` param through `build_queries`/`browse_search` and `search_ebay`. **Prereq:** unify category id (`ebay_api.py` 175672 vs `ebay_hunter.py` 177).
-- `[ ]` `[IDE/DEV]` C2 — Seller-scoped watch queries: SRL `watched_sellers` list + `filter=sellers:{...}` in `build_queries`/`_build_filter`.
+- `[x]` `[IDE/DEV]` B1 — Taxonomy-driven high-VRAM `aspect_filter`: `ebay_taxonomy.py` extracted; `aspect_filter` threaded through `build_queries`/`browse_search`; category id unified to 175672. (2026-07-06)
+- `[x]` `[IDE/DEV]` C2 — Seller-scoped watch queries: SRL `watched_sellers` list + `filter=sellers:{...}` in `build_queries`/`_build_filter`. (2026-07-06)
 
 ### New Strategy Ideas (`data/ebay_api_strategy_ideas.json`)
-- `[ ]` `[IDE/DEV]` E1 — Item Feed API Pre-Caching: Ingest hourly category feed snapshots from eBay CDN into a local hash table to eliminate HTTP 429 rate limits during 5-minute sniper loops.
-- `[ ]` `[IDE/DEV]` E2 — Deal & Event API Clearance Monitoring: Scan refurbished/promotional clearance laptop deals from top AU resellers (Dell Outlet AU, Lenovo AU, ASUS Refurbished) for 64GB+ UMA models.
-- `[ ]` `[HUMAN]` D1 — Request the `buy.marketplace.insights` OAuth scope for the Marketplace Insights API on the eBay developer account.
-- `[ ]` `[IDE/DEV]` D2 — Marketplace Insights Realized Sold Price Baseline: Once granted, swap static asking-price medians to 90-day empirical sold-price medians from `item_sales/search`.
+- `[x]` `[IDE/DEV]` E1 — Item Feed API Pre-Caching: `scripts/ebay_feed_cache.py` — hourly category JSONL snapshots for O(1) sniper lookups. `make cache-feed` target. 2 tests. (2026-07-06)
+- `[x]` `[IDE/DEV]` E2 — Deal & Event API Clearance Monitoring: `src/laptopfinder/runners/ebay_deals.py` — scans AU refurbisher accounts (SRL `clearance_sellers`) for 64GB+ UMA clearance units. `make scan-deals` target. 3 tests. (2026-07-06)
+- `[x]` `[IDE/DEV]` D2 — Realized Sold Price Baseline via **eBay Finding API `findCompletedItems`**: uses existing `EBAY_APP_ID` (no restricted scope needed). Queries AU sold listings by target GPU keywords, outputs median sold price per term to `data/sold_baseline/`. Replaces the Marketplace Insights approach (D1 dropped — restricted API, no self-service path).
 
 ### Sprint 7 Validation
 - `[x]` `[IDE/DEV]` Sanity-check raw Browse calls via live dry-run (`scripts/ebay_sniper.py --dry-run --once`).
 - `[ ]` `[IDE/DEV]` `.venv/bin/python -m laptopfinder.runners.ebay_hunter --dry-run` still populates corpus/SHORTLIST/underpriced counts.
-- `[x]` `[IDE/DEV]` `make test` green (174 tests passing); `make lint` clean.
+- `[x]` `[IDE/DEV]` `make test` green (193 tests passing, 2026-07-06); `make lint` clean.
+
+### Sprint 7 Backlog (minor, non-blocking)
+- `[ ]` Move `PRICE_MIN_AUD`/`PRICE_MAX_AUD` defaults from `ebay_deals.py` env vars into SRL.
+- `[ ]` Add `json.JSONDecodeError` guard in `load_feed_cache` for truncated JSONL files.
+- `[ ]` Note: `fetch_feed_snapshot` in `ebay_feed_cache.py` assumes JSON response — eBay Feed API actually delivers gzip TSV. Needs rework once `buy.feed` scope granted (comment added, D1 dependency).
 
 ---
 
