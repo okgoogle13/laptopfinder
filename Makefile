@@ -1,4 +1,4 @@
-.PHONY: test lint decide pipeline live evidence-run evidence-run-dry evidence-reset inject-config render-matrix scan-gaps process_csv ebay-auth start-sniper stop-sniper status-sniper test-sniper-alert scan-deals cache-feed
+.PHONY: test lint decide pipeline live evidence-run evidence-run-dry evidence-reset inject-config render-matrix scan-gaps process_csv ebay-auth start-sniper stop-sniper status-sniper test-sniper-alert scan-deals cache-feed sold-baseline
 
 # Overrideable variables
 SCRAPER ?= .venv/bin/python -m laptopfinder.runners.ebay_api
@@ -125,3 +125,6 @@ cache-feed:
 
 scan-deals:
 	.venv/bin/python -c "import json; from dotenv import load_dotenv; load_dotenv(); from laptopfinder.runners.ebay_hunter import get_ebay_token; from laptopfinder.runners.ebay_deals import scan_clearance; ref = json.load(open('config/static_reference_layer.json')); token = get_ebay_token(); hits = scan_clearance(token, ref); print(f'[DEALS] {len(hits)} clearance listings found'); [print(' -', h.get('title','?'), h.get('price',{}).get('value','?')) for h in hits]"
+
+sold-baseline:
+	.venv/bin/python scripts/ebay_sold_baseline.py --category 175672 --out-dir data/sold_baseline
