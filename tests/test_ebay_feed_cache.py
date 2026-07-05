@@ -1,7 +1,4 @@
-import json
-import os
 import tempfile
-from pathlib import Path
 from scripts.ebay_feed_cache import load_feed_cache, write_feed_cache
 
 
