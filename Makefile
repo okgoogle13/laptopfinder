@@ -1,7 +1,7 @@
-.PHONY: test lint decide pipeline live evidence-run evidence-run-dry evidence-reset inject-config scrape-and-live render-matrix scan-gaps process_csv
+.PHONY: test lint decide pipeline live evidence-run evidence-run-dry evidence-reset inject-config render-matrix scan-gaps process_csv ebay-auth start-sniper stop-sniper status-sniper test-sniper-alert
 
 # Overrideable variables
-FIRECRAWL_URLS ?= data/urls.txt
+SCRAPER ?= .venv/bin/python -m laptopfinder.runners.ebay_api
 
 test:
 	.venv/bin/python -m pytest tests/ -v
@@ -45,24 +45,6 @@ evidence-reset:
 inject-config:
 	.venv/bin/python scripts/inject_config.py
 
-# Scrape listing URLs via Firecrawl, then run the live pipeline per listing.
-# Requires FIRECRAWL_API_KEY in .env. Does NOT depend on inject-config.
-# Usage: make scrape-and-live
-#        make scrape-and-live FIRECRAWL_URLS=path/to/other_urls.txt
-scrape-and-live:
-	@rm -f data/feed_live/listing-*.txt
-	@echo "=== Firecrawl fetch ==="
-	.venv/bin/python -m laptopfinder.scrape_live --urls-file $(FIRECRAWL_URLS) --out-dir data/feed_live/
-	@echo "=== Live pipeline (per listing) ==="
-	@if ! ls data/feed_live/listing-*.txt 1>/dev/null 2>&1; then \
-	    echo "ERROR: scrape produced no listing files — check FIRECRAWL_API_KEY and $(FIRECRAWL_URLS)"; \
-	    exit 1; \
-	fi
-	@for f in data/feed_live/listing-*.txt; do \
-	    echo "--- $$f ---"; \
-	    $(MAKE) live SOURCE="$$f" || exit 1; \
-	done
-
 # Render JSONL shortlist into a sorted Markdown purchase-decision table.
 # Input:  data/shortlist_candidates.jsonl (manually assembled by operator)
 # Output: data/purchase_matrix.md
@@ -74,6 +56,31 @@ render-matrix:
 # Usage: make live-api
 live-api:
 	.venv/bin/python -m laptopfinder.runners.ebay_api
+
+# Run the eBay OAuth flow, export the token to the shell environment, and launch the scraper.
+# Usage: make ebay-auth
+#        make ebay-auth SCRAPER="python -m laptopfinder.runners.ebay_hunter"
+ebay-auth:
+	@set -a; [ -f .env ] && . .env; set +a; \
+	API_BASE="https://api.ebay.com"; \
+	if [ "$$EBAY_ENVIRONMENT" = "sandbox" ]; then API_BASE="https://api.sandbox.ebay.com"; fi; \
+	TOKEN_URL="$${API_BASE}/identity/v1/oauth2/token"; \
+	CREDENTIALS=$$(printf "%s:%s" "$$EBAY_CLIENT_ID" "$$EBAY_CLIENT_SECRET" | base64 | tr -d '\n\r'); \
+	RESPONSE=$$(curl -s -X POST "$$TOKEN_URL" \
+	  -H 'Content-Type: application/x-www-form-urlencoded' \
+	  -H "Authorization: Basic $$CREDENTIALS" \
+	  -d 'grant_type=client_credentials&scope=https%3A%2F%2Fapi.ebay.com%2Foauth%2Fapi_scope'); \
+	TOKEN=$$(echo "$$RESPONSE" | jq -r .access_token); \
+	if [ "$$TOKEN" != "null" ] && [ -n "$$TOKEN" ]; then \
+	  echo "$$TOKEN" > .ebay_access_token; \
+	  export EBAY_ACCESS_TOKEN=$$TOKEN; \
+	  echo "export EBAY_ACCESS_TOKEN=$$TOKEN"; \
+	  $(SCRAPER); \
+	else \
+	  echo "Authentication failed!"; \
+	  echo "$$RESPONSE"; \
+	  exit 1; \
+	fi
 
 # Run batch CSV ingestion and update the decision matrix
 # Usage: make process_csv
@@ -87,3 +94,28 @@ process_csv:
 # Usage: make scan-gaps
 scan-gaps:
 	.venv/bin/python scripts/scan_market_gaps.py
+
+# Start eBay AU sniper as a background daemon
+start-sniper:
+	@mkdir -p data/logs
+	@nohup .venv/bin/python scripts/ebay_sniper.py > data/logs/sniper.log 2>&1 & echo $$! > data/sniper.pid
+	@echo "Sniper running in background (PID: $$(cat data/sniper.pid)). Logs at data/logs/sniper.log"
+
+# Stop eBay AU sniper background daemon
+stop-sniper:
+	@test -f data/sniper.pid || (echo "Sniper not running (no PID file)." && exit 1)
+	@kill -15 $$(cat data/sniper.pid) && rm -f data/sniper.pid
+	@echo "Sniper daemon stopped."
+
+# Check status of eBay AU sniper daemon
+status-sniper:
+	@if [ -f data/sniper.pid ] && ps -p $$(cat data/sniper.pid) > /dev/null; then \
+		echo "🟢 Sniper running (PID: $$(cat data/sniper.pid))"; \
+		tail -n 5 data/logs/sniper.log; \
+	else \
+		echo "🔴 Sniper stopped."; \
+	fi
+
+# Send a test iMessage alert
+test-sniper-alert:
+	.venv/bin/python scripts/ebay_sniper.py --test-alert

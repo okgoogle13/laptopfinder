@@ -14,7 +14,6 @@ dependencies = [
     "openai>=1.10.0",
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0.3",
-    "firecrawl-py~=4.31",
 ]
 
 [project.optional-dependencies]

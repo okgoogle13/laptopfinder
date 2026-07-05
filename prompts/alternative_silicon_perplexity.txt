@@ -40,7 +40,7 @@ MEMORY GATE THRESHOLDS (non-negotiable memory boundaries for local LLM inference
 LOCATION AND SOURCING
 
   * Search platforms: eBay AU, Facebook Marketplace, Gumtree.
-  * Geographic base: Northcote, VIC. Prefer local pickups within a 120-minute driving radius.
+  * Geographic base: Australia-wide (online, delivery, or local); priority is finding high-spec laptops ASAP without driving radius constraints.
   * Overseas listings shipping to AU: allowed, but label "OVERSEAS — ships to AU" and include estimated AUD landed cost.
 
 EVIDENCE RULES

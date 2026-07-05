@@ -178,9 +178,9 @@
 
 ---
 
-## Sprint 5 — Firecrawl Live Wiring + batch_decide
+## ~~Sprint 5 — Firecrawl Live Wiring + batch_decide~~ [CANCELLED]
 
-**Goal:** Add a Firecrawl live-fetch path to `scrape_benchmark.py` so it can retrieve and parse structured fields from live eBay AU URLs, wire it into a new Makefile feed target, and implement the missing `batch_decide()` function.
+**Goal:** ~~Add a Firecrawl live-fetch path to `scrape_benchmark.py` so it can retrieve and parse structured fields from live eBay AU URLs, wire it into a new Makefile feed target, and implement the missing `batch_decide()` function.~~ Firecrawl was replaced by eBay Developer API.
 
 ### Firecrawl Live Fetch in scrape_benchmark.py
 
@@ -266,15 +266,53 @@
 
 ---
 
+## COMPLETE: eBay AU Active Sniper Setup (2026-07-05)
+
+**Goal:** Build a lean, token-free real-time background sniper (`scripts/ebay_sniper.py`) for AU high-VRAM/UMA hardware targeting Melbourne VIC 3070, alerting via macOS iMessage. Handover: `handover.md`. Plan: `planning/laptopfinder-ebay-sniper-deep-plan.md`.
+
+- `[x]` `[IDE/DEV]` Stage 1 — Implement flat, Karpathy-compliant `scripts/ebay_sniper.py` with national flagship sweep (Strategy A) and local Melbourne algorithmic pricing sweep (Strategy B).
+- `[x]` `[IDE/DEV]` Stage 1 — Wire dynamic SRL gating (`observed_au_price_min_aud` and `exclusion_regex`) and automatic HTTP 401 token refresh.
+- `[x]` `[IDE/DEV]` Stage 2 — Wire `Makefile` targets (`start-sniper`, `stop-sniper`, `status-sniper`, `test-sniper-alert`).
+- `[x]` `[IDE/DEV]` Stage 2 — Create documentation in `docs/ebay_sniper.md`.
+- `[x]` `[IDE/DEV]` Stage 3 — Create unit tests in `tests/test_ebay_sniper.py` covering normalization, firewall regex, and price floor logic. All 174 tests pass (`make test`).
+- `[x]` `[IDE/DEV]` Stage 3 — Execute live dry-run sweep (`--dry-run --once`) verifying API connectivity and zero-state mutation.
+- `[ ]` `[HUMAN/CLAUDE]` Stage 4 — Execute Codex peer review (`scripts/deep_plan_peer_review.sh`), confirm with user, launch daemon (`make start-sniper`), and log heartbeat to `docs/ebay_sniper.md`.
+
+---
+
+## Sprint 7 — eBay Browse & Developer API Discovery Expansion (active)
+
+**Goal:** Extract more value from the eBay API for AU high-VRAM/UMA discovery near Melbourne. Several quick wins have now been shipped inside `scripts/ebay_sniper.py`. Brainstorm & ideas: `data/ebay_api_strategy_ideas.json` and `planning/ebay-api-discovery-ideas.md`.
+
+### Shipped via eBay AU Sniper (`scripts/ebay_sniper.py`)
+- `[x]` `[IDE/DEV]` A1 — Local pickup-radius filter: added `pickupCountry/PostalCode/Radius/RadiusUnit` tokens + zip `3070` in `X-EBAY-C-ENDUSERCTX` for Melbourne Strategy B.
+- `[x]` `[IDE/DEV]` B2 — Private-seller isolation pass (`sellerAccountTypes:{INDIVIDUAL}`) in local pricing sweep.
+- `[x]` `[IDE/DEV]` C1 — `newlyListed` first-mover sweep: implemented `sort=newlyListed` in national flagship and local sweeps with local state deduplication.
+- `[x]` `[IDE/DEV]` C3 — `fieldgroups=EXTENDED` richer item summaries requested at Browse API edge.
+
+### Remaining Quick Wins (for batch runner `ebay_hunter.py` / `ebay_api.py`)
+- `[ ]` `[IDE/DEV]` B1 — Taxonomy-driven high-VRAM `aspect_filter`: new `ebay_taxonomy.py` helper; thread an `aspect_filter` param through `build_queries`/`browse_search` and `search_ebay`. **Prereq:** unify category id (`ebay_api.py` 175672 vs `ebay_hunter.py` 177).
+- `[ ]` `[IDE/DEV]` C2 — Seller-scoped watch queries: SRL `watched_sellers` list + `filter=sellers:{...}` in `build_queries`/`_build_filter`.
+
+### New Strategy Ideas (`data/ebay_api_strategy_ideas.json`)
+- `[ ]` `[IDE/DEV]` E1 — Item Feed API Pre-Caching: Ingest hourly category feed snapshots from eBay CDN into a local hash table to eliminate HTTP 429 rate limits during 5-minute sniper loops.
+- `[ ]` `[IDE/DEV]` E2 — Deal & Event API Clearance Monitoring: Scan refurbished/promotional clearance laptop deals from top AU resellers (Dell Outlet AU, Lenovo AU, ASUS Refurbished) for 64GB+ UMA models.
+- `[ ]` `[HUMAN]` D1 — Request the `buy.marketplace.insights` OAuth scope for the Marketplace Insights API on the eBay developer account.
+- `[ ]` `[IDE/DEV]` D2 — Marketplace Insights Realized Sold Price Baseline: Once granted, swap static asking-price medians to 90-day empirical sold-price medians from `item_sales/search`.
+
+### Sprint 7 Validation
+- `[x]` `[IDE/DEV]` Sanity-check raw Browse calls via live dry-run (`scripts/ebay_sniper.py --dry-run --once`).
+- `[ ]` `[IDE/DEV]` `.venv/bin/python -m laptopfinder.runners.ebay_hunter --dry-run` still populates corpus/SHORTLIST/underpriced counts.
+- `[x]` `[IDE/DEV]` `make test` green (174 tests passing); `make lint` clean.
+
+---
+
 ## BACKLOG
 
 Items not yet sprint-assigned. Promote to next sprint planning cycle as capacity allows.
 
 - [ ] Wire `architecture_adjustments.turing_vs_ada_same_vram_penalty_pts` pairwise comparison — Sprint 6 resolves this as a single-listing heuristic; revisit true pairwise scoring only if batch comparison context becomes available (e.g. a shortlist-ranking pass over multiple Stage 2 outputs).
-- [ ] FB Marketplace full scraping parity — defer until eBay AU pipeline is stable. Evaluate JSON-LD vs DevTools relay-blob capture on a real listing before committing to an approach.
-- [ ] Gumtree discovery-mode search results — after Sprint 4 verifies the individual listing extractor, evaluate whether Chrome export covers search-results pages or requires a separate parser.
-- [ ] Playwright / Browserbase evaluation — do not introduce without first checking `tool_assessment.md` in the Antigravity brain and adding an explicit plan-level note. Firecrawl is the current live-fetch strategy.
-- [ ] `make benchmark-live` Gumtree URL support — after Sprint 4, test `--live` flag against Gumtree URLs and patch `fetch_live_firecrawl()` if Firecrawl renders Gumtree pages differently from eBay.
+- [ ] Replace Firecrawl automation for secondary marketplaces (FB Marketplace & Gumtree) with manual/agent-assisted workflows (e.g., Chrome Export extensions or Antigravity browser extension) to accommodate the removal of Firecrawl while still supporting ad-hoc extraction from these authenticated/JS-heavy platforms.
 
 ---
 

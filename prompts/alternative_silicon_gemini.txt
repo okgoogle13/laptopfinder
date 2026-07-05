@@ -180,7 +180,7 @@ Rank viable platforms by AUD/GB of inference-usable memory, lowest cost first. N
 
 3.2 SWEET SPOT IDENTIFICATION
 
-Identify the single best-value entry point into alternative silicon for a buyer in Northcote, VIC with a ~120-minute travel radius. Justify against: (1) AU used price, (2) AU listing depth, (3) software friction, (4) model size capability.
+Identify the single best-value entry point into alternative silicon for an AU buyer focusing on finding a high-spec system ASAP without geographical travel restrictions. Justify against: (1) AU used price, (2) AU listing depth, (3) software friction, (4) model size capability.
 
 ──────────────────────────────────────────────
 SECTION 4 — BUYER ADVISORY & RECOMMENDATION RULES

@@ -5,6 +5,30 @@ metadata:
   type: project
 ---
 
+# eBay AU Active Sniper Setup — 2026-07-05 (COMPLETE — PENDING DAEMON LAUNCH)
+
+**Why:** Batch runners (`ebay_hunter.py`) introduce email/LLM latency and token costs that miss underpriced "Buy It Now" private listings. To solve this, a lean, token-free background sniper (`scripts/ebay_sniper.py`) was implemented for instantaneous acquisition of high-VRAM/UMA hardware in AU, alerting via macOS iMessage.
+
+**Status:** Complete (Stages 1–3). 174 tests green. Dry-run verified against live eBay API. Waiting for user sign-off to start background daemon via `make start-sniper` (Stage 4). Handover detailed in `handover.md` and `planning/laptopfinder-ebay-sniper-deep-plan.md`.
+
+## Changes shipped
+- `scripts/ebay_sniper.py` — Flat, Karpathy-compliant daemon with national flagship sweep (Strategy A) and local Melbourne algorithmic pricing sweep (Strategy B), HTTP 429 backoff / 401 token auto-refresh, and iMessage alerting.
+- `Makefile` — Added `start-sniper`, `stop-sniper`, `status-sniper`, `test-sniper-alert`.
+- `tests/test_ebay_sniper.py` — 3 new test functions covering title normalization, data integrity firewall regex, and local SRL price floor logic.
+- `docs/ebay_sniper.md` — Usage instructions, configuration constraints, and dry-run verification logs.
+- `data/ebay_api_strategy_ideas.json` — 4 concrete API strategy ideas (sold price baselines, feed API pre-caching, local pickup postal gating, and deal clearance monitoring).
+
+---
+
+# eBay Browse API Discovery Expansion — 2026-07-05 (IN PROGRESS / PARTIALLY SHIPPED VIA SNIPER)
+
+**Why:** Extract more value from the eBay Browse API for AU high-VRAM/UMA discovery near Melbourne. Several quick wins (local pickup radius, private-seller isolation, `newlyListed` sweep, and `fieldgroups=EXTENDED`) have now been implemented inside `scripts/ebay_sniper.py`. Further ideas (Marketplace Insights sold prices, Feed API pre-caching, and Deal API clearance monitoring) are documented in `data/ebay_api_strategy_ideas.json` and `planning/ebay-api-discovery-ideas.md`.
+
+**Status:** Active / Partially Shipped. Item tracking: `TASKS.md` Sprint 7.
+
+
+---
+
 # Alternative-Silicon Scoring Layer — June 2026 (COMPLETE)
 
 **Why:** UMA platforms (Apple Silicon, Strix Halo) were artificially capped at 75 points, making them appear weaker than discrete GPU laptops for text-centric inference workloads where they are actually superior. The scoring layer now reflects real inference capability.

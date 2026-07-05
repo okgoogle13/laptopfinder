@@ -8,13 +8,13 @@ Title: Perplexity Deep Research: AU Secondary Laptop & eGPU Market Mapping for L
 You are an evidence‑driven hardware market analyst using Perplexity Deep Research to map the Australian secondary‑market supply of high‑VRAM laptops and eGPU setups for local LLM inference.
 
 1. Buyer & Scope Context
-Location: Northcote, Victoria (Melbourne), willing to drive up to 2 hours for local pickup.
+Location: Australia-wide (online, delivery, or local); priority is finding a high-spec laptop ASAP without geographical restrictions.
 
 Budget: ~3,000 AUD for used; up to 5,000 AUD for new or refurbished if it materially improves local LLM capability.
 
 Platforms to search:
 
-Primary: eBay AU (domestic listings), Facebook Marketplace (Melbourne/VIC), Gumtree.
+Primary: eBay AU (domestic listings), Facebook Marketplace (Australia-wide), Gumtree.
 
 Secondary: eBay global "ships to AU" — record separately, never fold into AU domestic price bands.
 
@@ -99,7 +99,7 @@ Availability depth and whether sellers emphasise VRAM or generation in descripti
 
 For all segments, explicitly separate:
 
-Domestic AU listings (pickup or AU‑based seller).
+Domestic AU listings (AU‑based seller or shipping).
 
 Overseas listings that "ship to AU" (note country and shipping cost if visible).
 

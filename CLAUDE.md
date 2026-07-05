@@ -96,7 +96,7 @@ Converts saved HTML pages or JSON API payloads from eBay AU / FB Marketplace / G
 3. **Niche workstation imports** — ASUS ProArt P16, ThinkPad P-series, and similar non-gaming chassis from overseas resellers carry the `OVERSEAS_IMPORT` −10 seller penalty. High-value Strix Halo and Ada workstation units from international sellers may still warrant manual review despite the scoring penalty.
 
 **Static Reference Layer** (`config/static_reference_layer.json`)  
-The single source of truth for all scoring weights, VRAM tier thresholds, target GPU/model lists, watch lists, UMA chip patterns, Radeon mobile GPUs, eGPU enclosure names, risk gate limits, geolocation filters, and the data integrity exclusion regex. Change scoring/thresholds here, not in Python source. `decide.py` loads it at runtime via `load_ref()`.
+The single source of truth for all scoring weights, VRAM tier thresholds, target GPU/model lists, watch lists, UMA chip patterns, Radeon mobile GPUs, eGPU enclosure names, risk gate limits, and the data integrity exclusion regex. Change scoring/thresholds here, not in Python source. `decide.py` loads it at runtime via `load_ref()`.
 
 **Silicon Profiles** (`config/silicon_profiles.yaml`)  
 Paradigm definitions (`apple_silicon_uma`, `amd_uma`, `discrete_cuda`, `discrete_rocm`) and workload preferences for `text_centric_llm_inference`. Read by agents and prompts; not loaded at runtime by `decide.py`.

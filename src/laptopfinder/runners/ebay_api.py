@@ -19,6 +19,9 @@ from laptopfinder.decide import decide, load_ref
 load_dotenv()
 
 def get_ebay_token() -> str:
+    env_token = os.environ.get("EBAY_ACCESS_TOKEN")
+    if env_token:
+        return env_token.strip()
     token_path = Path(".ebay_access_token")
     if not token_path.exists():
         raise FileNotFoundError("eBay access token not found. Run scripts/authenticate_ebay.sh first.")

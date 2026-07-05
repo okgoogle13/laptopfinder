@@ -27,10 +27,6 @@
     "min_listings_for_baseline": 3,
     "exclusion_regex": "(?i)(bare shell|missing motherboard|screen only|no mobile-gpu|no core|chassis only|parts only|read description|junk|as-is|bare board)"
   },
-  "geolocation": {
-    "route_regex": "(?i)(Melbourne|Northcote|Preston|Thornbury|Brunswick|Coburg|Fitzroy|Collingwood|Carlton|Geelong|Ballarat|Mornington|Frankston|Dandenong|Ringwood|Werribee|VIC)",
-    "logistics_regex": "(?i)(pickup|pick up|cash on pickup|cash only|local sale)"
-  },
   "watch_list": [
     {
       "name": "RTX 5000 Ada Mobile",
@@ -291,12 +287,6 @@
     "Sonnet Breakaway Box",
     "Sonnet eGFX"
   ],
-  "travel": {
-    "mode": "CAR_OK",
-    "base": "Northcote, VIC",
-    "max_drive_minutes": 120,
-    "max_drive_minutes_for_high_vram": 150
-  },
   "shortlist_override": {
     "conditions": "vram_gb >= min_vram_to_shortlist_gb",
     "requires_risk_score_max": 3.0,

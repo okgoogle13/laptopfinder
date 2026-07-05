@@ -12,7 +12,7 @@ Assume you have access to a recent AU market mapping (GPU segments, price bands,
 1. Context & Fixed Thresholds
 Buyer profile:
 
-Northcote, VIC; 2‑hour drive radius for pickup.
+Australia-wide (online, delivery, or local); priority is finding a high-spec laptop ASAP without geographical restrictions.
 
 Budget: ~3,000 AUD used, up to 5,000 AUD new/refurb if it significantly improves LLM performance.
 

@@ -128,6 +128,9 @@ def _load_cached_token() -> str | None:
 def get_ebay_token(force: bool = False) -> str:
     """Return a valid Browse-scope application token, minting a fresh one if needed."""
     if not force:
+        env_token = os.environ.get("EBAY_ACCESS_TOKEN")
+        if env_token:
+            return env_token.strip()
         cached = _load_cached_token()
         if cached:
             return cached
