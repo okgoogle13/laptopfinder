@@ -124,15 +124,4 @@ cache-feed:
 	.venv/bin/python scripts/ebay_feed_cache.py --category 175672 --cache-dir data/feed_cache
 
 scan-deals:
-	.venv/bin/python -c "
-import json, os
-from dotenv import load_dotenv
-load_dotenv()
-from laptopfinder.runners.ebay_hunter import get_ebay_token
-from laptopfinder.runners.ebay_deals import scan_clearance
-ref = json.load(open('config/static_reference_layer.json'))
-token = get_ebay_token()
-hits = scan_clearance(token, ref)
-print(f'[DEALS] {len(hits)} clearance listings found')
-for h in hits: print(' -', h.get('title','?'), h.get('price',{}).get('value','?'))
-"
+	.venv/bin/python -c "import json; from dotenv import load_dotenv; load_dotenv(); from laptopfinder.runners.ebay_hunter import get_ebay_token; from laptopfinder.runners.ebay_deals import scan_clearance; ref = json.load(open('config/static_reference_layer.json')); token = get_ebay_token(); hits = scan_clearance(token, ref); print(f'[DEALS] {len(hits)} clearance listings found'); [print(' -', h.get('title','?'), h.get('price',{}).get('value','?')) for h in hits]"

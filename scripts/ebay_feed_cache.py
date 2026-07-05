@@ -52,6 +52,8 @@ def fetch_feed_snapshot(token: str, category: str, marketplace: str = "EBAY_AU")
     })
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
+            # NOTE: Feed API returns gzip-compressed TSV, not JSON.
+            # This parsing logic needs rework once buy.feed scope is granted.
             data = json.loads(resp.read())
             return data.get("itemSummaries") or []
     except Exception as exc:
