@@ -1,4 +1,3 @@
-import statistics
 from scripts.ebay_sold_baseline import compute_baseline, parse_sold_items
 
 
@@ -10,7 +9,7 @@ def _make_item(price_aud: str, title: str = "Laptop") -> dict:
 
 
 def test_compute_baseline_median():
-    items = [_make_item("1000"), _make_item("2000"), _make_item("1500")]
+    items = [{"price_aud": 1000.0}, {"price_aud": 2000.0}, {"price_aud": 1500.0}]
     result = compute_baseline(items)
     assert result["median_aud"] == 1500.0
     assert result["count"] == 3

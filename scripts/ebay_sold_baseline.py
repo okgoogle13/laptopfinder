@@ -71,20 +71,9 @@ def parse_sold_items(response: dict) -> list[dict]:
 
 
 def compute_baseline(items: list[dict]) -> dict:
-    """Accept either parsed items (with price_aud key) or raw eBay item dicts."""
     if not items:
         return {}
-    prices = []
-    for i in items:
-        if "price_aud" in i:
-            prices.append(i["price_aud"])
-        else:
-            try:
-                prices.append(float(i["sellingStatus"][0]["currentPrice"][0]["__value__"]))
-            except (KeyError, IndexError, ValueError):
-                continue
-    if not prices:
-        return {}
+    prices = [i["price_aud"] for i in items]
     return {
         "count": len(prices),
         "median_aud": statistics.median(prices),
