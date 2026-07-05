@@ -1,4 +1,4 @@
-.PHONY: test lint decide pipeline live evidence-run evidence-run-dry evidence-reset inject-config render-matrix scan-gaps process_csv ebay-auth start-sniper stop-sniper status-sniper test-sniper-alert scan-deals
+.PHONY: test lint decide pipeline live evidence-run evidence-run-dry evidence-reset inject-config render-matrix scan-gaps process_csv ebay-auth start-sniper stop-sniper status-sniper test-sniper-alert scan-deals cache-feed
 
 # Overrideable variables
 SCRAPER ?= .venv/bin/python -m laptopfinder.runners.ebay_api
@@ -119,6 +119,9 @@ status-sniper:
 # Send a test iMessage alert
 test-sniper-alert:
 	.venv/bin/python scripts/ebay_sniper.py --test-alert
+
+cache-feed:
+	.venv/bin/python scripts/ebay_feed_cache.py --category 175672 --cache-dir data/feed_cache
 
 scan-deals:
 	.venv/bin/python -c "
