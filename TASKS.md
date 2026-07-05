@@ -173,7 +173,6 @@
 ### Sprint 4 Validation
 
 - `[IDE/DEV]` Run `make test` — all 108+ tests green.
-- `[HUMAN]` Confirm `ebay_export_to_jsonl.py` converts a real eBay Chrome export to valid JSONL with non-null title + price for ≥3 records.
 - `[HUMAN]` Confirm the eBay saved-page extractor test passes on the real HTML fixture.
 - `[HUMAN]` Confirm the Gumtree saved-page extractor test passes on the real HTML fixture.
 
@@ -261,7 +260,7 @@
 
 - `[x]` `[IDE/DEV]` Run `make test` — 183 tests green (up from 180 pre-Sprint-6; +3 from the rewritten/expanded `TestApplyArchitecturePenalty` class and the new `TestArchitecturePenaltyIntegration` test).
 - `[x]` `[IDE/DEV]` Confirm `_apply_architecture_penalty()` is wired: `make decide FIXTURE=tests/fixtures/stage2/ebay_quadro_rtx5000_turing.json` shows a non-zero penalty for the Turing GPU fixture (**correction:** `ebay_facts_grounded.json`, named in the original spec above, is not a Turing fixture — the new `ebay_quadro_rtx5000_turing.json` fixture is the correct target for this check).
-- `[ ]` `[HUMAN]` `make scrape-and-live` runs to completion on ≥3 eBay AU listings without unhandled crash.
+- `[ ]` `[HUMAN]` `python -m laptopfinder.runners.ebay_hunter` runs to completion on ≥3 eBay AU listings without crash.
 - `[ ]` `[HUMAN]` `data/purchase_matrix.md` renders with ≥1 SHORTLIST candidate and a plausible ranking.
 - `[ ]` `[HUMAN]` `make scan-gaps` produces output (even if zero alerts).
 
@@ -290,33 +289,9 @@ Items not yet sprint-assigned. Promote to next sprint planning cycle as capacity
 **What you need before starting:**
 - Project dependencies installed (`uv sync` from the project root)
 - A terminal open in the project root (`/Users/okgoogle13/Projects/laptopfinder`)
-- `.env` file with valid `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `FIRECRAWL_API_KEY`, `PERPLEXITY_API_KEY`
+- `.env` file with valid `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `EBAY_APP_ID`, `EBAY_CERT_ID`
 
-**Step 1 — Export a batch of eBay AU listings using a Chrome extension**
-
-1. Open Chrome and go to `https://www.ebay.com.au/sch/i.html?_nkw=rtx+3080+laptop&_sop=15` (RTX 3080 laptops, newest first).
-2. Open Instant Data Scraper (or Web Scraper / Data Miner) from the Chrome extensions toolbar.
-3. Click "Auto-detect data". Verify the highlighted fields include listing title, price, and URL. If not, manually select those three elements.
-4. Click "Export to CSV" or "Export to JSON". Save the file as `data/fixtures/ebay_export_raw.json` (or `.csv`) inside the project folder.
-
-**Step 2 — Convert the export to pipeline-ready JSONL**
-
-```bash
-.venv/bin/python scripts/ebay_export_to_jsonl.py \
-  --in data/fixtures/ebay_export_raw.json \
-  --out data/fixtures/ebay_export.jsonl
-```
-
-Expected terminal output:
-```
-[CONVERT] 12 records read
-[CONVERT] 12 records written → data/fixtures/ebay_export.jsonl
-```
-
-**Pass:** JSONL file exists and `wc -l data/fixtures/ebay_export.jsonl` shows ≥3 lines.  
-**Fail:** Any "ERROR" or "0 records" message — check that the input file contains the expected field names.
-
-**Step 3 — Run the live Firecrawl scrape on a short URL list**
+**Step 1 — Run the live eBay API scrape on a short URL list**
 
 Open `data/urls.txt` in a text editor and add 3–5 eBay AU laptop listing URLs (one per line, no blank lines). Then run:
 
@@ -459,3 +434,14 @@ A listing's Stage 2 analysis is missing a field the decision engine expects. Sav
 
 **GPU appearing in `[NEW_SIGHTING_ALERT]` from `make scan-gaps`**  
 A GPU was seen in feed files but is absent from both `target_gpus` and `watch_list` in `config/static_reference_layer.json`. Evaluate the hardware against the current market topology and add it to the appropriate list in the SRL if warranted. Run `make test` after any SRL change.
+
+---
+
+## Next Steps — eBay API Pipeline
+
+- `[ ]` `[HUMAN]` Run `gh secret list` and confirm `EBAY_CLIENT_ID` and `EBAY_CLIENT_SECRET` are present in GitHub Secrets.
+- `[ ]` `[HUMAN]` Populate `.env` with eBay Browse API credentials; run `bash scripts/authenticate_ebay.sh` to confirm OAuth token generation succeeds.
+- `[ ]` `[HUMAN]` Run `python -m laptopfinder.runners.ebay_hunter` against a real eBay AU laptop search query; confirm ≥3 listings reach Stage 1 JSON output.
+- `[ ]` `[HUMAN]` Run `make pipeline STAGE1=<live_stage1_output> STAGE2=<live_stage2_output>` end-to-end on one real listing; confirm decision output is SHORTLIST/MONITOR/SKIP without crash.
+- `[ ]` `[HUMAN]` Run `make render-matrix` and confirm `data/purchase_matrix.md` contains a ranked SHORTLIST section.
+- `[ ]` `[IDE/DEV]` Evaluate true pairwise architecture penalty (Turing vs Ada same-VRAM) — current `_apply_architecture_penalty()` is a per-listing heuristic; revisit only if a shortlist-ranking batch pass over multiple Stage 2 outputs becomes available.
