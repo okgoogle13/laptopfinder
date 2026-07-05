@@ -48,6 +48,12 @@
   },
   "watched_sellers": [],
   "_comment_watched_sellers": "eBay AU seller usernames to poll directly. Each triggers a Browse API sweep scoped to that seller. Empty list disables seller-scoped sweeps.",
+  "clearance_sellers": [
+    "delloutletau",
+    "lenovoaustralia",
+    "asusrefurbishedau"
+  ],
+  "_comment_clearance_sellers": "Known AU refurbisher eBay accounts for Deal/clearance sweeps. Seller usernames only — no URLs. Used by ebay_deals.py runner.",
   "data_integrity": {
     "min_listings_for_baseline": 3,
     "exclusion_regex": "(?i)(bare shell|missing motherboard|screen only|no mobile-gpu|no core|chassis only|parts only|read description|junk|as-is|bare board)"

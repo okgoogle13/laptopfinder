@@ -1,4 +1,4 @@
-.PHONY: test lint decide pipeline live evidence-run evidence-run-dry evidence-reset inject-config render-matrix scan-gaps process_csv ebay-auth start-sniper stop-sniper status-sniper test-sniper-alert
+.PHONY: test lint decide pipeline live evidence-run evidence-run-dry evidence-reset inject-config render-matrix scan-gaps process_csv ebay-auth start-sniper stop-sniper status-sniper test-sniper-alert scan-deals
 
 # Overrideable variables
 SCRAPER ?= .venv/bin/python -m laptopfinder.runners.ebay_api
@@ -119,3 +119,17 @@ status-sniper:
 # Send a test iMessage alert
 test-sniper-alert:
 	.venv/bin/python scripts/ebay_sniper.py --test-alert
+
+scan-deals:
+	.venv/bin/python -c "
+import json, os
+from dotenv import load_dotenv
+load_dotenv()
+from laptopfinder.runners.ebay_hunter import get_ebay_token
+from laptopfinder.runners.ebay_deals import scan_clearance
+ref = json.load(open('config/static_reference_layer.json'))
+token = get_ebay_token()
+hits = scan_clearance(token, ref)
+print(f'[DEALS] {len(hits)} clearance listings found')
+for h in hits: print(' -', h.get('title','?'), h.get('price',{}).get('value','?'))
+"
