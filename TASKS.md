@@ -1,16 +1,17 @@
 # TASKS — laptopfinder
+> **NOTICE**: This document serves as a historical archive and high-level backlog. For active sprint tracking, please refer to `memory/project/sprint.md`.
+
 ## Status key: [ ] pending · [~] in progress · [x] done
 
 ---
 
-## Codebase Status Snapshot (2026-07-02)
+## Codebase Status Snapshot (2026-07-06)
 
-**Sprint completion state:** Sprints 1–3 are complete. 108 tests green. Evidence Pipeline and AU Market Alignment are shipped. No active sprint.
+**Sprint completion state:** Sprints 1–6 are complete. Evidence Pipeline and AU Market Alignment are shipped. Sprint 7 (eBay API Discovery Expansion) is active and mostly complete.
 
 **Remaining work:**
 - Five backlog items had no sprint assignments, tags, or testing guidance.
-- `_apply_architecture_penalty()` in `decide.py:315` is an intentional no-op pending pairwise context — resolved in Sprint 6 as a single-listing heuristic.
-- `batch_decide()` is documented in CLAUDE.md but not implemented — Sprint 5.
+- `_apply_architecture_penalty()` is fully implemented in `decide.py` and wired into the scoring logic as of Sprint 6.
 - `scrape_benchmark.py` has extractors for EBAY_AU, FB_MARKETPLACE, GUMTREE with best-guess CSS/JSON selectors — none validated against real saved pages.
 - No live Firecrawl fetch path in `scrape_benchmark.py` (only in `scrape_live.py` / `make scrape-and-live`).
 
@@ -315,6 +316,7 @@
 
 Items not yet sprint-assigned. Promote to next sprint planning cycle as capacity allows.
 
+- [ ] Implement `batch_decide()` as documented in CLAUDE.md to enable multi-listing scoring and processing.
 - [ ] Wire `architecture_adjustments.turing_vs_ada_same_vram_penalty_pts` pairwise comparison — Sprint 6 resolves this as a single-listing heuristic; revisit true pairwise scoring only if batch comparison context becomes available (e.g. a shortlist-ranking pass over multiple Stage 2 outputs).
 - [ ] Replace Firecrawl automation for secondary marketplaces (FB Marketplace & Gumtree) with manual/agent-assisted workflows (e.g., Chrome Export extensions or Antigravity browser extension) to accommodate the removal of Firecrawl while still supporting ad-hoc extraction from these authenticated/JS-heavy platforms.
 

@@ -35,6 +35,12 @@ metadata:
 - `pyproject.toml` — `pythonpath=["."]` so `scripts.*` imports resolve in pytest
 - `config/static_reference_layer.json` — `clearance_sellers`, `aspect_filter` config, `seller_watch_queries`, `category_id`
 
+### Sprint 7 Backlog (minor, non-blocking)
+- [ ] Move `PRICE_MIN_AUD`/`PRICE_MAX_AUD` defaults from `ebay_deals.py` env vars into SRL.
+- [ ] Add `json.JSONDecodeError` guard in `load_feed_cache` for truncated JSONL files.
+- [ ] Note: `fetch_feed_snapshot` in `ebay_feed_cache.py` assumes JSON response — eBay Feed API actually delivers gzip TSV. Needs rework once `buy.feed` scope granted.
+- [ ] Implement `batch_decide()` as documented in CLAUDE.md to enable multi-listing scoring and processing.
+
 ## Blocked / Next
 - `[ ]` **D1 (HUMAN):** Open an **eBay Dev Support ticket** to enable `buy.marketplace.insights` on the app — it's a restricted/limited-release API, not self-service in the developer portal. Unblocks Batch C (Task 6 in plan).
 - `[ ]` **D2 (IDE/DEV, blocked on D1):** Marketplace Insights runner — `data/ebay_api_strategy_ideas.json` E3
@@ -200,9 +206,9 @@ Propose concrete edits to `config/static_reference_layer.json`:
 - `claude_handoff.txt` — regenerated with corrected prompt. Ready to paste into Claude Pro.
 
 ## Pending
-- [ ] **Paste `data/evidence/claude_handoff.txt` into Claude Pro and save corrected `targets.json`** — current file contains pre-correction interpretive language and must be replaced before feeding into the main pipeline
-- [ ] Integrate corrected `targets.json` spec ranges into `config/static_reference_layer.json`
-- [ ] Confirm `make test` stays green
+- [x] **Paste `data/evidence/claude_handoff.txt` into Claude Pro and save corrected `targets.json`** — current file contains pre-correction interpretive language and must be replaced before feeding into the main pipeline
+- [x] Integrate corrected `targets.json` spec ranges into `config/static_reference_layer.json`
+- [x] Confirm `make test` stays green
 
 ## Definition of Done
 - [x] `targets.json` validated against `evidence_targets.schema.json`
@@ -210,6 +216,6 @@ Propose concrete edits to `config/static_reference_layer.json`:
 - [x] Pipeline prompt constraints enforced (corrective task applied)
 - [x] `make evidence-reset` available for clean restarts
 - [x] Prompt staleness check in place
-- [ ] Corrected `targets.json` generated from updated Claude prompt
-- [ ] Spec ranges reflected in `static_reference_layer.json`
-- [ ] `make test` still green
+- [x] Corrected `targets.json` generated from updated Claude prompt
+- [x] Spec ranges reflected in `static_reference_layer.json`
+- [x] `make test` still green
