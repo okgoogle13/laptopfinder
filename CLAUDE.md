@@ -39,6 +39,28 @@ make evidence-run-dry
 
 # Evidence pipeline — reset parsed/archived state for a re-run
 make evidence-reset
+
+# Live eBay Browse API pipeline (no scraping)
+make live-api
+
+# eBay OAuth flow
+make ebay-auth
+
+# eBay sniper daemon management
+make start-sniper / stop-sniper / status-sniper / test-sniper-alert
+
+# Batch CSV ingestion → data/shortlist_candidates.jsonl
+make process_csv
+
+# Render JSONL shortlist → data/purchase_matrix.md
+make render-matrix
+
+# Supporting eBay tooling
+make cache-feed       # pre-cache Feed API snapshots
+make sold-baseline    # sold price medians via Finding API
+make scan-deals       # clearance sellers via Deal & Event API
+make scan-gaps        # price drift / watch-list sweep
+make inject-config    # inject SRL values into prompt sentinels
 ```
 
 **Environment:** uses `.venv` (uv-managed). Always invoke Python as `.venv/bin/python` or `.venv/bin/pytest`, not the system Python. Copy `.env.example` → `.env` and configure 1Password `op://...` references for `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, etc. Always execute live scripts via `op run --env-file=.env --` to securely inject credentials.
@@ -66,7 +88,7 @@ Schema notes:
 **Decision Engine** (`decide.py: decide`)  
 Reads a validated Stage 2 analysis and `config/static_reference_layer.json` to compute a `SHORTLIST` / `MONITOR` / `SKIP` recommendation. Decision logic in priority order:
 1. Watch-list GPU → `MONITOR` (too new/unreleased)
-2. Risk gate failure (risk_score > 3.0, or too many missing fields) → `SKIP`
+2. Risk gate failure (risk_score > 3.0, or too many missing fields) → `SKIP` — the gate is `<=`, so exactly 3.0 passes; 3.1 does not
 3. UMA platform (Apple Silicon Max/Ultra, Strix Halo) with system RAM ≥ 32GB → `SHORTLIST`
 4. eGPU bundle, VRAM ≥ 16GB, or **touchscreen exception** (VRAM ≥ 12GB + `touchscreen_digitizer` present) → `SHORTLIST`
 5. Otherwise → `SKIP`
@@ -90,6 +112,20 @@ A secondary sub-pipeline that derives hardware spec requirements from real macOS
 **Benchmark Scraper** (`src/laptopfinder/scrape_benchmark.py`)  
 Converts saved HTML pages or JSON API payloads from eBay AU / FB Marketplace / Gumtree into Stage 2 fixture format (`handoff_packet + full_listing_text + analysis_output stub`). CSS selectors are best-guess — verify against real saved pages before trusting output. Input modes: `--html-dir`, `--html-file`, `--urls`, `--ebay-api`. Platform auto-detected from filename prefix or URL hostname.
 
+**Live eBay Discovery** (`src/laptopfinder/runners/` + `scripts/`)  
+Primary live-discovery path replacing Firecrawl/scrape-and-live.
+- `runners/ebay_hunter.py` — One-shot acquisition sweep: Browse API triage + Gemini reasoning + vision VRAM recovery; runs Stage 2 + `decide()`; emails hits.
+- `runners/ebay_api.py` — Browse API search → Stage 2 analysis → `decide()`; prints score-ranked shortlist.
+- `scripts/ebay_sniper.py` — Token-free daemon: flagship national sweep (Strategy A) + local Melbourne basement-price sweep (Strategy B); iMessage alerts. Managed via `make start-sniper`.
+- `runners/ebay_deals.py`, `scripts/ebay_feed_cache.py`, `scripts/ebay_sold_baseline.py` — supporting helpers for clearance scanning, feed caching, and sold price baselines.
+- `ebay_taxonomy.py` — category ID + Browse API aspect filter helpers; governs all Browse queries.
+
+**CSV / Value-Ranking Pipeline**  
+`ingest_csv.py` → `build_shortlist_value.py` → `render_matrix.py`
+- `src/laptopfinder/ingest_csv.py` — Reads eBay CSV export; calls Gemini to extract specs; runs `decide()`; appends SHORTLIST results to `data/shortlist_candidates.jsonl`. (`make process_csv`)
+- `scripts/build_shortlist_value.py` — Ranks candidates across 4 form-factor lanes by VRAM/RAM tier; outputs `data/shortlist_value.jsonl` + markdown.
+- `scripts/render_matrix.py` — Renders JSONL shortlist → sorted Markdown decision table at `data/purchase_matrix.md`. (`make render-matrix`)
+
 **Discovery Blind Spots (documented 2026-07)**  
 1. **RAM/VRAM conflation** — eBay AU search surfaces "16GB RAM" (system) listings alongside "16GB VRAM" listings. The Stage 1 hint/fact firewall catches misclassification downstream, but raw discovery may return irrelevant results. Manual photo/spec-sheet verification of VRAM is mandatory on any hit flagged by the search heuristics in `prompts/comet_discovery_agent.txt`.  
 2. **Mislabelled eGPU bundles** — sellers list "RTX 3090 Laptop" when the GPU is in an external enclosure (Razer Core X, OCuLink dock). `_has_egpu_bundle()` in `decide.py` handles this only when enclosure keywords appear in the listing text; listings omitting the enclosure brand name will be scored as internal discrete GPU laptops.  
@@ -97,6 +133,8 @@ Converts saved HTML pages or JSON API payloads from eBay AU / FB Marketplace / G
 
 **Static Reference Layer** (`config/static_reference_layer.json`)  
 The single source of truth for all scoring weights, VRAM tier thresholds, target GPU/model lists, watch lists, UMA chip patterns, Radeon mobile GPUs, eGPU enclosure names, risk gate limits, and the data integrity exclusion regex. Change scoring/thresholds here, not in Python source. `decide.py` loads it at runtime via `load_ref()`.
+
+`min_vram_to_shortlist_gb` in the SRL is **deprecated and unused** — `decide.py` does not read it. The live discrete-VRAM shortlist gate is `vram_gating_logic.standard_mobile_min_gb` (16 GB), with `vram_gating_logic.touchscreen_exception_min_gb` (12 GB) as the touchscreen path. UMA platforms use `uma_platforms.min_total_ram_gb_to_shortlist`. Do not edit `min_vram_to_shortlist_gb` expecting it to change routing behavior.
 
 **Silicon Profiles** (`config/silicon_profiles.yaml`)  
 Paradigm definitions (`apple_silicon_uma`, `amd_uma`, `discrete_cuda`, `discrete_rocm`) and workload preferences for `text_centric_llm_inference`. Read by agents and prompts; not loaded at runtime by `decide.py`.
