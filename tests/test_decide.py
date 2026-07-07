@@ -410,13 +410,13 @@ class TestUmaDecide:
         assert result["uma_ram_gb"] == 128.0
 
     def test_low_ram_uma_skipped(self):
-        """Strix Halo with only 32GB unified memory is below the UMA
+        """Strix Halo with only 16GB unified memory is below the UMA
         threshold and should be skipped, not crash on missing vram."""
         analysis = load_fixture("fb_uma_strix_halo_low_ram.json")["analysis_output"]
         result = decide(analysis, REF)
         assert result["recommended_action"] == "SKIP"
         assert result["is_uma_platform"] is True
-        assert result["uma_ram_gb"] == 32.0
+        assert result["uma_ram_gb"] == 16.0
 
     def test_higher_bandwidth_soc_scores_higher(self):
         """At equal 64GB RAM, M3 Ultra should score higher than M1 Max

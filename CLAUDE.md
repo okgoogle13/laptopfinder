@@ -41,7 +41,7 @@ make evidence-run-dry
 make evidence-reset
 ```
 
-**Environment:** uses `.venv` (uv-managed). Always invoke Python as `.venv/bin/python` or `.venv/bin/pytest`, not the system Python. Copy `.env.example` → `.env` and fill in `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `PERPLEXITY_API_KEY` before running the live pipeline.
+**Environment:** uses `.venv` (uv-managed). Always invoke Python as `.venv/bin/python` or `.venv/bin/pytest`, not the system Python. Copy `.env.example` → `.env` and configure 1Password `op://...` references for `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, etc. Always execute live scripts via `op run --env-file=.env --` to securely inject credentials.
 
 ## Architecture
 

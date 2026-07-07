@@ -8,16 +8,17 @@
 ## Codebase Status Snapshot (2026-07-06)
 
 **Sprint completion state:** Sprints 1–6 are complete. Evidence Pipeline and AU Market Alignment are shipped. Sprint 7 (eBay API Discovery Expansion) is active and mostly complete.
+**Sprint 7 status (2026-07-06):** Batches A and B are complete and pushed. Batch C (Marketplace Insights) is blocked on human D1 (OAuth scope request). eBay API runners plus the sniper are the primary live-discovery path.
 
 **Remaining work:**
 - Five backlog items had no sprint assignments, tags, or testing guidance.
 - `_apply_architecture_penalty()` is fully implemented in `decide.py` and wired into the scoring logic as of Sprint 6.
 - `scrape_benchmark.py` has extractors for EBAY_AU, FB_MARKETPLACE, GUMTREE with best-guess CSS/JSON selectors — none validated against real saved pages.
-- No live Firecrawl fetch path in `scrape_benchmark.py` (only in `scrape_live.py` / `make scrape-and-live`).
+- Firecrawl / `scrape_live.py` / `make scrape-and-live` are historical references only; eBay API runners plus the sniper are the primary live-discovery path.
 
-**Platform priority:** eBay AU is the primary target for all remaining sprints. Gumtree AU is secondary/opportunistic. Facebook Marketplace is deferred to discovery-only; no full scraping parity.
+**Platform priority:** eBay AU is the primary target for all remaining sprints. eBay API runners plus the sniper are primary. Gumtree AU is secondary/opportunistic. Facebook Marketplace is deferred to discovery-only; no full scraping parity.
 
-**Tooling constraint:** No Playwright or Browserbase introduced in this roadmap. Live fetching uses the existing Firecrawl path (`scrape_live.py` / `FIRECRAWL_API_KEY`). Manual batch export via Chrome data-export extensions (Instant Data Scraper / Web Scraper / Data Miner) for eBay search-results batches.
+**Tooling constraint:** No Playwright or Browserbase introduced in this roadmap. Legacy Firecrawl references are historical. Manual batch export via Chrome data-export extensions (Instant Data Scraper / Web Scraper / Data Miner) remains the fallback for eBay search-results batches.
 
 ---
 
@@ -305,10 +306,16 @@
 - `[ ]` `[IDE/DEV]` `.venv/bin/python -m laptopfinder.runners.ebay_hunter --dry-run` still populates corpus/SHORTLIST/underpriced counts.
 - `[x]` `[IDE/DEV]` `make test` green (193 tests passing, 2026-07-06); `make lint` clean.
 
+### Runtime checks
+- `[ ]` `[HUMAN]` Run `ebay_hunter --dry-run --no-enrich` (once that flag exists) to verify taxonomy/seller-watch wiring without LLM calls.
+- `[ ]` `[HUMAN]` Run a full `ebay_hunter --dry-run` with enrichment only when explicitly approved.
+
 ### Sprint 7 Backlog (minor, non-blocking)
 - `[ ]` Move `PRICE_MIN_AUD`/`PRICE_MAX_AUD` defaults from `ebay_deals.py` env vars into SRL.
 - `[ ]` Add `json.JSONDecodeError` guard in `load_feed_cache` for truncated JSONL files.
 - `[ ]` Note: `fetch_feed_snapshot` in `ebay_feed_cache.py` assumes JSON response — eBay Feed API actually delivers gzip TSV. Needs rework once `buy.feed` scope granted (comment added, D1 dependency).
+- `[ ]` Revisit true pairwise architecture penalty only if shortlist-ranking context becomes available.
+- `[ ]` Keep Marketplace Insights blocked on D1; FB Marketplace and Gumtree remain discovery-only until a supported manual/agent-assisted workflow is chosen.
 
 ---
 
@@ -317,8 +324,6 @@
 Items not yet sprint-assigned. Promote to next sprint planning cycle as capacity allows.
 
 - [ ] Implement `batch_decide()` as documented in CLAUDE.md to enable multi-listing scoring and processing.
-- [ ] Wire `architecture_adjustments.turing_vs_ada_same_vram_penalty_pts` pairwise comparison — Sprint 6 resolves this as a single-listing heuristic; revisit true pairwise scoring only if batch comparison context becomes available (e.g. a shortlist-ranking pass over multiple Stage 2 outputs).
-- [ ] Replace Firecrawl automation for secondary marketplaces (FB Marketplace & Gumtree) with manual/agent-assisted workflows (e.g., Chrome Export extensions or Antigravity browser extension) to accommodate the removal of Firecrawl while still supporting ad-hoc extraction from these authenticated/JS-heavy platforms.
 
 ---
 
@@ -478,6 +483,13 @@ A listing's Stage 2 analysis is missing a field the decision engine expects. Sav
 
 **GPU appearing in `[NEW_SIGHTING_ALERT]` from `make scan-gaps`**  
 A GPU was seen in feed files but is absent from both `target_gpus` and `watch_list` in `config/static_reference_layer.json`. Evaluate the hardware against the current market topology and add it to the appropriate list in the SRL if warranted. Run `make test` after any SRL change.
+
+---
+
+## Skills Audit & Archive Recommendations (2026-07)
+
+- **Active & Retained Skills (`.agents/skills/`)**: The six project-specific skills (`cross-agent-plan-review`, `laptopfinder-operator`, `market-gap-scanner`, `prompt-config-parity-audit`, `prompt-search-term-auditor`, `srl-config-guard`) provide critical domain-specific automation, parity audits, and operator workflows. These must remain active and maintained.
+- **Archived / Excluded Skills**: Generic and global boilerplate skills (e.g., `api-and-interface-design`, `ci-cd-and-automation`, `git-workflow-and-versioning`, `test-driven-development`, etc.) are already excluded in `.agents/skills.json`. **Recommendation**: Keep them excluded/archived. They do not contribute to the hardware-sniper domain logic and their exclusion keeps agent context lean and focused on buying outcomes.
 
 ---
 

@@ -24,7 +24,7 @@ metadata:
 
 **Why:** Extract more value from the eBay Browse API for AU high-VRAM/UMA discovery near Melbourne.
 
-**Status:** Batches A and B complete and pushed. Batch C (Marketplace Insights) blocked on human D1 (OAuth scope request). 193 tests green.
+**Status:** Batches A and B complete and pushed. Batch C (Marketplace Insights) blocked on human D1 (OAuth scope request). eBay API runners plus the sniper are the primary live-discovery path. 193 tests green.
 
 ## Shipped (2026-07-06)
 - `src/laptopfinder/ebay_taxonomy.py` — `build_aspect_filter` / `ebay_category_id` helpers extracted from hunter

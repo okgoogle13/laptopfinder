@@ -24,7 +24,7 @@ from laptopfinder.decide import decide
 load_dotenv()
 
 def clean_price(price_raw: str | None) -> float | None:
-    """Clean price string like '(AU $7,324.68)' or 'AU $1,900.00*' into float."""
+    """Clean price string like '(AU $7,324.68)', 'AU $1,900.00*', or multi-price strings into float."""
     if not price_raw or not isinstance(price_raw, str):
         return None
     # Strip whitespace
@@ -32,13 +32,18 @@ def clean_price(price_raw: str | None) -> float | None:
     if price_raw.lower() in ("item not available", "not available", ""):
         return None
     # Match digits, commas, and decimal points after a dollar sign
-    m = re.search(r'\$\s*([0-9,]+(?:\.[0-9]+)?)', price_raw)
-    if m:
-        val_str = m.group(1).replace(",", "")
-        try:
-            return float(val_str)
-        except ValueError:
-            return None
+    matches = re.findall(r'\$\s*([0-9,]+(?:\.[0-9]+)?)', price_raw)
+    if matches:
+        valid_vals = []
+        for val_str in matches:
+            try:
+                val = float(val_str.replace(",", ""))
+                if val > 0:
+                    valid_vals.append(val)
+            except ValueError:
+                continue
+        if valid_vals:
+            return min(valid_vals)
     return None
 
 def parse_vram_gb(vram_str: str | int | None) -> int | None:
@@ -334,7 +339,11 @@ Strict Constraints:
                 "listing_title": title,
                 "gpu": gpu_name if gpu_name else "—",
                 "price": f"AU ${price_cleaned:.2f}" if price_cleaned is not None else "—",
-                "notes": "; ".join(decision["reasons"])
+                "notes": "; ".join(decision["reasons"]),
+                "price_aud": price_cleaned,
+                "vram_gb": float(vram_val) if vram_val is not None else None,
+                "system_ram_gb": float(ram_val) if ram_val else None,
+                "has_touchscreen": bool(touchscreen_digitizer),
             })
         except Exception as e:
             print(f"ERROR executing decision engine for listing {listing_id}: {e}", file=sys.stderr)
