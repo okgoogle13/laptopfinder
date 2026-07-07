@@ -741,6 +741,16 @@ class TestParadigmClassification:
         assert result == "discrete_cuda"
 
 
+class TestLoadScoringWeights:
+    def test_merge_global_constraints(self):
+        from laptopfinder.decide import load_scoring_weights
+        weights = load_scoring_weights("text_llm_default")
+        # Global constraint
+        assert "bw_baseline_gbps" in weights
+        # Profile specific
+        assert "memory_bandwidth_weight" in weights
+
+
 class TestTextLlmScoring:
     def test_apple_uma_beats_discrete_cuda_for_text(self):
         from laptopfinder.decide import load_scoring_weights, score_text_llm_candidate
