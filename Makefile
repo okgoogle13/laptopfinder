@@ -1,7 +1,7 @@
 .PHONY: test lint decide pipeline live evidence-run evidence-run-dry evidence-reset inject-config render-matrix scan-gaps process_csv ebay-auth start-sniper stop-sniper status-sniper test-sniper-alert scan-deals cache-feed sold-baseline
 
 # Overrideable variables
-SCRAPER ?= .venv/bin/python -m laptopfinder.runners.ebay_api
+SCRAPER ?= .venv/bin/python -m laptopfinder.runners.ebay_hunter
 OP_RUN ?= op run --env-file=.env --
 
 test:
@@ -23,10 +23,19 @@ pipeline:
 	@test -n "$(STAGE2)" || (echo "ERROR: Set STAGE2=<path>" && exit 1)
 	.venv/bin/python -m laptopfinder.core pipeline $(STAGE1) $(STAGE2)
 
-# Run the live pipeline on unstructured text using LLMs
-# Usage: make live SOURCE=feed.txt
+# Run the primary structured eBay discovery runner (ebay_hunter.py)
+# Usage: make live or make hunter
 live:
+	$(OP_RUN) .venv/bin/python -m laptopfinder.runners.ebay_hunter
+
+hunter:
+	$(OP_RUN) .venv/bin/python -m laptopfinder.runners.ebay_hunter
+
+# Run the legacy raw-text live pipeline (requires API keys in .env) - LEGACY / DEPRECATED
+# Usage: make live-legacy SOURCE=feed.txt
+live-legacy:
 	@test -n "$(SOURCE)" || (echo "ERROR: Set SOURCE=<path to raw text file>" && exit 1)
+	@echo "⚠️ WARNING: This unstructured raw-text pipeline is legacy and deprecated."
 	$(OP_RUN) .venv/bin/python -m laptopfinder.core run-live --source-text $(SOURCE)
 
 evidence-run:
@@ -53,9 +62,10 @@ render-matrix:
 	.venv/bin/python scripts/render_matrix.py --in data/shortlist_candidates.jsonl --out data/purchase_matrix.md
 	@echo "Matrix written to data/purchase_matrix.md"
 
-# Run the new live API pipeline that bypasses scraping
+# Run the legacy live API pipeline (ebay_api.py)
 # Usage: make live-api
 live-api:
+	@echo "⚠️ WARNING: This runner is auxiliary/legacy. Use 'make live' (ebay_hunter) instead."
 	.venv/bin/python -m laptopfinder.runners.ebay_api
 
 # Run the eBay OAuth flow, export the token to the shell environment, and launch the scraper.

@@ -25,8 +25,13 @@ make decide FIXTURE=tests/fixtures/stage2/ebay_facts_grounded.json
 # Run Stage 1 + Stage 2 + decision in sequence using paired fixtures
 make pipeline STAGE1=tests/fixtures/stage1/ebay_rtx4090_laptop.json STAGE2=tests/fixtures/stage2/ebay_facts_grounded.json
 
-# Run the live pipeline on raw text (requires API keys in .env)
-make live SOURCE=feed.txt
+# Run the primary structured eBay discovery runner (ebay_hunter.py)
+make live
+# or:
+make hunter
+
+# Run the legacy raw-text live pipeline (requires API keys in .env) - LEGACY / DEPRECATED
+make live-legacy SOURCE=feed.txt
 
 # Run benchmark scraper against saved HTML pages
 .venv/bin/python -m laptopfinder.scrape_benchmark --html-dir saved_pages/ --out data/benchmark/benchmark.jsonl
@@ -40,7 +45,7 @@ make evidence-run-dry
 # Evidence pipeline — reset parsed/archived state for a re-run
 make evidence-reset
 
-# Live eBay Browse API pipeline (no scraping)
+# Live eBay Browse API pipeline (legacy/auxiliary)
 make live-api
 
 # eBay OAuth flow
@@ -62,6 +67,8 @@ make scan-deals       # clearance sellers via Deal & Event API
 make scan-gaps        # price drift / watch-list sweep
 make inject-config    # inject SRL values into prompt sentinels
 ```
+
+Use `ebay_hunter.py` for any production-grade discovery or hardening work; treat `ebay_api.py` and raw-text runners as archival or experimental.
 
 **Environment:** uses `.venv` (uv-managed). Always invoke Python as `.venv/bin/python` or `.venv/bin/pytest`, not the system Python. Copy `.env.example` → `.env` and configure 1Password `op://...` references for `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, etc. Always execute live scripts via `op run --env-file=.env --` to securely inject credentials.
 
@@ -113,9 +120,9 @@ A secondary sub-pipeline that derives hardware spec requirements from real macOS
 Converts saved HTML pages or JSON API payloads from eBay AU / FB Marketplace / Gumtree into Stage 2 fixture format (`handoff_packet + full_listing_text + analysis_output stub`). CSS selectors are best-guess — verify against real saved pages before trusting output. Input modes: `--html-dir`, `--html-file`, `--urls`, `--ebay-api`. Platform auto-detected from filename prefix or URL hostname.
 
 **Live eBay Discovery** (`src/laptopfinder/runners/` + `scripts/`)  
-Primary live-discovery path replacing Firecrawl/scrape-and-live.
-- `runners/ebay_hunter.py` — One-shot acquisition sweep: Browse API triage + Gemini reasoning + vision VRAM recovery; runs Stage 2 + `decide()`; emails hits.
-- `runners/ebay_api.py` — Browse API search → Stage 2 analysis → `decide()`; prints score-ranked shortlist.
+Primary Live Path runs through `ebay_hunter.py`, which owns structured Browse API acquisition, enrichment, grounding, scoring, and alerting (replacing legacy Firecrawl/scrape-and-live).
+- `runners/ebay_hunter.py` — Primary structured eBay acquisition runner. It calls the Browse API, enriches with Gemini, reuses `run_stage2` and `decide`, and can email shortlist targets.
+- `runners/ebay_api.py` — Legacy/auxiliary runner: Browse API search → Stage 2 analysis → `decide()`. This is kept as a narrow utility but is not the primary live path, and is slated to be folded into `ebay_hunter.py` and removed.
 - `scripts/ebay_sniper.py` — Token-free daemon: flagship national sweep (Strategy A) + local Melbourne basement-price sweep (Strategy B); iMessage alerts. Managed via `make start-sniper`.
 - `runners/ebay_deals.py`, `scripts/ebay_feed_cache.py`, `scripts/ebay_sold_baseline.py` — supporting helpers for clearance scanning, feed caching, and sold price baselines.
 - `ebay_taxonomy.py` — category ID + Browse API aspect filter helpers; governs all Browse queries.
