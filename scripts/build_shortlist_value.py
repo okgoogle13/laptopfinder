@@ -88,22 +88,22 @@ _WORKSTATION_KEYWORDS = ["precision", "thinkpad p", "zbook", "proart", "creator"
 
 # --- screen size extraction ---
 
-def _extract_screen_inches(title: str) -> float | None:
-    # Explicit inch marker: 18" / 17.3" / 16.0" / 15.6" / 14"
-    m = re.search(r'\b(1[4-8](?:\.\d+)?)\s*["""′″]', title)
+def _extract_screen_inches(title: str) -> int | None:
+    # Explicit inch marker: 18" / 17" / 16" / 15" / 14"
+    m = re.search(r'\b(14|15|16|17|18)\s*["""′″]', title)
     if m:
-        return float(m.group(1))
-    m = re.search(r'\b(1[4-8](?:\.\d+)?)\s*-?\s*inch', title, re.I)
+        return int(m.group(1))
+    m = re.search(r'\b(14|15|16|17|18)\s*-?\s*inch', title, re.I)
     if m:
-        return float(m.group(1))
+        return int(m.group(1))
     # Model-name heuristics
     for pattern, inches in _MODEL_SIZE_HINTS:
         if pattern.search(title):
-            return float(inches)
+            return inches
     # Alienware X15 / X17 from the "X<size>" suffix
     m = re.search(r'\bX(15|17)\b', title)
     if m:
-        return float(m.group(1))
+        return int(m.group(1))
     return None
 
 
@@ -140,14 +140,10 @@ def _enrich(r: dict) -> dict:
     notes = r.get("notes", "")
     title = r.get("listing_title", "")
 
-    vram_gb = r.get("vram_gb")
-    if vram_gb is None:
-        vram_gb = _extract_vram_from_notes(notes)
-
-    has_touchscreen = r.get("has_touchscreen")
-    if has_touchscreen is None:
-        has_touchscreen = bool(re.search(r'\b(?:touchscreen|touch-screen|touch\s+display|touch\s+panel|touch\s+monitor|multi-touch|multitouch)\b|\b(?:4k|2\.5k|2k|3k|5k|fhd|qhd|uhd|wuxga|wxga|oled|lcd|led|retina)\s+touch\b|\btouch\s+(?:screen|display|panel|monitor|enabled)\b', f"{title} {notes}", re.I))
-
+    vram_gb = r.get("vram_gb") or _extract_vram_from_notes(notes)
+    has_touchscreen = r.get("has_touchscreen") or (
+        "touchscreen" in notes.lower() or "touch" in title.lower()
+    )
     is_uma = "UMA platform" in notes or any(
         p.search(title) for p in _UMA_DEV_RIG_PATTERNS
     )
@@ -155,27 +151,19 @@ def _enrich(r: dict) -> dict:
     if is_uma:
         vram_gb = None
 
-    system_ram_gb = r.get("system_ram_gb")
-    if system_ram_gb is None:
-        system_ram_gb = _extract_ram_from_title(title, vram_gb)
+    system_ram_gb = r.get("system_ram_gb") or _extract_ram_from_title(title, vram_gb)
 
     price_aud = r.get("price_aud")
     if price_aud is None:
         raw = r.get("price", "")
-        matches = re.findall(r"[\d,]+\.?\d*", raw.replace(",", ""))
-        if matches:
-            valid_vals = [float(val_str) for val_str in matches if float(val_str) > 0]
-            if valid_vals:
-                price_aud = min(valid_vals)
+        m = re.search(r"[\d,]+\.?\d*", raw.replace(",", ""))
+        if m:
+            price_aud = float(m.group(0))
 
-    screen_inches = r.get("screen_inches")
-    if screen_inches is None:
-        screen_inches = _extract_screen_inches(title)
-    elif isinstance(screen_inches, (int, float)):
-        screen_inches = float(screen_inches)
+    screen_inches = r.get("screen_inches") or _extract_screen_inches(title)
 
     return {**r, "vram_gb": vram_gb, "system_ram_gb": system_ram_gb,
-            "price_aud": price_aud, "has_touchscreen": bool(has_touchscreen),
+            "price_aud": price_aud, "has_touchscreen": has_touchscreen,
             "is_uma": is_uma, "screen_inches": screen_inches}
 
 
@@ -243,13 +231,13 @@ def form_factor_bonus(r: dict) -> int:
     inches = r.get("screen_inches")
     if inches is None:
         return 0
-    if inches >= 17.8:
+    if inches >= 18:
         return 8
-    if inches >= 16.8:
+    if inches == 17:
         return 6
-    if inches >= 15.8 and r.get("has_touchscreen"):
+    if inches == 16 and r.get("has_touchscreen"):
         return 5
-    if inches >= 15.8:
+    if inches == 16:
         return 3
     # 14/15" — no bonus (fallback class)
     return 0
@@ -263,7 +251,7 @@ def value_index(adjusted: int, price: float | None) -> float | None:
 
 def _is_fallback(r: dict) -> bool:
     inches = r.get("screen_inches")
-    return inches is None or inches < 15.8
+    return inches is not None and inches < 16
 
 
 def _qualify_reason(r: dict) -> str:
@@ -277,26 +265,28 @@ def _qualify_reason(r: dict) -> str:
 
     if inches is None:
         return "size unknown"
-    if inches >= 17.8:
+    if inches >= 18:
         return "18\" desktop replacement"
-    if inches >= 16.8:
+    if inches == 17:
         return "17\" desktop replacement"
-    if inches >= 15.8 and touch:
+    if inches == 16 and touch:
         return "16\" + touchscreen"
-    if inches >= 15.8:
+    if inches == 16:
         return "16\" form factor"
-    if inches >= 14.8:
+    if inches == 15:
         return "15\" fallback"
     return "14\" fallback"
 
 
 def sort_key(r: dict):
     vi = r["value_index"]
-    if r.get("lane") in ("uma_dev_rig", "macbook_16_high_ram"):
-        # Primary: llm_index_score (raw, pre-bonus) + system_ram; secondary: value_index.
+    if r.get("lane") == "uma_dev_rig":
         score = r.get("llm_index_score") or 0
         ram = r.get("system_ram_gb") or 0
-        return (-score, -ram, vi is None, -(vi or 0.0))
+        # Blend capability (70%) with value (30%) so an overpriced outlier can't
+        # silently dominate on raw score alone. vi scaled to match score magnitude.
+        vi_scaled = (vi or 0.0) * 10_000
+        return (-(score * 0.7 + vi_scaled * 0.3), -ram, vi is None)
     fallback = 1 if _is_fallback(r) else 0
     return (fallback, vi is None, -(vi or 0.0), -r["adjusted_score"])
 
@@ -307,8 +297,7 @@ def format_md_line(r: dict) -> str:
     vram = f"{r['vram_gb']:.0f}GB VRAM" if r.get("vram_gb") else ""
     ram = f"{r['system_ram_gb']:.0f}GB RAM" if r.get("system_ram_gb") else ""
     specs = ", ".join(x for x in [vram, ram] if x)
-    size_str = f"{r['screen_inches']:g}″" if r.get("screen_inches") is not None else ""
-    size = f" [{size_str}]" if size_str else ""
+    size = f" [{r['screen_inches']}″]" if r.get("screen_inches") else ""
     reason = f" _{_qualify_reason(r)}_"
     penalty = r["adjusted_score"] - r.get("llm_index_score", 0)
     penalty_str = f" (adj {penalty:+d})" if penalty else ""

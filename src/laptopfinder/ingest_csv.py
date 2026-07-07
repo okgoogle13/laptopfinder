@@ -24,7 +24,7 @@ from laptopfinder.decide import decide
 load_dotenv()
 
 def clean_price(price_raw: str | None) -> float | None:
-    """Clean price string like '(AU $7,324.68)', 'AU $1,900.00*', or multi-price strings into float."""
+    """Clean price string like '(AU $7,324.68)' or 'AU $1,900.00*' into float."""
     if not price_raw or not isinstance(price_raw, str):
         return None
     # Strip whitespace
@@ -32,18 +32,14 @@ def clean_price(price_raw: str | None) -> float | None:
     if price_raw.lower() in ("item not available", "not available", ""):
         return None
     # Match digits, commas, and decimal points after a dollar sign
-    matches = re.findall(r'\$\s*([0-9,]+(?:\.[0-9]+)?)', price_raw)
-    if matches:
-        valid_vals = []
-        for val_str in matches:
-            try:
-                val = float(val_str.replace(",", ""))
-                if val > 0:
-                    valid_vals.append(val)
-            except ValueError:
-                continue
-        if valid_vals:
-            return min(valid_vals)
+    m = re.search(r'\$\s*([0-9,]+(?:\.[0-9]+)?)', price_raw)
+    if m:
+        val_str = m.group(1).replace(",", "")
+        try:
+            val = float(val_str)
+            return val if val >= 200 else None
+        except ValueError:
+            return None
     return None
 
 def parse_vram_gb(vram_str: str | int | None) -> int | None:
@@ -121,10 +117,22 @@ def main() -> int:
 
     shortlist_candidates = []
 
+    REQUIRED_HEADERS = {"listing_id", "title", "price_raw", "condition", "seller_name", "url"}
+
     print(f"Reading CSV file: {csv_path}")
     with open(csv_path, mode="r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
+
+    if reader.fieldnames is None:
+        print("ERROR: CSV file is empty or has no header row.", file=sys.stderr)
+        return 1
+
+    actual_headers = set(reader.fieldnames)
+    missing_headers = REQUIRED_HEADERS - actual_headers
+    if missing_headers:
+        print(f"ERROR: CSV is missing required columns: {sorted(missing_headers)}", file=sys.stderr)
+        return 1
 
     print(f"Total rows to process: {len(rows)}")
 

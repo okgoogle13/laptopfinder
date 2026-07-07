@@ -128,6 +128,18 @@ class TestPassesRiskGate:
         analysis = load_fixture("fb_high_risk_listing.json")["analysis_output"]
         assert _passes_risk_gate(analysis, REF) is False
 
+    def test_boundary_exactly_3_0_passes(self):
+        """risk_score == 3.0 is the inclusive upper boundary: gate uses <=, so 3.0 passes."""
+        analysis = load_fixture("ebay_facts_grounded.json")["analysis_output"]
+        analysis["analysis"]["risk_score"] = 3.0
+        assert _passes_risk_gate(analysis, REF) is True
+
+    def test_boundary_3_1_fails(self):
+        """risk_score == 3.1 is just above the max; gate must reject it."""
+        analysis = load_fixture("ebay_facts_grounded.json")["analysis_output"]
+        analysis["analysis"]["risk_score"] = 3.1
+        assert _passes_risk_gate(analysis, REF) is False
+
 
 # --- Integration tests ---
 

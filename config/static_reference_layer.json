@@ -291,6 +291,10 @@
   },
   "uma_platforms": {
     "min_total_ram_gb_to_shortlist": 32,
+    "amd_chip_patterns": [
+      "Ryzen AI Max",
+      "Strix Halo"
+    ],
     "chip_patterns": [
       "M1 Max",
       "M1 Ultra",
@@ -365,7 +369,7 @@
       "Ada Lovelace": 20,
       "Ampere": 12,
       "RDNA3": 15,
-      "Apple Silicon": 20,
+      "UMA_Architecture": 20,
       "Turing": 5
     },
     "gpu_generation_by_name": {
