@@ -55,6 +55,23 @@ class TestParseVramGb:
         assert _vram_gb("11.5GB") == 11.5
 
 
+class TestParseRamGb:
+    def test_standard(self):
+        assert _ram_gb("128GB LPDDR5") == 128.0
+
+    def test_dictionary_schema(self):
+        assert _ram_gb({"semantic_value": 64.0, "verbatim_quote": "64GB"}) == 64.0
+
+    def test_dictionary_schema_none(self):
+        assert _ram_gb({"semantic_value": None, "verbatim_quote": ""}) is None
+
+    def test_none(self):
+        assert _ram_gb(None) is None
+
+    def test_unparseable(self):
+        assert _ram_gb("unknown") is None
+
+
 class TestVramTier:
     def test_entry(self):
         assert _vram_tier(8.0, REF) == "entry"
@@ -410,13 +427,13 @@ class TestUmaDecide:
         assert result["uma_ram_gb"] == 128.0
 
     def test_low_ram_uma_skipped(self):
-        """Strix Halo with only 16GB unified memory is below the UMA
+        """Strix Halo with only 32GB unified memory is below the UMA
         threshold and should be skipped, not crash on missing vram."""
         analysis = load_fixture("fb_uma_strix_halo_low_ram.json")["analysis_output"]
         result = decide(analysis, REF)
         assert result["recommended_action"] == "SKIP"
         assert result["is_uma_platform"] is True
-        assert result["uma_ram_gb"] == 16.0
+        assert result["uma_ram_gb"] == 32.0
 
     def test_higher_bandwidth_soc_scores_higher(self):
         """At equal 64GB RAM, M3 Ultra should score higher than M1 Max
@@ -857,3 +874,7 @@ class TestApplyEgpuInterconnectPenalty:
             exact_model_name="ASUS ROG XG Mobile bundle", egpu_model=None, system_ram=16
         )
         assert _apply_egpu_interconnect_penalty(analysis, REF) == -3
+        analysis = self._make_analysis(
+            exact_model_name="ASUS ROG Flow X13", egpu_model="Razer Core X", system_ram=64
+        )
+        assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
