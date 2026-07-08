@@ -447,6 +447,8 @@ def decide(analysis: dict, ref: dict | None = None, workload: str | None = None)
     """Return a decision dict for a validated Stage 2 analysis."""
     if ref is None:
         ref = load_ref()
+    elif "_chip_patterns_lower" not in ref:
+        _precompute_ref(ref)
 
     extracted = analysis.get("extracted_data", {})
     gpu = extracted.get("gpu")
@@ -501,7 +503,7 @@ def decide(analysis: dict, ref: dict | None = None, workload: str | None = None)
     has_touchscreen_exception = (
         vram is not None 
         and vram >= min_touchscreen_vram 
-        and touchscreen_digitizer is not None
+        and bool(touchscreen_digitizer)
     )
 
     if is_watch:
@@ -516,7 +518,7 @@ def decide(analysis: dict, ref: dict | None = None, workload: str | None = None)
     elif is_uma and uma_ram is not None and uma_ram >= min_uma_ram:
         action = "SHORTLIST"
         reasons.append(f"UMA platform, system RAM {uma_ram}GB >= {min_uma_ram}GB threshold")
-    elif has_egpu or (vram is not None and vram >= min_vram) or has_touchscreen_exception:
+    elif (vram is not None and vram >= min_vram) or has_touchscreen_exception:
         action = "SHORTLIST"
         if has_touchscreen_exception:
             reasons.append(f"VRAM touchscreen exception: {vram}GB with touchscreen ('{touchscreen_digitizer}')")
@@ -531,8 +533,8 @@ def decide(analysis: dict, ref: dict | None = None, workload: str | None = None)
         reasons.append(f"UMA platform but system RAM too low or unknown (got {uma_ram}GB, need {min_uma_ram}GB+)")
     else:
         action = "SKIP"
-        if vram is not None and vram >= min_touchscreen_vram and touchscreen_digitizer is None:
-            reasons.append(f"VRAM is {vram}GB, which requires touchscreen exception support but touchscreen_digitizer is null")
+        if vram is not None and vram >= min_touchscreen_vram and not touchscreen_digitizer:
+            reasons.append(f"VRAM is {vram}GB, which requires touchscreen exception support but touchscreen_digitizer is null or empty")
         else:
             reasons.append(f"VRAM too low or unknown (got {vram}GB, need {min_vram}GB+)")
 

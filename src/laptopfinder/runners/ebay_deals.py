@@ -1,5 +1,5 @@
 import os
-from laptopfinder.runners.ebay_hunter import ebay_get
+from laptopfinder.runners.hunter.api import ebay_get
 from laptopfinder.ebay_taxonomy import build_aspect_filter, ebay_category_id
 
 PRICE_MIN_AUD = int(os.environ.get("EBAY_PRICE_MIN_AUD", "800"))

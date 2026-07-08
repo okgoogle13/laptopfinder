@@ -11,19 +11,29 @@ make test
 # Validate a Stage 2 fixture and run the decision engine
 make decide FIXTURE=tests/fixtures/stage2/ebay_facts_grounded.json
 
-# Run Stage 1 + Stage 2 + decision in sequence using paired fixtures
-make pipeline STAGE1=tests/fixtures/stage1/ebay_rtx4090_laptop.json STAGE2=tests/fixtures/stage2/ebay_facts_grounded.json
+# Run the primary structured eBay discovery runner (ebay_hunter.py)
+make live
+# or:
+make hunter
 
-# Run the live pipeline on raw text (requires 1Password injected .env secrets)
-make live SOURCE=feed.txt
+# Batch CSV ingestion → data/shortlist_candidates.jsonl
+make process_csv
+
+# Render JSONL shortlist → data/purchase_matrix.md
+make render-matrix
+
+# [LEGACY] Run the legacy raw-text live pipeline (requires 1Password injected .env secrets)
+make live-legacy SOURCE=feed.txt
 ```
 
 **Environment:** `.venv` managed by uv. Use `.venv/bin/python` / `.venv/bin/pytest`. Copy `.env.example` → `.env` and configure 1Password `op://...` references for `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, etc. Live scripts must be run via `op run --env-file=.env --` (or `./scripts/op_wrap.sh`).
 
-## Pipeline
+## Architecture & Pipeline
 
-- **Stage 1 — Discovery:** parses raw search text, extracts candidates, generates `inferred_hint` fields only. Fact-shaped keys are rejected.
-- **Stage 1A — Handoff:** human/agent assembles the selected candidate's hints into a typed handoff packet. Only this packet crosses into Stage 2.
+- **Primary Live Path (`ebay_hunter.py`):** The default structured eBay acquisition runner. It calls the Browse API, enriches with Gemini, reuses the Stage 2 grounding firewall and decision engine, and can email shortlist targets.
+- **Legacy Live Paths:** The unstructured raw-text runners (e.g., `make pipeline`) and auxiliary API wrappers (e.g., `ebay_api.py`) are legacy, archival, or experimental workflows.
+- **Stage 1 — Discovery [LEGACY]:** parses raw search text, extracts candidates, generates `inferred_hint` fields only. Fact-shaped keys are rejected.
+- **Stage 1A — Handoff [LEGACY]:** human/agent assembles the selected candidate's hints into a typed handoff packet. Only this packet crosses into Stage 2.
 - **Stage 2 — Analysis:** promotes hints to confirmed facts only when `full_listing_text` explicitly supports them (word-boundary regex). `vram_capacity` is `{semantic_value, verbatim_quote}|null`; `missing_information` is 6 boolean flags.
 - **Decision Engine (`decide.py`):** outputs `SHORTLIST` / `MONITOR` / `SKIP` plus a `llm_index_score` (0–100). Score is informational; routing is threshold-driven.
 

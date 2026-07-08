@@ -30,7 +30,7 @@ make live
 # or:
 make hunter
 
-# Run the legacy raw-text live pipeline (requires API keys in .env) - LEGACY / DEPRECATED
+# [LEGACY] Run the legacy raw-text live pipeline (requires API keys in .env)
 make live-legacy SOURCE=feed.txt
 
 # Run benchmark scraper against saved HTML pages
@@ -45,7 +45,7 @@ make evidence-run-dry
 # Evidence pipeline — reset parsed/archived state for a re-run
 make evidence-reset
 
-# Live eBay Browse API pipeline (legacy/auxiliary)
+# [LEGACY/AUXILIARY] Live eBay Browse API pipeline
 make live-api
 
 # eBay OAuth flow
@@ -68,7 +68,7 @@ make scan-gaps        # price drift / watch-list sweep
 make inject-config    # inject SRL values into prompt sentinels
 ```
 
-Use `ebay_hunter.py` for any production-grade discovery or hardening work; treat `ebay_api.py` and raw-text runners as archival or experimental.
+Use `ebay_hunter.py` as the primary structured live path for any production-grade discovery or hardening work; treat `ebay_api.py` and raw-text runners as legacy, archival, or auxiliary.
 
 **Environment:** uses `.venv` (uv-managed). Always invoke Python as `.venv/bin/python` or `.venv/bin/pytest`, not the system Python. Copy `.env.example` → `.env` and configure 1Password `op://...` references for `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, etc. Always execute live scripts via `op run --env-file=.env --` to securely inject credentials.
 
@@ -155,11 +155,11 @@ Representative hardware entries by paradigm (bandwidth_gbps, ram_gb, inference_s
 **Research Dossier** (`research/alternative_silicon_dossier_july2026.md`)  
 Canonical alternative silicon findings (AU market, July 2026). Source for agent and prompt grounding. Legacy raw outputs live under `research/archive/`.
 
-**Live Pipeline Runners** (`src/laptopfinder/runners/`)  
-- `comet.py` — Gemini 3.1 Pro via `google-genai`; runs the `prompts/comet_discovery_agent.txt` prompt to produce Stage 1 JSON
-- `aistudio.py` — Gemini 3.1 Pro via AI Studio; runs `prompts/ai_studio_runtime.txt` for Stage 2 analysis
-- `claude_audit.py` — Anthropic API; optional post-decision audit pass
-- `perplexity.py` — Perplexity API; deep research runner
+**Legacy Live Pipeline Runners** (`src/laptopfinder/runners/`)  
+- `comet.py` — [LEGACY] Gemini 3.1 Pro via `google-genai`; runs the `prompts/comet_discovery_agent.txt` prompt to produce Stage 1 JSON
+- `aistudio.py` — [LEGACY] Gemini 3.1 Pro via AI Studio; runs `prompts/ai_studio_runtime.txt` for Stage 2 analysis
+- `claude_audit.py` — [LEGACY] Anthropic API; optional post-decision audit pass
+- `perplexity.py` — [LEGACY] Perplexity API; deep research runner
 
 ## Key invariants
 
@@ -187,3 +187,80 @@ This project is developed using **Antigravity IDE** as the visual environment wi
 ## Sprint tracking
 
 See `memory/project/sprint.md` and `TASKS.md` for current item-level tracking.
+
+## Agent Workflow Defaults (Claude Code)
+
+When Claude Code works on this repo:
+
+- Always read, in this order:
+  1. STATUS.md
+  2. TASKS.md
+  3. sprint.md (if present)
+  4. CLAUDE.md
+
+- Use STATUS.md as the source of truth for:
+  - current sprint and phase,
+  - progress by area,
+  - NEXT_TASK,
+  - blockers.
+
+- NEXT_TASK rules:
+  - If `STATUS.md` has a NEXT_TASK section with items, work on the **first** item.
+  - Do not ask the user “what next?” if NEXT_TASK is non-empty.
+  - When a NEXT_TASK item is completed:
+    - update STATUS.md (mark it done or remove it),
+    - briefly note what changed,
+    - then move to the next item.
+
+- Task and sprint updates:
+  - When completing a task, update TASKS.md and/or sprint.md to reflect status (`todo` → `doing` → `done`).
+  - Keep edits lean and factual (no long essays).
+
+- Blockers:
+  - If you hit a genuine blocker (auth, destructive ambiguity, invariant conflict, unrecoverable tests):
+    - add a short bullet under “Blockers” in STATUS.md,
+    - stop and report, instead of guessing.
+
+- Default behavior:
+  - Prefer autonomous execution of NEXT_TASK over asking for new instructions.
+  - Use CLAUDE.md only as doctrine and guardrails; do not rewrite it unless explicitly instructed or as part of a docs task in NEXT_TASK.
+
+## Agent Workflow Defaults (Gemini, Codex, Copilot)
+
+For all agents working on this repo (Gemini in Antigravity, Codex CLI, GitHub Copilot, etc.):
+
+- Always read:
+  - STATUS.md
+  - TASKS.md
+  - AGENTS.md
+  before starting work.
+
+- NEXT_TASK:
+  - Treat STATUS.md’s NEXT_TASK section as the queue of work.
+  - If there is at least one item:
+    - pick the first, execute it within your tool’s scope,
+    - update STATUS.md when done (mark item done or remove it),
+    - then move on to the next item.
+  - Do not ask the user “what next?” if NEXT_TASK is non-empty.
+
+- Tool-specific behavior:
+  - Gemini (Antigravity):
+    - Focus on log analysis, runner-level changes, and smaller edits assigned to you in TASKS.md.
+    - Log your actions and completion to STATUS.md.
+  - Codex CLI:
+    - Focus on code review, systematic refactors, and audit-driven fixes.
+    - When resolving a Codex-related task, update STATUS.md and the relevant GitHub issue.
+  - GitHub Copilot:
+    - Focus on inline suggestions and broad pattern checks.
+    - Do not silently change large files; align with STATUS.md and TASKS.md.
+
+- Blockers:
+  - If you hit a blocker:
+    - record it under “Blockers” in STATUS.md with a short note,
+    - stop escalation and wait for human input or a dedicated unblock task.
+
+- Default:
+  - Agents are expected to:
+    - consume STATUS.md/TASKS.md to decide what to do next,
+    - update these files on completion,
+    - minimize direct “what next?” questions to the user.

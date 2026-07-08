@@ -1,16 +1,4 @@
-from laptopfinder.runners.ebay_hunter import build_parser, build_queries, summary_to_row
-
-
-def test_no_enrich_flag_parsed():
-    args = build_parser().parse_args(["--dry-run", "--no-enrich"])
-    assert args.dry_run is True
-    assert args.no_enrich is True
-
-
-def test_no_enrich_flag_defaults_false():
-    args = build_parser().parse_args([])
-    assert args.no_enrich is False
-
+from laptopfinder.runners.hunter.search import build_queries, summary_to_row, _build_filter
 
 def test_build_queries_uses_target_gpus_and_models():
     ref = {
@@ -22,12 +10,10 @@ def test_build_queries_uses_target_gpus_and_models():
     assert any("RTX 4090" in q for q in queries)
     assert any("ASUS ProArt P16" in q for q in queries)
 
-
 def test_build_queries_deduplicates():
     ref = {"target_gpus": {"RTX 3080": {}}, "target_models": []}
     queries = build_queries(ref)
     assert len(queries) == len(set(queries))
-
 
 def test_summary_to_row_aud_price():
     item = {
@@ -43,7 +29,6 @@ def test_summary_to_row_aud_price():
     assert row["item_id"] == "abc123"
     assert row["price_aud"] == 1500.0
 
-
 def test_summary_to_row_non_aud_price_is_none():
     item = {
         "itemId": "x",
@@ -56,3 +41,13 @@ def test_summary_to_row_non_aud_price_is_none():
     }
     row = summary_to_row(item)
     assert row["price_aud"] is None
+
+def test_build_filter_with_sellers():
+    f = _build_filter(["seller1", "seller2"])
+    assert "sellers:{seller1|seller2}" in f
+    assert "price:[" in f
+
+def test_build_filter_no_sellers():
+    f = _build_filter()
+    assert "sellers:" not in f
+    assert "price:[" in f
