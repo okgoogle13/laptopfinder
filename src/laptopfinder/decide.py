@@ -34,6 +34,7 @@ def _precompute_ref(ref: dict) -> None:
     """
     uma = ref.get("uma_platforms", {})
     ref["_chip_patterns_lower"] = [p.lower() for p in uma.get("chip_patterns", [])]
+    ref["_amd_chip_patterns_lower"] = [p.lower() for p in uma.get("amd_chip_patterns", [])]
 
     ref["_watch_names_upper"] = [
         (w.get("name") if isinstance(w, dict) else w).upper()
@@ -114,11 +115,18 @@ def _is_watch(gpu: str | None, ref: dict) -> bool:
     return any(name in gpu_upper for name in watch_names)
 
 
-def _ram_gb(ram_str: str | None) -> float | None:
-    """Parse '128GB' / '128GB LPDDR5' → 128.0. Returns None if unparseable."""
-    if not ram_str:
+def _ram_gb(ram_val: "str | dict | None") -> float | None:
+    """Parse RAM capacity in GB.
+    
+    Accepts the new discriminated-object schema {"semantic_value": 128.0, ...}
+    or a legacy flat string '128GB LPDDR5'. Returns None if unparseable.
+    """
+    if not ram_val:
         return None
-    m = re.search(r"(\d+(?:\.\d+)?)\s*GB", ram_str, re.IGNORECASE)
+    if isinstance(ram_val, dict):
+        val = ram_val.get("semantic_value")
+        return float(val) if val is not None else None
+    m = re.search(r"(\d+(?:\.\d+)?)\s*GB", str(ram_val), re.IGNORECASE)
     return float(m.group(1)) if m else None
 
 
@@ -142,7 +150,7 @@ def _is_radeon_mobile(gpu: str | None, ref: dict) -> str | None:
         return None
     gpu_lower = gpu.lower()
     names = list(ref.get("radeon_mobile_gpus", {}))
-    names_lower = ref.get("_radeon_names_lower") or [n.lower() for n in names]
+    names_lower = ref.get("_radeon_names_lower", [])
     for orig, lower in zip(names, names_lower):
         if lower in gpu_lower:
             return orig
@@ -158,7 +166,7 @@ def _has_egpu_bundle(model: str | None, egpu_model: str | None, ref: dict) -> bo
     haystack = " ".join(filter(None, [model, egpu_model])).lower()
     if not haystack:
         return False
-    enclosures = ref.get("_egpu_enclosures_lower") or [e.lower() for e in ref.get("egpu_enclosures", [])]
+    enclosures = ref.get("_egpu_enclosures_lower", [])
     return any(enclosure in haystack for enclosure in enclosures)
 
 
@@ -170,7 +178,8 @@ def _classify_paradigm(analysis: dict, ref: dict, is_uma: bool | None = None, ra
     if is_uma is None:
         is_uma = _is_uma_platform(model, cpu, ref)
     if is_uma:
-        if any(kw.lower() in " ".join(filter(None, [model, cpu])).lower() for kw in ("Strix", "Ryzen AI Max")):
+        haystack = " ".join(filter(None, [model, cpu])).lower()
+        if any(kw in haystack for kw in ref.get("_amd_chip_patterns_lower", [])):
             return "amd_uma"
         return "apple_silicon_uma"
     if radeon_match is ...:
@@ -208,7 +217,7 @@ def score_text_llm_candidate(candidate: dict, weights: dict) -> float:
     return round(raw, 2)
 
 
-def _passes_risk_gate(analysis: dict, ref: dict, risk_penalty: float = 0.0, is_uma: bool = False) -> bool:
+def _passes_risk_gate(analysis: dict, ref: dict, risk_penalty: float = 0.0) -> bool:
     """True if risk score (plus any ecosystem penalty) and missing fields are within limits."""
     cfg = ref.get("shortlist_override", {})
     max_risk = cfg.get("requires_risk_score_max", 3.0)
@@ -216,12 +225,7 @@ def _passes_risk_gate(analysis: dict, ref: dict, risk_penalty: float = 0.0, is_u
 
     risk_score = analysis.get("analysis", {}).get("risk_score", 10.0) + risk_penalty
     mi = analysis.get("extracted_data", {}).get("missing_information", {})
-    if isinstance(mi, dict):
-        if is_uma:
-            mi = {k: v for k, v in mi.items() if k not in ("gpu", "vram")}
-        missing = sum(mi.values())
-    else:
-        missing = len(mi)
+    missing = sum(mi.values()) if isinstance(mi, dict) else len(mi)
 
     return risk_score <= max_risk and missing <= max_missing
 
@@ -238,11 +242,8 @@ def _resolve_gpu_generation(gpu: str | None, ref: dict) -> str | None:
     llm_index_score.gpu_generation_by_name."""
     if not gpu:
         return None
-    cfg = ref.get("llm_index_score", {})
     gpu_lower = gpu.lower()
-    gen_by_name_lower = ref.get("_gen_by_name_lower") or {
-        k.lower(): v for k, v in cfg.get("gpu_generation_by_name", {}).items()
-    }
+    gen_by_name_lower = ref.get("_gen_by_name_lower", {})
     for name_lower, generation in gen_by_name_lower.items():
         if name_lower in gpu_lower:
             return generation
@@ -252,14 +253,14 @@ def _resolve_gpu_generation(gpu: str | None, ref: dict) -> str | None:
 def _gpu_generation_points(gpu: str | None, is_uma: bool, ref: dict) -> int:
     """Points for GPU architecture generation. Max 25.
 
-    UMA platforms (Apple Silicon, Strix Halo) score under "Apple Silicon" /
+    UMA platforms (Apple Silicon, Strix Halo) score under "UMA_Architecture" /
     treated as top-tier for inference since they're not on the discrete-GPU
     generational ladder. Unrecognized GPUs score 0, not a penalty.
     """
     cfg = ref.get("llm_index_score", {})
     points_by_gen = cfg.get("gpu_generation_points", {})
     if is_uma:
-        return points_by_gen.get("Apple Silicon", 0)
+        return points_by_gen.get("UMA_Architecture", 0)
     generation = _resolve_gpu_generation(gpu, ref)
     if generation is None:
         return 0
@@ -269,15 +270,13 @@ def _gpu_generation_points(gpu: str | None, is_uma: bool, ref: dict) -> int:
 def _uma_soc_points(cpu: str | None, model: str | None, ref: dict) -> int:
     """Points for UMA SoC bandwidth tier.
     
-    If the SoC is not in uma_soc_by_name, falls back to the flat Apple Silicon value.
+    If the SoC is not in uma_soc_by_name, falls back to the flat UMA_Architecture value.
     """
     haystack = " ".join(filter(None, [model, cpu])).lower()
     if not haystack:
-        return ref.get("llm_index_score", {}).get("gpu_generation_points", {}).get("Apple Silicon", 0)
+        return ref.get("llm_index_score", {}).get("gpu_generation_points", {}).get("UMA_Architecture", 0)
         
-    uma_soc_by_name_lower = ref.get("_uma_soc_by_name_lower") or {
-        name.lower(): tier for name, tier in ref.get("uma_soc_by_name", {}).items()
-    }
+    uma_soc_by_name_lower = ref.get("_uma_soc_by_name_lower", {})
     
     matched_tier = None
     for name_lower, tier in uma_soc_by_name_lower.items():
@@ -289,7 +288,7 @@ def _uma_soc_points(cpu: str | None, model: str | None, ref: dict) -> int:
         return ref.get("uma_soc_bandwidth_points", {}).get(matched_tier, 0)
         
     # Mandatory fallback
-    return ref.get("llm_index_score", {}).get("gpu_generation_points", {}).get("Apple Silicon", 0)
+    return ref.get("llm_index_score", {}).get("gpu_generation_points", {}).get("UMA_Architecture", 0)
 
 
 def _log_undiscovered_hardware(
@@ -346,17 +345,12 @@ def _seller_reward_points(analysis: dict, ref: dict) -> int:
     return classification_points + platform_points + overseas_penalty
 
 
-def _deduction_points(analysis: dict, ref: dict, is_uma: bool = False) -> int:
+def _deduction_points(analysis: dict, ref: dict) -> int:
     """Deductions for missing fields and risk score. Uncapped downside — a sufficiently
     risky/incomplete listing can drive the overall score negative."""
     cfg = ref.get("llm_index_score", {})
     mi = analysis.get("extracted_data", {}).get("missing_information", {})
-    if isinstance(mi, dict):
-        if is_uma:
-            mi = {k: v for k, v in mi.items() if k not in ("gpu", "vram")}
-        n_missing = sum(mi.values())
-    else:
-        n_missing = len(mi)
+    n_missing = sum(mi.values()) if isinstance(mi, dict) else len(mi)
     risk_score = analysis.get("analysis", {}).get("risk_score", 0.0)
 
     missing_deduction = n_missing * cfg.get("deduction_per_missing_field", 0)
@@ -423,7 +417,7 @@ def calculate_llm_index_score(
     capacity = _capacity_points(tier, ref)
     generation = _uma_soc_points(cpu, model, ref) if is_uma else _gpu_generation_points(gpu, is_uma, ref)
     seller = _seller_reward_points(analysis, ref)
-    deductions = _deduction_points(analysis, ref, is_uma=is_uma)
+    deductions = _deduction_points(analysis, ref)
 
     raw = capacity + generation + seller - deductions
 
@@ -487,7 +481,7 @@ def decide(analysis: dict, ref: dict | None = None, workload: str | None = None)
     llm_index_score = calculate_llm_index_score(analysis, capacity_tier, gpu, cpu, model, is_uma, ref)
 
     # Radeon ecosystem risk is surfaced as a buyer disclosure note, not added to risk_score.
-    low_risk = _passes_risk_gate(analysis, ref, 0.0, is_uma=is_uma)
+    low_risk = _passes_risk_gate(analysis, ref, 0.0)
 
     gating = ref.get("vram_gating_logic", {})
     min_vram = gating.get("standard_mobile_min_gb", 16)
@@ -514,12 +508,7 @@ def decide(analysis: dict, ref: dict | None = None, workload: str | None = None)
         action = "SKIP"
         risk = analysis.get("analysis", {}).get("risk_score", "?")
         mi = extracted.get("missing_information", {})
-        if isinstance(mi, dict):
-            if is_uma:
-                mi = {k: v for k, v in mi.items() if k not in ("gpu", "vram")}
-            n_missing = sum(mi.values())
-        else:
-            n_missing = len(mi)
+        n_missing = sum(mi.values()) if isinstance(mi, dict) else len(mi)
         reasons.append(f"Too risky to shortlist (risk={risk}, missing fields={n_missing})")
     elif is_uma and uma_ram is not None and uma_ram >= min_uma_ram:
         action = "SHORTLIST"

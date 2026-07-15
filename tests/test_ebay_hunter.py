@@ -24,7 +24,7 @@ def test_build_queries_uses_target_gpus_and_models():
 
 
 def test_build_queries_deduplicates():
-    ref = {"target_gpus": {"RTX 3080": {}, "RTX 3080": {}}, "target_models": []}
+    ref = {"target_gpus": {"RTX 3080": {}}, "target_models": []}
     queries = build_queries(ref)
     assert len(queries) == len(set(queries))
 
