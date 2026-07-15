@@ -191,7 +191,10 @@ def _classify_paradigm(analysis: dict, ref: dict, is_uma: bool | None = None, ra
 
 def load_scoring_weights(profile: str = "text_llm_default") -> dict:
     with _SCORING_WEIGHTS_PATH.open() as f:
-        return yaml.safe_load(f)["profiles"][profile]
+        data = yaml.safe_load(f)
+        merged = data.get("global_constraints", {}).copy()
+        merged.update(data["profiles"][profile])
+        return merged
 
 
 def score_text_llm_candidate(candidate: dict, weights: dict) -> float:
