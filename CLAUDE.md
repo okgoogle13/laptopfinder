@@ -182,13 +182,13 @@ This project is developed using **Antigravity IDE** as the visual environment wi
 
 **Agent hook config:** maintain hook policy in `config/agent_hooks.json` and sync tool-specific files with `.venv/bin/python scripts/sync_agent_hooks.py`. Do not hand-edit `.claude/settings.json`, `.claude/settings.local.json`, or `.codex/hooks.json` independently.
 
-**Agent Peer Review Philosophy:** Reserve Codex/Claude peer review strictly for the unstructured boundary where deterministic tooling fails: English execution plans, English prompt files, and cross-config policy logic. Do not build LLM validation skills for invariants that are already enforced by JSON schemas, Python firewalls, or `make test`.
+**Agent Peer Review Philosophy:** Peer review is optional. Run `bash archive/scripts/deep_plan_peer_review.sh <plan-file>` before executing plans that touch SRL governance, Python firewall logic (`core.py`), or multi-file architectural refactors. For everything else — bugfixes, config edits, fixture additions — `make test` is sufficient.
 
 ## Sprint tracking
 
 See `memory/project/sprint.md` and `TASKS.md` for current item-level tracking. Run `make status` for a mechanical snapshot of runner/evidence state (see Commands above) — it's a pull, not a hook, so it doesn't fire on every turn.
 
-Every `sprint.md` entry and `NEXT_TASK` item must carry a one-line Definition of Done and fit in a single sitting. If it doesn't fit in one sitting, split it into sub-bullets rather than writing a vaguer, larger item. This is doctrine, not a hook — the existing `ExitPlanMode` Codex peer-review pass (`scripts/deep_plan_peer_review.sh`) already flags scope creep on plans before they're approved, so don't add a second mechanical check for the same thing.
+Every `sprint.md` entry and `NEXT_TASK` item must carry a one-line Definition of Done and fit in a single sitting. If it doesn't fit in one sitting, split it into sub-bullets rather than writing a vaguer, larger item.
 
 ## Agent Workflow Defaults (Claude Code)
 
@@ -240,40 +240,4 @@ When Claude Code works on this repo:
 
 ## Agent Workflow Defaults (Gemini, Codex, Copilot)
 
-For all agents working on this repo (Gemini in Antigravity, Codex CLI, GitHub Copilot, etc.):
-
-- Always read:
-  - STATUS.md
-  - TASKS.md
-  - AGENTS.md
-  before starting work.
-
-- NEXT_TASK:
-  - Treat STATUS.md’s NEXT_TASK section as the queue of work.
-  - If there is at least one item:
-    - pick the first, execute it within your tool’s scope,
-    - update STATUS.md when done (mark item done or remove it),
-    - then move on to the next item.
-  - Do not ask the user “what next?” if NEXT_TASK is non-empty.
-
-- Tool-specific behavior:
-  - Gemini (Antigravity):
-    - Focus on log analysis, runner-level changes, and smaller edits assigned to you in TASKS.md.
-    - Log your actions and completion to STATUS.md.
-  - Codex CLI:
-    - Focus on code review, systematic refactors, and audit-driven fixes.
-    - When resolving a Codex-related task, update STATUS.md and the relevant GitHub issue.
-  - GitHub Copilot:
-    - Focus on inline suggestions and broad pattern checks.
-    - Do not silently change large files; align with STATUS.md and TASKS.md.
-
-- Blockers:
-  - If you hit a blocker:
-    - record it under “Blockers” in STATUS.md with a short note,
-    - stop escalation and wait for human input or a dedicated unblock task.
-
-- Default:
-  - Agents are expected to:
-    - consume STATUS.md/TASKS.md to decide what to do next,
-    - update these files on completion,
-    - minimize direct “what next?” questions to the user.
+Other agents (Gemini, Codex, Copilot): Read STATUS.md + TASKS.md before starting. Work the first NEXT_TASK item. Update STATUS.md on completion. If blocked, record it in STATUS.md and stop.

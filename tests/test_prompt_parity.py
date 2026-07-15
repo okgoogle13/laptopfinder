@@ -4,7 +4,7 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 SRL_PATH = _REPO_ROOT / "config" / "static_reference_layer.json"
-AUDIT_PROMPT_PATH = _REPO_ROOT / "prompts" / "claude_code_audit.txt"
+AUDIT_PROMPT_PATH = _REPO_ROOT / "archive" / "prompts" / "claude_code_audit.txt"
 CLAUDE_MD_PATH = _REPO_ROOT / "CLAUDE.md"
 
 
@@ -108,7 +108,7 @@ def test_prompt_injection_sync():
     )
 
     for fname in ("alternative_silicon_gemini.txt", "alternative_silicon_perplexity.txt"):
-        text = (_REPO_ROOT / "prompts" / fname).read_text(encoding="utf-8")
+        text = (_REPO_ROOT / "archive" / "prompts" / fname).read_text(encoding="utf-8")
 
         actual_gpu_list = _read_inject_block(text, "TARGET_GPU_LIST")
         assert actual_gpu_list == expected_gpu_list, (

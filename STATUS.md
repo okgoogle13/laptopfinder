@@ -15,12 +15,13 @@
 | Decision engine (decide.py fixes)      | done          | 2–3          |
 | Runners/Makefile cleanup               | done          | 2–3          |
 | Live eBay AU smoke test + matrix       | done          | 1–2          |
-| Final “shipping & launch” checklist    | not started   | 1–2          |
+| Final “shipping & launch” checklist    | in progress   | 1–2          |
 
 _Update these rows as work completes. Keep estimates rough and honest._
 
 ## NEXT_TASK
 
+- [ ] **S8-01:** Fix `docs/ebay_sniper.md` — drop nonexistent daemon targets, document real `make live`.
 
 *Completed Tasks:*
 - [x] Resolve GitHub Issue #8: [bugfix] Make _ram_gb schema-safe (already implemented).

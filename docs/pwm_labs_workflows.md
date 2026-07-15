@@ -142,7 +142,74 @@ This document describes Perplexity Labs / “Create Files & Apps” workflows us
 
 ---
 
-## 6. When to Use Labs vs Deep Research
+## 6. `pwm lf-url-rubric-labs` — Ad-Hoc URL Scorer
+
+**Purpose**
+
+Instantly score a pasted eBay AU or AU retail URL against `config/static_reference_layer.json` and return a SHORTLIST / SKIP verdict with spec-gap and risk reasoning. Eliminates waiting for the next batch sweep when evaluating a single off-pipeline listing.
+
+**Mode:** Labs "Create Files & Apps". `search_grounding: false`.
+
+**Inputs (upload to Labs):**
+- `config/static_reference_layer.json` (`vram_gating_logic`, `risk_gate`, `data_integrity.exclusion_regex`).
+
+**Outputs:**
+- `data/pwm/lf-url-rubric/url_verdict.md` — extracted specs, SHORTLIST/SKIP verdict, spec-gap flags, SRL rule rationale.
+- `data/pwm/lf-url-rubric/url_eval.json` — `{url, gpu_guess, vram_gb, host_ram_gb, passes_vram_gate, passes_risk_gate, spec_gaps: [...], verdict: "SHORTLIST"|"SKIP"}`.
+
+**Done criterion:** App accepts a URL, returns SKIP when any SRL gate fails, SHORTLIST only when all required gates pass with no critical spec gaps.
+
+**Cost:** 1 labs.
+
+---
+
+## 7. `pwm lf-triage-dash` — Shortlist Triage Dashboard
+
+**Purpose**
+
+Generate an interactive dashboard for filtering, ranking, and exporting SHORTLIST entries by risk score, `llm_index_score`, and price delta vs floor. Replaces static Markdown matrices with sortable, filterable views.
+
+**Mode:** Labs "Create Files & Apps". `search_grounding: false`.
+
+**Inputs (upload to Labs):**
+- `output/decisions/latest_decisions.json` (SHORTLIST entries).
+- `output/shortlist/purchase_matrix.md` (ranking context).
+- `data/pwm/lf-floor-sync/price_patches.json` (AU price floor patches).
+
+**Outputs:**
+- `data/pwm/lf-triage-dash/triage_snapshot.md` — filtered view of top 3 immediate action items.
+- `data/pwm/lf-triage-dash/triage_export.json` — filtered and sorted shortlist array.
+- `data/pwm/lf-triage-dash/offer_bands.png` — scatter plot of shortlisted prices vs price floors per GPU tier.
+
+**Done criterion:** Dashboard loads all SHORTLIST entries with filtering by risk score and sorting by price delta vs floor.
+
+**Cost:** 1 labs.
+
+---
+
+## 8. `pwm lf-alert-scaffold` — Non-eBay Endpoint Watcher Scaffold
+
+**Purpose**
+
+Generate a starter Python watcher script with CSS selectors to monitor AU retail and outlet endpoints beyond eBay (Grays, Gumtree, Dell Outlet AU). Complements `ebay_sniper.py`; does not replace it.
+
+**Mode:** Labs "Create Files & Apps". `search_grounding: true` (to verify current DOM structure).
+
+**Inputs (upload to Labs):**
+- `config/static_reference_layer.json` (`target_gpus`).
+
+**Outputs:**
+- `data/pwm/lf-alert-scaffold/endpoint_map.md` — documented endpoints and selectors.
+- `data/pwm/lf-alert-scaffold/alert_config.json` — JSON schema defining endpoints for operator review.
+- `data/pwm/lf-alert-scaffold/watcher.py` — generated watcher script; operator reviews before committing.
+
+**Done criterion:** `watcher.py` is generated with valid selector functions for ≥ 3 non-eBay AU endpoints.
+
+**Cost:** 1 labs.
+
+---
+
+## 9. When to Use Labs vs Deep Research
 
 Use Labs when:
 

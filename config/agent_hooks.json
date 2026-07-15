@@ -16,8 +16,7 @@
       "Bash(uv run *)",
       "Bash(grep *)",
       "Bash(head *)",
-      "Bash(wc *)",
-      "Bash(bash /Users/okgoogle13/.claude/plugins/cache/piercelamb-plugins/deep-plan/0.3.2/scripts/checks/validate-env.sh)"
+      "Bash(wc *)"
     ]
   },
   "shared_hooks": {
@@ -37,15 +36,6 @@
           {
             "type": "command",
             "command": "INPUT=$(cat); cmd=$(echo \"$INPUT\" | python3 -c \"import sys,json; print(json.load(sys.stdin).get('command',''))\"); if echo \"$cmd\" | grep -qE 'git (add|commit|push|diff)'; then echo 'Blocked: git operations are forbidden for Claude in this project. Delegate to @copilot.'; exit 1; fi"
-          }
-        ]
-      },
-      {
-        "matcher": "ExitPlanMode",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash scripts/deep_plan_peer_review.sh"
           }
         ]
       }

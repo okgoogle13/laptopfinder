@@ -10,8 +10,8 @@ SRL_PATH = str(_REPO_ROOT / "config" / "static_reference_layer.json")
 
 PROMPT_FILES = [
     str(_REPO_ROOT / "prompts" / "comet_discovery_agent.txt"),
-    str(_REPO_ROOT / "prompts" / "alternative_silicon_gemini.txt"),
-    str(_REPO_ROOT / "prompts" / "alternative_silicon_perplexity.txt"),
+    str(_REPO_ROOT / "archive" / "prompts" / "alternative_silicon_gemini.txt"),
+    str(_REPO_ROOT / "archive" / "prompts" / "alternative_silicon_perplexity.txt"),
 ]
 
 
