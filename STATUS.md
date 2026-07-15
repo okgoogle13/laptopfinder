@@ -47,6 +47,7 @@ Agents must:
 - `TASKS.md` contains the full task list and backlog.
 - `sprint.md` (if present) contains detailed phase plans.
 - Agents must read these before changing code or docs.
+- Run `make status` for a mechanical snapshot (last sniper/hunt run, evidence record count, NEXT_TASK) — no LLM calls, reads existing runner output files only.
 
 ## Blockers
 
@@ -54,5 +55,5 @@ Agents must:
 - Agents should update this when they hit or clear a blocker.
 
 - Example:
-  - [ ] eBay OAuth token expired — must re-run `make ebay-auth`.
+  - [ ] eBay OAuth token expired — must re-run `scripts/authenticate_ebay.sh`.
   - [ ] Decide.py RAM schema fix not yet applied.

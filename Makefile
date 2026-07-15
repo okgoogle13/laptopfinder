@@ -1,9 +1,13 @@
-.PHONY: test lint pipeline live hunt
+.PHONY: test lint pipeline live hunt status
 
 OP_RUN ?= op run --env-file=.env --
 
 test:
 	.venv/bin/python -m pytest tests/ -v
+
+# Zero-LLM snapshot of runner/evidence state + NEXT_TASK queue (reads existing files only).
+status:
+	.venv/bin/python scripts/status_snapshot.py
 
 lint:
 	.venv/bin/python -m ruff check src/ tests/

@@ -12,6 +12,8 @@ Every substantive reply in this repo ends with a `Next steps` section (3–5 det
 
 Prefer commands already documented below (make targets, `laptopfinder.scrape_benchmark`, etc.) over inventing new invocations.
 
+This rule is hook-enforced, not just prose: `.claude/hooks/check-next-steps.sh` runs as a `Stop` hook (wired via `config/agent_hooks.json`, synced to `.claude/settings.json` / `.codex/hooks.json` by `scripts/sync_agent_hooks.py`) and blocks any substantive reply missing a `## Next steps` / `**Next steps**` section. It's a plain transcript string-check — no LLM call.
+
 ## Commands
 
 ```bash
@@ -28,6 +30,9 @@ make test
 # Lint
 make lint
 # equivalent: .venv/bin/python -m ruff check src/ tests/
+
+# Zero-LLM snapshot of runner/evidence state + NEXT_TASK queue
+make status
 
 # Run Stage 1 + Stage 2 + decision in sequence using paired fixtures
 make pipeline STAGE1=tests/fixtures/stage1/ebay_rtx4090_laptop.json STAGE2=tests/fixtures/stage2/ebay_facts_grounded.json
@@ -181,7 +186,9 @@ This project is developed using **Antigravity IDE** as the visual environment wi
 
 ## Sprint tracking
 
-See `memory/project/sprint.md` and `TASKS.md` for current item-level tracking.
+See `memory/project/sprint.md` and `TASKS.md` for current item-level tracking. Run `make status` for a mechanical snapshot of runner/evidence state (see Commands above) — it's a pull, not a hook, so it doesn't fire on every turn.
+
+Every `sprint.md` entry and `NEXT_TASK` item must carry a one-line Definition of Done and fit in a single sitting. If it doesn't fit in one sitting, split it into sub-bullets rather than writing a vaguer, larger item. This is doctrine, not a hook — the existing `ExitPlanMode` Codex peer-review pass (`scripts/deep_plan_peer_review.sh`) already flags scope creep on plans before they're approved, so don't add a second mechanical check for the same thing.
 
 ## Agent Workflow Defaults (Claude Code)
 

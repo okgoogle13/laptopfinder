@@ -37,9 +37,9 @@ command -v codex >/dev/null || {
     exit 1
 }
 
-PROMPT_FILE="$(mktemp /tmp/laptopfinder-peer-review-prompt.XXXXXX.txt)"
-OUTPUT_FILE="$(mktemp /tmp/laptopfinder-peer-review-output.XXXXXX.txt)"
-LOG_FILE="$(mktemp /tmp/laptopfinder-peer-review-log.XXXXXX.txt)"
+PROMPT_FILE="$(mktemp -t laptopfinder-peer-review-prompt)"
+OUTPUT_FILE="$(mktemp -t laptopfinder-peer-review-output)"
+LOG_FILE="$(mktemp -t laptopfinder-peer-review-log)"
 
 trap 'rm -f "$PROMPT_FILE" "$OUTPUT_FILE" "$LOG_FILE"' EXIT
 
