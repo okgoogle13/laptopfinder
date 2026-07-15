@@ -80,7 +80,7 @@ def run(config_path: Path, dry_run_override: bool = False) -> int:
     if cfg["dry_run"]:
         print("[hunt] dry-run — no email, no state write", flush=True)
 
-    from laptopfinder.runners.ebay_hunter import run as _hunter_run
+    from laptopfinder.runners.legacy.ebay_hunter import run as _hunter_run
 
     return _hunter_run(config_to_args(cfg))
 

@@ -1,4 +1,4 @@
-from laptopfinder.runners.hunter.search import build_queries, summary_to_row, _build_filter
+from laptopfinder.runners.legacy.hunter.search import build_queries, summary_to_row, _build_filter
 
 def test_build_queries_uses_target_gpus_and_models():
     ref = {

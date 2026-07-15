@@ -1,5 +1,5 @@
 from unittest.mock import patch
-from laptopfinder.runners.hunter.enrich import enrich_and_decide, build_handoff
+from laptopfinder.runners.legacy.hunter.enrich import enrich_and_decide, build_handoff
 
 def test_build_handoff():
     metadata = {"listing_title": "Test", "listing_price_aud": 2000, "listing_url_or_identifier": "http"}
@@ -8,10 +8,10 @@ def test_build_handoff():
     assert handoff["inferred_vram_hint"] == "16"
     assert handoff["inferred_gpu_hint"] == "RTX 4090"
 
-@patch("laptopfinder.runners.hunter.enrich.get_item")
-@patch("laptopfinder.runners.hunter.enrich.enrich_listing")
-@patch("laptopfinder.runners.hunter.enrich.run_stage2")
-@patch("laptopfinder.runners.hunter.enrich.decide")
+@patch("laptopfinder.runners.legacy.hunter.enrich.get_item")
+@patch("laptopfinder.runners.legacy.hunter.enrich.enrich_listing")
+@patch("laptopfinder.runners.legacy.hunter.enrich.run_stage2")
+@patch("laptopfinder.runners.legacy.hunter.enrich.decide")
 def test_enrich_and_decide_success(mock_decide, mock_stage2, mock_enrich, mock_get_item):
     mock_get_item.return_value = {"localizedAspects": [], "itemWebUrl": "http", "price": {"value": "2000", "currency": "AUD"}, "title": "Test Laptop"}
     mock_enrich.return_value = {
@@ -27,9 +27,9 @@ def test_enrich_and_decide_success(mock_decide, mock_stage2, mock_enrich, mock_g
     assert res["decision"]["recommended_action"] == "SHORTLIST"
     assert res["decision"]["llm_index_score"] == 90
 
-@patch("laptopfinder.runners.hunter.enrich.get_item")
-@patch("laptopfinder.runners.hunter.enrich.enrich_listing")
-@patch("laptopfinder.runners.hunter.enrich.run_stage2")
+@patch("laptopfinder.runners.legacy.hunter.enrich.get_item")
+@patch("laptopfinder.runners.legacy.hunter.enrich.enrich_listing")
+@patch("laptopfinder.runners.legacy.hunter.enrich.run_stage2")
 def test_enrich_and_decide_stage2_fail(mock_stage2, mock_enrich, mock_get_item):
     mock_get_item.return_value = {"localizedAspects": [], "itemWebUrl": "http", "price": {"value": "2000", "currency": "AUD"}, "title": "Test Laptop"}
     mock_enrich.return_value = {

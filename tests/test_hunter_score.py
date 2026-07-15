@@ -1,4 +1,4 @@
-from laptopfinder.runners.hunter.score import compute_baselines, annotate_mispricing, is_top_acquisition
+from laptopfinder.runners.legacy.hunter.score import compute_baselines, annotate_mispricing, is_top_acquisition
 
 def test_compute_baselines():
     corpus = [

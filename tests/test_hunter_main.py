@@ -1,4 +1,4 @@
-from laptopfinder.runners.ebay_hunter import build_parser
+from laptopfinder.runners.legacy.ebay_hunter import build_parser
 
 def test_no_enrich_flag_parsed():
     args = build_parser().parse_args(["--dry-run", "--no-enrich"])

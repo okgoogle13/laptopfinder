@@ -1,5 +1,5 @@
 from unittest.mock import patch, MagicMock
-from laptopfinder.runners.hunter.alert import render_email, send_email
+from laptopfinder.runners.legacy.hunter.alert import render_email, send_email
 
 def test_render_email():
     alerts = [
@@ -24,7 +24,7 @@ def test_render_email():
     assert "index 85/100" in txt
     assert "http://x" in txt
 
-@patch("laptopfinder.runners.hunter.alert.smtplib.SMTP_SSL")
+@patch("laptopfinder.runners.legacy.hunter.alert.smtplib.SMTP_SSL")
 def test_send_email_success(mock_smtp, monkeypatch):
     monkeypatch.setenv("SMTP_USER", "u")
     monkeypatch.setenv("SMTP_PASSWORD", "p")
@@ -39,7 +39,7 @@ def test_send_email_success(mock_smtp, monkeypatch):
     mock_instance.login.assert_called_once_with("u", "p")
     mock_instance.send_message.assert_called_once()
 
-@patch("laptopfinder.runners.hunter.alert.smtplib.SMTP_SSL")
+@patch("laptopfinder.runners.legacy.hunter.alert.smtplib.SMTP_SSL")
 def test_send_email_network_error(mock_smtp, monkeypatch):
     monkeypatch.setenv("SMTP_USER", "u")
     monkeypatch.setenv("SMTP_PASSWORD", "p")

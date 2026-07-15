@@ -11,7 +11,7 @@ import json
 
 import pytest
 
-from laptopfinder.runners.evidence_pipeline import (
+from laptopfinder.runners.legacy.evidence_pipeline import (
     generate_gemini_prompt,
     generate_claude_handoff,
     GEMINI_EVIDENCE_SCHEMA,
@@ -23,7 +23,7 @@ def test_generate_gemini_prompt_success(tmp_path):
     temp_prompts_dir = tmp_path / "prompts_for_gemini"
     temp_prompts_dir.mkdir()
     
-    with patch("laptopfinder.runners.evidence_pipeline.PROMPTS_DIR", temp_prompts_dir):
+    with patch("laptopfinder.runners.legacy.evidence_pipeline.PROMPTS_DIR", temp_prompts_dir):
         dummy_file = tmp_path / "telemetry_test.log"
         dummy_file.write_text("my raw log text content")
         
@@ -65,8 +65,8 @@ def test_generate_claude_handoff(tmp_path):
         {"data_confidence": "low", "scenario_label": "l5"}, # should be dropped since we only keep up to 4 low confidence records
     ]
     
-    with patch("laptopfinder.runners.evidence_pipeline.HANDOFF_FILE", temp_handoff), \
-         patch("laptopfinder.runners.evidence_pipeline.DATA_DIR", tmp_path):
+    with patch("laptopfinder.runners.legacy.evidence_pipeline.HANDOFF_FILE", temp_handoff), \
+         patch("laptopfinder.runners.legacy.evidence_pipeline.DATA_DIR", tmp_path):
         
         generate_claude_handoff(aggregated_data)
         

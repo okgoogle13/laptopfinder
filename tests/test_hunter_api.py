@@ -1,7 +1,7 @@
 from unittest.mock import patch, MagicMock
-from laptopfinder.runners.hunter.api import ebay_get
+from laptopfinder.runners.legacy.hunter.api import ebay_get
 
-@patch("laptopfinder.runners.hunter.api.urllib.request.urlopen")
+@patch("laptopfinder.runners.legacy.hunter.api.urllib.request.urlopen")
 def test_ebay_get_success(mock_urlopen):
     mock_resp = MagicMock()
     mock_resp.status = 200
@@ -11,7 +11,7 @@ def test_ebay_get_success(mock_urlopen):
     res = ebay_get("path", {"p": 1}, "fake_token")
     assert res == {"test": "data"}
 
-@patch("laptopfinder.runners.hunter.api.urllib.request.urlopen")
+@patch("laptopfinder.runners.legacy.hunter.api.urllib.request.urlopen")
 def test_ebay_get_retry_on_429(mock_urlopen):
     import urllib.error
     err = urllib.error.HTTPError("url", 429, "Too Many Requests", {}, None)
@@ -23,13 +23,13 @@ def test_ebay_get_retry_on_429(mock_urlopen):
     
     mock_urlopen.side_effect = [err, mock_resp]
     
-    with patch("laptopfinder.runners.hunter.api.time.sleep") as mock_sleep:
+    with patch("laptopfinder.runners.legacy.hunter.api.time.sleep") as mock_sleep:
         res = ebay_get("path", {}, "fake_token")
         assert res == {"test": "data2"}
         mock_sleep.assert_called_once()
 
-@patch("laptopfinder.runners.hunter.api.urllib.request.urlopen")
-@patch("laptopfinder.runners.hunter.api.get_ebay_token")
+@patch("laptopfinder.runners.legacy.hunter.api.urllib.request.urlopen")
+@patch("laptopfinder.runners.legacy.hunter.api.get_ebay_token")
 def test_ebay_get_retry_on_401(mock_get_token, mock_urlopen):
     import urllib.error
     err = urllib.error.HTTPError("url", 401, "Unauthorized", {}, None)

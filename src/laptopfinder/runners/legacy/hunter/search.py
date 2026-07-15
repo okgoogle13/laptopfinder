@@ -52,7 +52,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from ...ebay_taxonomy import build_aspect_filter, ebay_category_id
+from laptopfinder.ebay_taxonomy import build_aspect_filter, ebay_category_id
 
 from .api import browse_search, log
 load_dotenv(Path(__file__).resolve().parents[3] / ".env")
