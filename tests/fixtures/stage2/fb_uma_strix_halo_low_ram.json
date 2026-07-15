@@ -1,22 +1,22 @@
 {
   "handoff_packet": {
     "source_platform": "FB_MARKETPLACE",
-    "listing_title": "ASUS ROG Flow Z13 Strix Halo 32GB",
+    "listing_title": "ASUS ROG Flow Z13 Strix Halo 16GB",
     "listing_price_aud": 2400.0,
     "listing_url_or_identifier": null,
     "inferred_component_category": "SYSTEM",
     "inferred_model_hint": "ASUS ROG Flow Z13",
     "inferred_gpu_hint": null,
-    "inferred_vram_hint": "32GB unified memory",
+    "inferred_vram_hint": "16GB unified memory",
     "inferred_condition_hint": "good",
     "discovery_flags": []
   },
-  "full_listing_text": "ASUS ROG Flow Z13 with Ryzen AI Max (Strix Halo), 32GB unified memory, 1TB SSD. Good condition, light wear. Pickup Brunswick VIC.",
+  "full_listing_text": "ASUS ROG Flow Z13 with Ryzen AI Max (Strix Halo), 16GB unified memory, 1TB SSD. Good condition, light wear. Pickup Brunswick VIC.",
   "analysis_output": {
     "metadata": {
       "source_platform": "FB_MARKETPLACE",
       "listing_url_or_identifier": null,
-      "listing_title": "ASUS ROG Flow Z13 Strix Halo 32GB",
+      "listing_title": "ASUS ROG Flow Z13 Strix Halo 16GB",
       "listing_price_aud": 2400.0,
       "seller_name_or_identifier": null,
       "seller_rating_or_profile_signal": null
@@ -39,7 +39,7 @@
         "storage": false,
         "condition": false
       },
-      "total_system_ram": "32GB",
+      "total_system_ram": "16GB",
       "egpu_model": null,
       "touchscreen_digitizer": null
     },

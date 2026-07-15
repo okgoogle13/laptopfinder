@@ -1,9 +1,13 @@
 #!/bin/bash
 
-# Load environment variables from .env
-set -a
-source .env
-set +a
+# Only source .env if EBAY_CLIENT_ID is not set or hasn't been resolved by op run
+if [ -z "$EBAY_CLIENT_ID" ] || [[ "$EBAY_CLIENT_ID" == op://* ]]; then
+    if [ -f .env ]; then
+        set -a
+        source .env
+        set +a
+    fi
+fi
 
 if [ -z "$EBAY_CLIENT_ID" ] || [ -z "$EBAY_CLIENT_SECRET" ]; then
     echo "Error: EBAY_CLIENT_ID or EBAY_CLIENT_SECRET not found in .env"

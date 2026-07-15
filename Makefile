@@ -2,6 +2,7 @@
 
 # Overrideable variables
 SCRAPER ?= .venv/bin/python -m laptopfinder.runners.ebay_api
+OP_RUN ?= op run --env-file=.env --
 
 test:
 	.venv/bin/python -m pytest tests/ -v
@@ -26,19 +27,19 @@ pipeline:
 # Usage: make live SOURCE=feed.txt
 live:
 	@test -n "$(SOURCE)" || (echo "ERROR: Set SOURCE=<path to raw text file>" && exit 1)
-	.venv/bin/python -m laptopfinder.core run-live --source-text $(SOURCE)
+	$(OP_RUN) .venv/bin/python -m laptopfinder.core run-live --source-text $(SOURCE)
 
 evidence-run:
 	@echo "Running Evidence Pipeline..."
-	uv run python src/laptopfinder/runners/evidence_pipeline.py
+	$(OP_RUN) uv run python src/laptopfinder/runners/evidence_pipeline.py
 
 evidence-run-dry:
 	@echo "Running Evidence Pipeline (dry-run — no archiving, no handoff generation)..."
-	uv run python src/laptopfinder/runners/evidence_pipeline.py --dry-run
+	$(OP_RUN) uv run python src/laptopfinder/runners/evidence_pipeline.py --dry-run
 
 evidence-reset:
 	@echo "Resetting Evidence Pipeline (truncates aggregated.jsonl)..."
-	uv run python src/laptopfinder/runners/evidence_pipeline.py --reset
+	$(OP_RUN) uv run python src/laptopfinder/runners/evidence_pipeline.py --reset
 
 # Inject config values from static_reference_layer.json into prompt sentinel markers.
 # Run explicitly when SRL changes. NOT a dependency of scrape-and-live.
@@ -61,15 +62,14 @@ live-api:
 # Usage: make ebay-auth
 #        make ebay-auth SCRAPER="python -m laptopfinder.runners.ebay_hunter"
 ebay-auth:
-	@set -a; [ -f .env ] && . .env; set +a; \
-	API_BASE="https://api.ebay.com"; \
+	@$(OP_RUN) bash -c 'API_BASE="https://api.ebay.com"; \
 	if [ "$$EBAY_ENVIRONMENT" = "sandbox" ]; then API_BASE="https://api.sandbox.ebay.com"; fi; \
 	TOKEN_URL="$${API_BASE}/identity/v1/oauth2/token"; \
-	CREDENTIALS=$$(printf "%s:%s" "$$EBAY_CLIENT_ID" "$$EBAY_CLIENT_SECRET" | base64 | tr -d '\n\r'); \
+	CREDENTIALS=$$(printf "%s:%s" "$$EBAY_CLIENT_ID" "$$EBAY_CLIENT_SECRET" | base64 | tr -d "\n\r"); \
 	RESPONSE=$$(curl -s -X POST "$$TOKEN_URL" \
-	  -H 'Content-Type: application/x-www-form-urlencoded' \
+	  -H "Content-Type: application/x-www-form-urlencoded" \
 	  -H "Authorization: Basic $$CREDENTIALS" \
-	  -d 'grant_type=client_credentials&scope=https%3A%2F%2Fapi.ebay.com%2Foauth%2Fapi_scope'); \
+	  -d "grant_type=client_credentials&scope=https%3A%2F%2Fapi.ebay.com%2Foauth%2Fapi_scope"); \
 	TOKEN=$$(echo "$$RESPONSE" | jq -r .access_token); \
 	if [ "$$TOKEN" != "null" ] && [ -n "$$TOKEN" ]; then \
 	  echo "$$TOKEN" > .ebay_access_token; \
@@ -80,7 +80,7 @@ ebay-auth:
 	  echo "Authentication failed!"; \
 	  echo "$$RESPONSE"; \
 	  exit 1; \
-	fi
+	fi'
 
 # Run batch CSV ingestion and update the decision matrix
 # Usage: make process_csv
@@ -124,10 +124,10 @@ cache-feed:
 	.venv/bin/python scripts/ebay_feed_cache.py --category 175672 --cache-dir data/feed_cache
 
 scan-deals:
-	.venv/bin/python -c "import json; from dotenv import load_dotenv; load_dotenv(); from laptopfinder.runners.ebay_hunter import get_ebay_token; from laptopfinder.runners.ebay_deals import scan_clearance; ref = json.load(open('config/static_reference_layer.json')); token = get_ebay_token(); hits = scan_clearance(token, ref); print(f'[DEALS] {len(hits)} clearance listings found'); [print(' -', h.get('title','?'), h.get('price',{}).get('value','?')) for h in hits]"
+	$(OP_RUN) .venv/bin/python -c "import json; from dotenv import load_dotenv; load_dotenv(); from laptopfinder.runners.ebay_hunter import get_ebay_token; from laptopfinder.runners.ebay_deals import scan_clearance; ref = json.load(open('config/static_reference_layer.json')); token = get_ebay_token(); hits = scan_clearance(token, ref); print(f'[DEALS] {len(hits)} clearance listings found'); [print(' -', h.get('title','?'), h.get('price',{}).get('value','?')) for h in hits]"
 
 sold-baseline:
-	.venv/bin/python scripts/ebay_sold_baseline.py --category 175672 --out-dir data/sold_baseline
+	$(OP_RUN) .venv/bin/python scripts/ebay_sold_baseline.py --category 175672 --out-dir data/sold_baseline
 
 # Run a target JSON-driven ad hoc discovery sweep.
 # Usage: make hunt CONFIG=config/runs/desktop_replacement.json

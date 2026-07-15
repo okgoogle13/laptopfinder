@@ -4,6 +4,7 @@
     "target_models_role": "Scoring hint list (+3 points if chassis matched). Not a whitelist. A target_model listing with poor risk_score is not shortlisted.",
     "radeon_path": "Radeon mobile GPUs are evaluated on the same VRAM threshold as NVIDIA. ROCm ecosystem risk is surfaced as a buyer disclosure note (see radeon_ecosystem_disclosure), not added to risk_score.",
     "apple_silicon_path": "Apple Silicon UMA platforms are routed via uma_platforms rules. Score ceiling removed 2026-06-30 \u2014 UMA platforms now compete at the full 0\u2013100 llm_index_score scale.",
+    "uma_soc_scoring": "UMA generation points come from uma_soc_by_name (chip \u2192 bandwidth tier) + uma_soc_bandwidth_points (tier \u2192 pts), scored via _uma_soc_points() on the cpu/model string \u2014 not gpu_generation_points. uma_soc_by_name is additive scoring metadata only; uma_platforms.chip_patterns remains the authoritative UMA routing gate. A chip in chip_patterns but absent from uma_soc_by_name still detects as UMA and falls back to the flat gpu_generation_points 'Apple Silicon' value (20), so new chips never silently regress to 0.",
     "watch_list_promotion": "A watch_list entry is promoted to target_gpus when its graduation_condition is confirmed by the Perplexity research agent. Promotion requires manual review.",
     "min_vram_applies_to_uma": "min_vram_to_shortlist_gb applies to discrete VRAM only. UMA platforms (Apple Silicon, Strix Halo) use uma_platforms.min_total_ram_gb_to_shortlist instead. Do not apply both thresholds to the same listing.",
     "unknown_gpu_behaviour": "A GPU not found in target_gpus, radeon_mobile_gpus, or gpu_generation_by_name scores 0 generation points. It is NOT penalised and does NOT trigger missing-field deductions. The listing proceeds on VRAM tier score alone.",
@@ -302,6 +303,23 @@
       "Ryzen AI Max",
       "Strix Halo"
     ]
+  },
+  "uma_soc_by_name": {
+    "M1 Ultra": "ultra_bw",
+    "M2 Ultra": "ultra_bw",
+    "M3 Ultra": "ultra_bw",
+    "M4 Ultra": "ultra_bw",
+    "M1 Max": "max_bw",
+    "M2 Max": "max_bw",
+    "M3 Max": "max_bw",
+    "M4 Max": "max_bw",
+    "Ryzen AI Max": "amd_apu_bw",
+    "Strix Halo": "amd_apu_bw"
+  },
+  "uma_soc_bandwidth_points": {
+    "ultra_bw": 25,
+    "max_bw": 20,
+    "amd_apu_bw": 15
   },
   "radeon_mobile_gpus": {
     "RX 7900M": {

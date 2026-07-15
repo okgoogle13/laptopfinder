@@ -25,8 +25,9 @@ Zero non-stdlib HTTP: all eBay REST and image fetches go through urllib. The onl
 third-party dependency is google-genai (already in pyproject) for Gemini.
 
 Run:
-    .venv/bin/python -m laptopfinder.runners.ebay_hunter            # full run + email
-    .venv/bin/python -m laptopfinder.runners.ebay_hunter --dry-run  # no email, no state write
+    .venv/bin/python -m laptopfinder.runners.ebay_hunter                        # full run + email
+    .venv/bin/python -m laptopfinder.runners.ebay_hunter --dry-run             # no email, no state write
+    .venv/bin/python -m laptopfinder.runners.ebay_hunter --dry-run --no-enrich # corpus only, zero LLM calls
     .venv/bin/python -m laptopfinder.runners.ebay_hunter --no-vision --enrich-top 15
 
 Required .env keys:
@@ -824,6 +825,10 @@ def run(args: argparse.Namespace) -> int:
         log("empty corpus — nothing to do")
         return 0
 
+    if args.no_enrich:
+        log(f"--no-enrich: skipping Gemini triage and enrichment. Corpus written to {CORPUS_PATH}")
+        return 0
+
     log("Stage B — single long-context Gemini triage pass...")
     triage = triage_corpus(client, model, corpus)
     min_listings = ref.get("data_integrity", {}).get("min_listings_for_baseline", 3)
@@ -889,6 +894,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-vision", action="store_true", help="Disable Strategy D image VRAM recovery")
     p.add_argument("--no-email", action="store_true", help="Score and persist but never send email")
     p.add_argument("--dry-run", action="store_true", help="No email and do not update seen-items state")
+    p.add_argument("--no-enrich", action="store_true", help="Stop after corpus collection — skip Gemini triage and enrichment (no LLM calls)")
     return p
 
 

@@ -20,11 +20,31 @@ metadata:
 
 ---
 
-# eBay Browse API Discovery Expansion — 2026-07-05 (IN PROGRESS / PARTIALLY SHIPPED VIA SNIPER)
+# Sprint 7 — eBay Browse & Developer API Discovery Expansion — 2026-07-06 (MOSTLY COMPLETE)
 
-**Why:** Extract more value from the eBay Browse API for AU high-VRAM/UMA discovery near Melbourne. Several quick wins (local pickup radius, private-seller isolation, `newlyListed` sweep, and `fieldgroups=EXTENDED`) have now been implemented inside `scripts/ebay_sniper.py`. Further ideas (Marketplace Insights sold prices, Feed API pre-caching, and Deal API clearance monitoring) are documented in `data/ebay_api_strategy_ideas.json` and `planning/ebay-api-discovery-ideas.md`.
+**Why:** Extract more value from the eBay Browse API for AU high-VRAM/UMA discovery near Melbourne.
 
-**Status:** Active / Partially Shipped. Item tracking: `TASKS.md` Sprint 7.
+**Status:** Batches A and B complete and pushed. Batch C (Marketplace Insights) blocked on human D1 (OAuth scope request). eBay API runners plus the sniper are the primary live-discovery path. 193 tests green.
+
+## Shipped (2026-07-06)
+- `src/laptopfinder/ebay_taxonomy.py` — `build_aspect_filter` / `ebay_category_id` helpers extracted from hunter
+- `src/laptopfinder/runners/ebay_hunter.py` — taxonomy-driven `aspect_filter`, seller-scoped watch queries, category id unified to 175672
+- `src/laptopfinder/runners/ebay_deals.py` — Deal API clearance runner; scans `clearance_sellers` (SRL) for 64GB+ UMA units; `make scan-deals`
+- `scripts/ebay_feed_cache.py` — Feed API pre-cacher; JSONL snapshots in `data/feed_cache/`; `make cache-feed`
+- `scripts/ebay_sold_baseline.py` — Finding API `findCompletedItems`; AU sold price medians per GPU keyword → `data/sold_baseline/`; `make sold-baseline` (uses `EBAY_APP_ID`, no extra OAuth scope)
+- `pyproject.toml` — `pythonpath=["."]` so `scripts.*` imports resolve in pytest
+- `config/static_reference_layer.json` — `clearance_sellers`, `aspect_filter` config, `seller_watch_queries`, `category_id`
+
+### Sprint 7 Backlog (minor, non-blocking)
+- [ ] Move `PRICE_MIN_AUD`/`PRICE_MAX_AUD` defaults from `ebay_deals.py` env vars into SRL.
+- [ ] Add `json.JSONDecodeError` guard in `load_feed_cache` for truncated JSONL files.
+- [ ] Note: `fetch_feed_snapshot` in `ebay_feed_cache.py` assumes JSON response — eBay Feed API actually delivers gzip TSV. Needs rework once `buy.feed` scope granted.
+- [ ] Implement `batch_decide()` as documented in CLAUDE.md to enable multi-listing scoring and processing.
+
+## Blocked / Next
+- `[ ]` **D1 (HUMAN):** Open an **eBay Dev Support ticket** to enable `buy.marketplace.insights` on the app — it's a restricted/limited-release API, not self-service in the developer portal. Unblocks Batch C (Task 6 in plan).
+- `[ ]` **D2 (IDE/DEV, blocked on D1):** Marketplace Insights runner — `data/ebay_api_strategy_ideas.json` E3
+- `[ ]` **Sprint 7 live validation** — `ebay_hunter --dry-run` populates corpus/SHORTLIST counts (human-gated, needs live API keys)
 
 
 ---
@@ -186,9 +206,9 @@ Propose concrete edits to `config/static_reference_layer.json`:
 - `claude_handoff.txt` — regenerated with corrected prompt. Ready to paste into Claude Pro.
 
 ## Pending
-- [ ] **Paste `data/evidence/claude_handoff.txt` into Claude Pro and save corrected `targets.json`** — current file contains pre-correction interpretive language and must be replaced before feeding into the main pipeline
-- [ ] Integrate corrected `targets.json` spec ranges into `config/static_reference_layer.json`
-- [ ] Confirm `make test` stays green
+- [x] **Paste `data/evidence/claude_handoff.txt` into Claude Pro and save corrected `targets.json`** — current file contains pre-correction interpretive language and must be replaced before feeding into the main pipeline
+- [x] Integrate corrected `targets.json` spec ranges into `config/static_reference_layer.json`
+- [x] Confirm `make test` stays green
 
 ## Definition of Done
 - [x] `targets.json` validated against `evidence_targets.schema.json`
@@ -196,6 +216,6 @@ Propose concrete edits to `config/static_reference_layer.json`:
 - [x] Pipeline prompt constraints enforced (corrective task applied)
 - [x] `make evidence-reset` available for clean restarts
 - [x] Prompt staleness check in place
-- [ ] Corrected `targets.json` generated from updated Claude prompt
-- [ ] Spec ranges reflected in `static_reference_layer.json`
-- [ ] `make test` still green
+- [x] Corrected `targets.json` generated from updated Claude prompt
+- [x] Spec ranges reflected in `static_reference_layer.json`
+- [x] `make test` still green

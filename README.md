@@ -14,11 +14,11 @@ make decide FIXTURE=tests/fixtures/stage2/ebay_facts_grounded.json
 # Run Stage 1 + Stage 2 + decision in sequence using paired fixtures
 make pipeline STAGE1=tests/fixtures/stage1/ebay_rtx4090_laptop.json STAGE2=tests/fixtures/stage2/ebay_facts_grounded.json
 
-# Run the live pipeline on raw text (requires .env API keys)
+# Run the live pipeline on raw text (requires 1Password injected .env secrets)
 make live SOURCE=feed.txt
 ```
 
-**Environment:** `.venv` managed by uv. Use `.venv/bin/python` / `.venv/bin/pytest`. Copy `.env.example` → `.env` and fill in `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `PERPLEXITY_API_KEY`.
+**Environment:** `.venv` managed by uv. Use `.venv/bin/python` / `.venv/bin/pytest`. Copy `.env.example` → `.env` and configure 1Password `op://...` references for `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, etc. Live scripts must be run via `op run --env-file=.env --` (or `./scripts/op_wrap.sh`).
 
 ## Pipeline
 
