@@ -1,4 +1,4 @@
-.PHONY: test lint pipeline live hunt status \
+.PHONY: test lint pipeline live live-daemon live-stop live-tail hunt status \
         pwm-preflight \
         pwm-floor-sync-prep pwm-floor-sync-check \
         pwm-watch-grad-prep pwm-watch-grad-check \
@@ -26,9 +26,29 @@ pipeline:
 	@test -n "$(STAGE2)" || (echo "ERROR: Set STAGE2=<path>" && exit 1)
 	.venv/bin/python -m laptopfinder.core pipeline $(STAGE1) $(STAGE2)
 
-# Run the AU sniper live (requires credentials via 1Password).
+# Run the AU sniper live in the foreground (requires credentials via 1Password).
 live:
 	$(OP_RUN) .venv/bin/python -m laptopfinder.runners.ebay_sniper
+
+# Run the AU sniper unattended: detaches via nohup, logs to data/logs/sniper.log,
+# tracks the PID in data/sniper.pid. Survives terminal close; does not survive reboot/logout.
+live-daemon:
+	@mkdir -p data/logs
+	@test ! -f data/sniper.pid || ! kill -0 "$$(cat data/sniper.pid)" 2>/dev/null || \
+	  (echo "ERROR: sniper already running (PID $$(cat data/sniper.pid)). Run 'make live-stop' first." && exit 1)
+	nohup $(OP_RUN) .venv/bin/python -m laptopfinder.runners.ebay_sniper \
+	  >> data/logs/sniper.log 2>&1 & echo $$! > data/sniper.pid
+	@echo "Started sniper daemon (PID $$(cat data/sniper.pid)). Logs: data/logs/sniper.log"
+
+# Stop the nohup-launched sniper daemon started via 'make live-daemon'.
+live-stop:
+	@test -f data/sniper.pid || (echo "No data/sniper.pid found — is the daemon running?" && exit 1)
+	kill "$$(cat data/sniper.pid)" && rm -f data/sniper.pid
+	@echo "Stopped sniper daemon."
+
+# Tail the live daemon's log output.
+live-tail:
+	tail -f data/logs/sniper.log
 
 # Run a target JSON-driven ad hoc discovery sweep.
 # Usage: make hunt CONFIG=config/runs/desktop_replacement.json

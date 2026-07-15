@@ -21,9 +21,11 @@ _Update these rows as work completes. Keep estimates rough and honest._
 
 ## NEXT_TASK
 
-- [ ] **S8-01:** Fix `docs/ebay_sniper.md` — drop nonexistent daemon targets, document real `make live`.
+- [ ] **S8-03:** `ingest_csv.py` — raise `ValueError` on missing required CSV columns at open time. *(src/laptopfinder/ingest_csv.py, tests/test_ingest_csv.py)*
 
 *Completed Tasks:*
+- [x] **S8-01:** Fix `docs/ebay_sniper.md` — drop nonexistent daemon targets, document real `make live`.
+- [x] **S8-02:** Added `live-daemon`/`live-stop`/`live-tail` Makefile targets (nohup + PID file + log); documented in `docs/ebay_sniper.md`.
 - [x] Resolve GitHub Issue #8: [bugfix] Make _ram_gb schema-safe (already implemented).
 - [x] Resolve GitHub Issue #9: [bugfix] Merge global_constraints in load_scoring_weights (already implemented).
 - [x] Resolve GitHub Issue #10: [bugfix] Tighten eGPU SHORTLIST gate to use VRAM only (already implemented).

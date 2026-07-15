@@ -14,27 +14,40 @@ A lightweight, token-free background daemon designed to detect underpriced flags
   * Rejects listings matching `exclusion_regex` (e.g., bare shells, missing motherboards, screen-only).
 
 ## How to Run
-* **Start Background Daemon:**
+* **Run Live (Continuous Sweep):**
   ```bash
-  make start-sniper
+  make live
+  # Equivalent to:
+  # op run --env-file=.env -- .venv/bin/python -m laptopfinder.runners.ebay_sniper
   ```
-  Runs in background (5-minute loop), logging to `data/logs/sniper.log` and storing PID in `data/sniper.pid`.
-* **Check Status:**
+  Runs in the foreground, executing a sweep every 5 minutes (300 seconds).
+
+* **Run a Dry-Run Single-Pass Test:**
   ```bash
-  make status-sniper
+  op run --env-file=.env -- .venv/bin/python -m laptopfinder.runners.ebay_sniper --dry-run --once
   ```
-* **Stop Background Daemon:**
+
+* **Test iMessage Alerting Logic:**
   ```bash
-  make stop-sniper
+  op run --env-file=.env -- .venv/bin/python -m laptopfinder.runners.ebay_sniper --test-alert
   ```
-* **Test iMessage Delivery:**
+
+* **Change Polling Interval:**
   ```bash
-  make test-sniper-alert
+  op run --env-file=.env -- .venv/bin/python -m laptopfinder.runners.ebay_sniper --interval 600
   ```
-* **Dry-Run / Single-Pass Test:**
-  ```bash
-  .venv/bin/python scripts/ebay_sniper.py --dry-run --once
-  ```
+
+## Running Unattended
+
+`make live` runs in the foreground and dies when the terminal closes. For an unattended run that survives closing the terminal (but not reboot/logout), use `make live-daemon` — it wraps the same command in `nohup`, detaches it, logs to `data/logs/sniper.log`, and tracks the PID in `data/sniper.pid`:
+
+```bash
+make live-daemon    # start, detached
+make live-tail       # follow the log (Ctrl-C just stops tailing, daemon keeps running)
+make live-stop        # stop, cleans up data/sniper.pid
+```
+
+`live-daemon` refuses to start a second instance if `data/sniper.pid` already points at a live process — run `make live-stop` first. This is the standardized method (chosen over launchd/tmux for simplicity — no system-service setup, no extra terminal multiplexer dependency); revisit launchd only if the sniper needs to survive machine reboot/logout unattended.
 
 ## Configuration Requirements (`.env`)
 * `EBAY_ACCESS_TOKEN` (or run `scripts/authenticate_ebay.sh` to generate `.ebay_access_token`)

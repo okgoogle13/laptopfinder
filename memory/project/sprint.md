@@ -229,8 +229,8 @@ Propose concrete edits to `config/static_reference_layer.json`:
 **Status:** In Progress.
 
 ## Tasks
-- [ ] **S8-01:** Fix `docs/ebay_sniper.md` — drop nonexistent daemon targets, document real `make live`. *(docs/ebay_sniper.md)*
-- [ ] **S8-02:** Pick one unattended-run method for `make live` (nohup+log vs launchd vs tmux) and document it. *(docs/ebay_sniper.md, Makefile)*
+- [x] **S8-01:** Fix `docs/ebay_sniper.md` — drop nonexistent daemon targets, document real `make live`. *(docs/ebay_sniper.md)*
+- [x] **S8-02:** Pick one unattended-run method for `make live` (nohup+log vs launchd vs tmux) and document it. *(docs/ebay_sniper.md, Makefile)*
 - [ ] **S8-03:** `ingest_csv.py` — raise `ValueError` on missing required CSV columns at open time. *(src/laptopfinder/ingest_csv.py, tests/test_ingest_csv.py)*
 - [ ] **S8-04:** Dedupe `_log_undiscovered_hardware` by `listing_id` before append — check `data/evidence/undiscovered_hardware.jsonl` local diff first (uncommitted changes present).
 - [ ] **S8-05:** Add screen-size regex fallback `\b(14|15|16|17|18)["″]`. *(scripts/build_shortlist_value.py)*
