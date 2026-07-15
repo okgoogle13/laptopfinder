@@ -13,7 +13,7 @@
 |-------------------------|-------------|--------------|
 | Doctrine/docs (CLAUDE.md, README)      | done          | 1–2          |
 | Decision engine (decide.py fixes)      | done          | 2–3          |
-| Runners/Makefile cleanup               | not started   | 2–3          |
+| Runners/Makefile cleanup               | done          | 2–3          |
 | Live eBay AU smoke test + matrix       | done          | 1–2          |
 | Final “shipping & launch” checklist    | not started   | 1–2          |
 

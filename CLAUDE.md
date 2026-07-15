@@ -2,6 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Response structure (laptopfinder-specific)
+
+Every substantive reply in this repo ends with a `Next steps` section (3–5 deterministic, terminal-ready commands, no meta-advice). Choose commands by what changed:
+
+- **Python logic changes** (`core.py`, `decide.py`, `ingest_csv.py`, etc.) → relevant `make test` / targeted `pytest` node id, plus the fixture path under `tests/fixtures/stage1/` or `tests/fixtures/stage2/` that exercises it.
+- **Config changes** (`static_reference_layer.json`, `silicon_profiles.yaml`, `scoring_weights.yaml`, `hardware_taxonomy.json`) → `make pipeline STAGE1=... STAGE2=...` to show the new thresholds/weights take effect, plus `make test` to confirm no regression.
+- **Runner/integration changes** (`ebay_sniper.py`, `hunt.py`, `runners/legacy/ebay_hunter.py`, evidence pipeline) → the narrowest applicable dry/test path (`make hunt CONFIG=... DRY_RUN=1`) rather than a full live run unless explicitly requested.
+
+Prefer commands already documented below (make targets, `laptopfinder.scrape_benchmark`, etc.) over inventing new invocations.
+
 ## Commands
 
 ```bash
@@ -19,56 +29,38 @@ make test
 make lint
 # equivalent: .venv/bin/python -m ruff check src/ tests/
 
-# Validate a Stage 2 fixture and run the decision engine
-make decide FIXTURE=tests/fixtures/stage2/ebay_facts_grounded.json
-
 # Run Stage 1 + Stage 2 + decision in sequence using paired fixtures
 make pipeline STAGE1=tests/fixtures/stage1/ebay_rtx4090_laptop.json STAGE2=tests/fixtures/stage2/ebay_facts_grounded.json
 
-# Run the primary structured eBay discovery runner (ebay_hunter.py)
+# Run the token-free eBay sniper daemon (single-pass or continuous; requires 1Password-backed .env)
 make live
-# or:
-make hunter
+# equivalent: op run --env-file=.env -- .venv/bin/python -m laptopfinder.runners.ebay_sniper
 
-# [LEGACY] Run the legacy raw-text live pipeline (requires API keys in .env)
-make live-legacy SOURCE=feed.txt
+# Run an ad hoc, JSON-config-driven discovery sweep (Browse API + Gemini enrichment + decide())
+make hunt CONFIG=config/runs/desktop_replacement.json
+# add DRY_RUN=1 to suppress email/state writes regardless of what the config says
+make hunt CONFIG=config/runs/desktop_replacement.json DRY_RUN=1
 
 # Run benchmark scraper against saved HTML pages
 .venv/bin/python -m laptopfinder.scrape_benchmark --html-dir saved_pages/ --out data/benchmark/benchmark.jsonl
 
-# Evidence pipeline — normalize telemetry files in data/evidence/raw/ and append to aggregated.jsonl
-make evidence-run
-
-# Evidence pipeline dry-run — parse and append but skip archiving and handoff generation
-make evidence-run-dry
-
-# Evidence pipeline — reset parsed/archived state for a re-run
-make evidence-reset
-
-# [LEGACY/AUXILIARY] Live eBay Browse API pipeline
-make live-api
-
 # eBay OAuth flow
-make ebay-auth
-
-# eBay sniper daemon management
-make start-sniper / stop-sniper / status-sniper / test-sniper-alert
+scripts/authenticate_ebay.sh
 
 # Batch CSV ingestion → data/shortlist_candidates.jsonl
-make process_csv
+.venv/bin/python -m laptopfinder.ingest_csv <csv_path>
 
 # Render JSONL shortlist → data/purchase_matrix.md
-make render-matrix
+.venv/bin/python scripts/render_matrix.py
 
-# Supporting eBay tooling
-make cache-feed       # pre-cache Feed API snapshots
-make sold-baseline    # sold price medians via Finding API
-make scan-deals       # clearance sellers via Deal & Event API
-make scan-gaps        # price drift / watch-list sweep
-make inject-config    # inject SRL values into prompt sentinels
+# Supporting eBay tooling (run via op_wrap.sh or op run for credentialed calls)
+.venv/bin/python scripts/ebay_feed_cache.py       # pre-cache Feed API snapshots
+.venv/bin/python scripts/ebay_sold_baseline.py     # sold price medians via Finding API
+.venv/bin/python scripts/scan_market_gaps.py       # price drift / watch-list sweep
+.venv/bin/python scripts/inject_config.py          # inject SRL values into prompt sentinels
 ```
 
-Use `ebay_hunter.py` as the primary structured live path for any production-grade discovery or hardening work; treat `ebay_api.py` and raw-text runners as legacy, archival, or auxiliary.
+`make live` and `make hunt` are the only live-discovery Makefile targets — everything else above is invoked directly with `.venv/bin/python`. `runners/legacy/` (`ebay_hunter.py`, `ebay_deals.py`, `evidence_pipeline.py`, `claude_audit.py`) holds retired-but-still-imported modules: `hunt.py` calls into `runners.legacy.ebay_hunter.run()` directly, so don't delete it. Treat everything under `runners/legacy/` as maintenance-only — no new features there.
 
 **Environment:** uses `.venv` (uv-managed). Always invoke Python as `.venv/bin/python` or `.venv/bin/pytest`, not the system Python. Copy `.env.example` → `.env` and configure 1Password `op://...` references for `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, etc. Always execute live scripts via `op run --env-file=.env --` to securely inject credentials.
 
@@ -106,12 +98,12 @@ Also computes a `llm_index_score` (0–100): capacity points (max 60) + GPU gene
 
 `decide()` accepts an optional `workload` parameter. When `workload="text_llm"`, discrete CUDA/ROCm candidates that would otherwise SHORTLIST are routed to SKIP with a `paradigm_note` explaining the UMA alternative.
 
-**Evidence Pipeline** (`src/laptopfinder/runners/evidence_pipeline.py`)  
-A secondary sub-pipeline that derives hardware spec requirements from real macOS workload telemetry rather than static config. Workflow:
+**Evidence Pipeline** (`src/laptopfinder/runners/legacy/evidence_pipeline.py`)  
+A secondary, legacy sub-pipeline that derives hardware spec requirements from real macOS workload telemetry rather than static config. No Makefile target currently wires it up — invoke directly (`.venv/bin/python -m laptopfinder.runners.legacy.evidence_pipeline`) if reviving this workflow. Workflow:
 1. Drop telemetry files (screenshots or terminal logs) into `data/evidence/raw/`
-2. `make evidence-run` → generates Gemini prompts in `data/evidence/prompts_for_gemini/`
+2. Run the pipeline → generates Gemini prompts in `data/evidence/prompts_for_gemini/`
 3. Human pastes each prompt into the Gemini web UI and saves the resulting JSON files to `data/evidence/parsed/`
-4. `make evidence-run` → parses files from `parsed/`, appends to `data/evidence/aggregated.jsonl`, and archives originals.
+4. Run the pipeline again → parses files from `parsed/`, appends to `data/evidence/aggregated.jsonl`, and archives originals.
 5. At ≥ 5 records → generates `data/evidence/claude_handoff.txt` using `prompts/claude_evidence_analyzer.txt`
 6. Human pastes handoff into Claude Pro and saves the JSON response as `data/evidence/targets.json`
 7. `targets.json` (validated against `schemas/evidence_targets.schema.json`) feeds into `static_reference_layer.json` or a runtime override
@@ -120,18 +112,19 @@ A secondary sub-pipeline that derives hardware spec requirements from real macOS
 Converts saved HTML pages or JSON API payloads from eBay AU / FB Marketplace / Gumtree into Stage 2 fixture format (`handoff_packet + full_listing_text + analysis_output stub`). CSS selectors are best-guess — verify against real saved pages before trusting output. Input modes: `--html-dir`, `--html-file`, `--urls`, `--ebay-api`. Platform auto-detected from filename prefix or URL hostname.
 
 **Live eBay Discovery** (`src/laptopfinder/runners/` + `scripts/`)  
-Primary Live Path runs through `ebay_hunter.py`, which owns structured Browse API acquisition, enrichment, grounding, scoring, and alerting (replacing legacy Firecrawl/scrape-and-live).
-- `runners/ebay_hunter.py` — Primary structured eBay acquisition runner. It calls the Browse API, enriches with Gemini, reuses `run_stage2` and `decide`, and can email shortlist targets.
-- `runners/ebay_api.py` — Legacy/auxiliary runner: Browse API search → Stage 2 analysis → `decide()`. This is kept as a narrow utility but is not the primary live path, and is slated to be folded into `ebay_hunter.py` and removed.
-- `scripts/ebay_sniper.py` — Token-free daemon: flagship national sweep (Strategy A) + local Melbourne basement-price sweep (Strategy B); iMessage alerts. Managed via `make start-sniper`.
-- `runners/ebay_deals.py`, `scripts/ebay_feed_cache.py`, `scripts/ebay_sold_baseline.py` — supporting helpers for clearance scanning, feed caching, and sold price baselines.
+Two independent live paths since the sniper-simplification refactor — there is no single "primary" runner:
+- `runners/ebay_sniper.py` (`make live`) — Token-free, zero-LLM daemon. Polls the Browse API directly, applies `static_reference_layer.json` gating in-process, and alerts via macOS iMessage. No Gemini enrichment, no Stage 2 grounding pass — flagship national sweep + local Melbourne basement-price sweep. Simplest and cheapest path to run continuously.
+- `runners/hunt.py` (`make hunt CONFIG=...`) — Ad hoc, JSON-config-driven sweep for heavier discovery runs. Loads a `config/runs/*.json` operator config and delegates to `runners/legacy/ebay_hunter.py`, which owns Browse API acquisition, Gemini enrichment, `run_stage2` grounding, `decide()` scoring, and email alerting.
+- `runners/legacy/ebay_hunter.py` — retired from being the standalone "primary" runner but still the engine behind `make hunt`; treat as maintenance-only.
+- `runners/legacy/ebay_deals.py`, `scripts/ebay_feed_cache.py`, `scripts/ebay_sold_baseline.py`, `scripts/scan_market_gaps.py` — supporting helpers for clearance scanning, feed caching, sold price baselines, and watch-list drift sweeps. Run directly with `.venv/bin/python`.
 - `ebay_taxonomy.py` — category ID + Browse API aspect filter helpers; governs all Browse queries.
+- `ebay_api.py`, `comet.py`, `aistudio.py`, `perplexity.py` have been deleted (folded into `ebay_hunter.py` / deprecated per GitHub issues #13–14) — do not reference them as live paths.
 
 **CSV / Value-Ranking Pipeline**  
 `ingest_csv.py` → `build_shortlist_value.py` → `render_matrix.py`
-- `src/laptopfinder/ingest_csv.py` — Reads eBay CSV export; calls Gemini to extract specs; runs `decide()`; appends SHORTLIST results to `data/shortlist_candidates.jsonl`. (`make process_csv`)
+- `src/laptopfinder/ingest_csv.py` — Reads eBay CSV export; calls Gemini to extract specs; runs `decide()`; appends SHORTLIST results to `data/shortlist_candidates.jsonl`. Invoke via `.venv/bin/python -m laptopfinder.ingest_csv <csv_path>` (no Makefile target).
 - `scripts/build_shortlist_value.py` — Ranks candidates across 4 form-factor lanes by VRAM/RAM tier; outputs `data/shortlist_value.jsonl` + markdown.
-- `scripts/render_matrix.py` — Renders JSONL shortlist → sorted Markdown decision table at `data/purchase_matrix.md`. (`make render-matrix`)
+- `scripts/render_matrix.py` — Renders JSONL shortlist → sorted Markdown decision table at `data/purchase_matrix.md`. Invoke via `.venv/bin/python scripts/render_matrix.py` (no Makefile target).
 
 **Discovery Blind Spots (documented 2026-07)**  
 1. **RAM/VRAM conflation** — eBay AU search surfaces "16GB RAM" (system) listings alongside "16GB VRAM" listings. The Stage 1 hint/fact firewall catches misclassification downstream, but raw discovery may return irrelevant results. Manual photo/spec-sheet verification of VRAM is mandatory on any hit flagged by the search heuristics in `prompts/comet_discovery_agent.txt`.  
@@ -155,11 +148,13 @@ Representative hardware entries by paradigm (bandwidth_gbps, ram_gb, inference_s
 **Research Dossier** (`research/alternative_silicon_dossier_july2026.md`)  
 Canonical alternative silicon findings (AU market, July 2026). Source for agent and prompt grounding. Legacy raw outputs live under `research/archive/`.
 
-**Legacy Live Pipeline Runners** (`src/laptopfinder/runners/`)  
-- `comet.py` — [LEGACY] Gemini 3.1 Pro via `google-genai`; runs the `prompts/comet_discovery_agent.txt` prompt to produce Stage 1 JSON
-- `aistudio.py` — [LEGACY] Gemini 3.1 Pro via AI Studio; runs `prompts/ai_studio_runtime.txt` for Stage 2 analysis
-- `claude_audit.py` — [LEGACY] Anthropic API; optional post-decision audit pass
-- `perplexity.py` — [LEGACY] Perplexity API; deep research runner
+**Legacy Live Pipeline Runners** (`src/laptopfinder/runners/legacy/`)  
+`comet.py`, `aistudio.py`, and `perplexity.py` (raw-text Gemini/Perplexity discovery runners) have been deleted entirely as part of the legacy-runner deprecation. What remains under `runners/legacy/`:
+- `claude_audit.py` — Anthropic API; optional post-decision audit pass
+- `ebay_hunter.py` — still imported by `runners/hunt.py`; see Live eBay Discovery above
+- `ebay_deals.py` — clearance/Deal & Event API scanning helper
+- `evidence_pipeline.py` — see Evidence Pipeline above
+- `hunter/` — decomposed submodules (`api.py`, `enrich.py`, `llm.py`, `score.py`, `search.py`, `state.py`, `alert.py`) backing `ebay_hunter.py`
 
 ## Key invariants
 
