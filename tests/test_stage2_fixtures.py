@@ -167,3 +167,4 @@ def test_stage2_rejects_salvaged_hardware_exclusion() -> None:
         )
 
 
+

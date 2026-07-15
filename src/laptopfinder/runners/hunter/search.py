@@ -48,25 +48,14 @@ Optional .env keys:
 
 from __future__ import annotations
 
-import argparse
-import os
-import smtplib
-import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-from ..decide import load_ref
+from ...ebay_taxonomy import build_aspect_filter, ebay_category_id
 
-
-from .hunter.api import get_ebay_token, log
-from .hunter.search import collect_corpus
-from .hunter.llm import gemini_client, triage_corpus
-from .hunter.enrich import enrich_and_decide
-from .hunter.score import compute_baselines, annotate_mispricing, is_top_acquisition
-from .hunter.state import load_seen, save_seen, write_jsonl
-from .hunter.alert import send_email, render_email
-load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+from .api import browse_search, log
+load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 
 
 # ----------------------------------------------------------------------------
@@ -116,8 +105,39 @@ BROWSE_SCOPE = "https://api.ebay.com/oauth/api_scope"
 
 
 
+def _build_filter(sellers: list[str] | None = None) -> str:
+    base = (
+        f"price:[{PRICE_MIN_AUD}..{PRICE_MAX_AUD}],"
+        "priceCurrency:AUD,"
+        "conditions:{NEW|USED|SELLER_REFURBISHED|CERTIFIED_REFURBISHED},"
+        "buyingOptions:{FIXED_PRICE|AUCTION|BEST_OFFER}"
+    )
+    if sellers:
+        encoded = "|".join(sellers)
+        return f"{base},sellers:{{{encoded}}}"
+    return base
 
 
+def build_queries(ref: dict) -> list[str]:
+    """Derive the search sweep from the SRL target lists — no hardcoded query strings.
+
+    GPU targets are paired with 'laptop' (RAM/VRAM conflation is resolved downstream
+    by Gemini triage). High-signal chassis names are swept directly for niche imports.
+    """
+    neg = " ".join(f"-{kw}" for kw in NEGATIVE_KEYWORDS)
+    queries: list[str] = []
+    for gpu in ref.get("target_gpus", {}):
+        queries.append(f"{gpu} laptop {neg}")
+    for model in ref.get("target_models", []):
+        queries.append(f"{model} {neg}")
+    # Dedup preserving order.
+    seen: set[str] = set()
+    ordered = []
+    for q in queries:
+        if q not in seen:
+            seen.add(q)
+            ordered.append(q)
+    return ordered
 
 
 
@@ -127,10 +147,72 @@ BROWSE_SCOPE = "https://api.ebay.com/oauth/api_scope"
 # ----------------------------------------------------------------------------
 # Corpus assembly (Strategy B input)
 # ----------------------------------------------------------------------------
+def summary_to_row(item: dict) -> dict:
+    price = item.get("price") or {}
+    seller = item.get("seller") or {}
+    return {
+        "item_id": item.get("itemId"),
+        "title": item.get("title"),
+        "price_aud": _num(price.get("value")) if price.get("currency") == "AUD" else None,
+        "currency": price.get("currency"),
+        "condition": item.get("condition"),
+        "buying_options": item.get("buyingOptions"),
+        "seller_username": seller.get("username"),
+        "seller_feedback_pct": seller.get("feedbackPercentage"),
+        "seller_feedback_score": seller.get("feedbackScore"),
+        "item_web_url": item.get("itemWebUrl"),
+    }
 
 
+def _num(val) -> float | None:
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
 
 
+def collect_corpus(token: str, ref: dict, max_per_query: int) -> list[dict]:
+    """Run the full query sweep + seller-scoped sweeps, dedup by itemId."""
+    af = build_aspect_filter(ref)
+    cat_id = ebay_category_id(ref)
+    by_id: dict[str, dict] = {}
+
+    for query in build_queries(ref):
+        try:
+            items = browse_search(
+                token, query, max_per_query,
+                aspect_filter=af, category_id=cat_id, filter_str=_build_filter(),
+            )
+        except RuntimeError as exc:
+            log(f"query failed ({query[:40]}...): {exc}")
+            continue
+        for item in items:
+            row = summary_to_row(item)
+            if row["item_id"] and row["item_id"] not in by_id:
+                by_id[row["item_id"]] = row
+        log(f"query '{query[:44]}...' → {len(items)} items (corpus {len(by_id)})")
+
+    # Seller-scoped sweeps: broad laptop search scoped to each watched seller.
+    neg = " ".join(f"-{kw}" for kw in NEGATIVE_KEYWORDS)
+    for seller in ref.get("watched_sellers", []):
+        try:
+            items = browse_search(
+                token, f"laptop {neg}", max_per_query,
+                aspect_filter=af, category_id=cat_id,
+                filter_str=_build_filter(sellers=[seller]),
+            )
+        except RuntimeError as exc:
+            log(f"seller sweep failed ({seller}): {exc}")
+            continue
+        added = 0
+        for item in items:
+            row = summary_to_row(item)
+            if row["item_id"] and row["item_id"] not in by_id:
+                by_id[row["item_id"]] = row
+                added += 1
+        log(f"seller '{seller}' → {len(items)} items (+{added} new, corpus {len(by_id)})")
+
+    return list(by_id.values())
 
 
 # ----------------------------------------------------------------------------
@@ -271,101 +353,9 @@ Judge risk_score from seller signals, completeness, and any red flags."""
 # ----------------------------------------------------------------------------
 
 
-def run(args: argparse.Namespace) -> int:
-    ref = load_ref()
-    model = args.model or os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
-    client = gemini_client()
-    token = get_ebay_token()
-
-    log("Stage B — sweeping eBay AU market via Browse API...")
-    corpus = collect_corpus(token, ref, args.max_per_query)
-    write_jsonl(CORPUS_PATH, corpus)
-    log(f"corpus: {len(corpus)} unique listings → {CORPUS_PATH}")
-    if not corpus:
-        log("empty corpus — nothing to do")
-        return 0
-
-    if args.no_enrich:
-        log(f"--no-enrich: skipping Gemini triage and enrichment. Corpus written to {CORPUS_PATH}")
-        return 0
-
-    log("Stage B — single long-context Gemini triage pass...")
-    triage = triage_corpus(client, model, corpus)
-    min_listings = ref.get("data_integrity", {}).get("min_listings_for_baseline", 3)
-    baselines = compute_baselines(corpus, triage, min_listings)
-    log(f"triage classified {len(triage)} listings; {len(baselines)} model baselines")
-
-    # Select enrichment candidates: relevant, highest priority first (Strategy A+D is costly).
-    candidates = [
-        r for r in corpus
-        if triage.get(r["item_id"], {}).get("is_relevant", not triage)  # if triage empty, take all
-    ]
-    candidates.sort(
-        key=lambda r: float(triage.get(r["item_id"], {}).get("priority") or 0),
-        reverse=True,
-    )
-    candidates = candidates[: args.enrich_top]
-    log(f"Stage A+D — enriching top {len(candidates)} candidates (getItem + aspects + vision)...")
-
-    results: list[dict] = []
-    for row in candidates:
-        t = triage.get(row["item_id"], {})
-        result = enrich_and_decide(client, model, token, row, t, ref, use_vision=not args.no_vision)
-        if result:
-            results.append(annotate_mispricing(result, baselines))
-
-    write_jsonl(RESULTS_PATH, results)
-    shortlist = [r for r in results if r["decision"]["recommended_action"] == "SHORTLIST"]
-    top = [r for r in results if is_top_acquisition(r)]
-    log(f"scored {len(results)} listings — {len(shortlist)} SHORTLIST, {len(top)} top-acquisition")
-
-    # New-listing gating + email.
-    seen = load_seen()
-    fresh = [r for r in top if r["item_id"] not in seen]
-    log(f"{len(fresh)} of {len(top)} top-acquisition targets are NEW since last run")
-
-    if fresh and not args.no_email and not args.dry_run:
-        try:
-            send_email(fresh)
-        except (smtplib.SMTPException, OSError) as exc:
-            log(f"email send failed: {exc}")
-    elif fresh:
-        log("email suppressed (--dry-run/--no-email) — preview:\n" + render_email(fresh))
-
-    if not args.dry_run:
-        save_seen(seen | {r["item_id"] for r in fresh})
-
-    # Console digest.
-    for r in sorted(top, key=lambda x: float(x.get("decision", {}).get("llm_index_score") or 0), reverse=True)[:10]:
-        d = r["decision"]
-        log(f"  ★ {r['canonical_model']} | AUD {r['price_aud']} (Δ{r.get('price_delta_aud')}) "
-            f"| {d['vram_gb']}GB | index {d['llm_index_score']} | {r['item_web_url']}")
-    return 0
 
 
-def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(
-        prog="python -m laptopfinder.runners.ebay_hunter",
-        description="One-shot eBay AU acquisition sweep for local-LLM hardware (scraper-free).",
-    )
-    p.add_argument("--max-per-query", type=int, default=200, help="Cap items fetched per query (default 200)")
-    p.add_argument("--enrich-top", type=int, default=25, help="How many top candidates to deep-enrich (default 25)")
-    p.add_argument("--model", default=None, help="Gemini model id (default env GEMINI_MODEL or gemini-3.5-flash)")
-    p.add_argument("--no-vision", action="store_true", help="Disable Strategy D image VRAM recovery")
-    p.add_argument("--no-email", action="store_true", help="Score and persist but never send email")
-    p.add_argument("--dry-run", action="store_true", help="No email and do not update seen-items state")
-    p.add_argument("--no-enrich", action="store_true", help="Stop after corpus collection — skip Gemini triage and enrichment (no LLM calls)")
-    return p
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv if argv is not None else sys.argv[1:])
-    try:
-        return run(args)
-    except (ValueError, RuntimeError) as exc:
-        log(f"FATAL: {exc}")
-        return 1
 
 
-if __name__ == "__main__":
-    sys.exit(main())

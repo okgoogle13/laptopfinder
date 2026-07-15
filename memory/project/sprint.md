@@ -219,3 +219,35 @@ Propose concrete edits to `config/static_reference_layer.json`:
 - [x] Corrected `targets.json` generated from updated Claude prompt
 - [x] Spec ranges reflected in `static_reference_layer.json`
 - [x] `make test` still green
+
+---
+
+# Sprint 8 — Pipeline Hardening & Alignment (Pending)
+
+**Why:** Address critical vulnerabilities in live runners and data ingest, correct documentation/config mismatches, and mitigate structural risks identified in the July 2026 pipeline audit.
+
+**Status:** Planned.
+
+## Hardening Tasks (Critical)
+- [ ] **S8-01: Gemini API Runner Exception Handling**
+  - Wrap API calls in `src/laptopfinder/runners/comet.py` and `aistudio.py` with try/except blocks and exponential backoff retry logic (mirroring the `ebay_hunter.py` pattern).
+- [ ] **S8-02: CSV Ingestion Validation**
+  - Add explicit header validation in `src/laptopfinder/ingest_csv.py` to check for required columns at open time and raise `ValueError` for missing headers, rather than propagating null rows.
+
+## Structural Risk Mitigation
+- [ ] **S8-03: Robust eBay aspect names lookup**
+  - Add fallback lookup against the eBay taxonomy layer in `src/laptopfinder/runners/ebay_api.py` when hardcoded aspect matches fail, and log a warning.
+- [ ] **S8-04: Deduplication in `_log_undiscovered_hardware`**
+  - Deduplicate entries by checking for existing `listing_id` in `data/evidence/undiscovered_hardware.jsonl` before appending.
+- [ ] **S8-05: Final fallback for screen-size extraction**
+  - Add catch-all `\b(14|15|16|17|18)["″]` pattern as final fallback in `scripts/build_shortlist_value.py`.
+
+## Doc / Agent Alignment
+- [ ] **S8-06: Clarify risk-gate boundary in CLAUDE.md**
+  - Update decision engine section to clarify that `risk_score == 3.0` passes.
+- [ ] **S8-07: Document deprecated `min_vram_to_shortlist_gb` in CLAUDE.md**
+  - Note that `min_vram_to_shortlist_gb` is a deprecated SRL stub and `vram_gating_logic` is authoritative.
+- [ ] **S8-08: Add test case for `risk_score=3.0` boundary**
+  - Add a test in `tests/test_decide.py` verifying that exactly `3.0` passes while `3.1` is skipped.
+- [ ] **S8-09: Add loading context comment in `silicon_profiles.yaml`**
+  - Mark `silicon_profiles.yaml` as "agent/prompt reference only" to clarify it's not parsed by `decide.py`.

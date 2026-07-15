@@ -291,6 +291,10 @@
   },
   "uma_platforms": {
     "min_total_ram_gb_to_shortlist": 32,
+    "amd_chip_patterns": [
+      "Ryzen AI Max",
+      "Strix Halo"
+    ],
     "chip_patterns": [
       "M1 Max",
       "M1 Ultra",

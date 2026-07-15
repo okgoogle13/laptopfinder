@@ -486,13 +486,6 @@ A GPU was seen in feed files but is absent from both `target_gpus` and `watch_li
 
 ---
 
-## Skills Audit & Archive Recommendations (2026-07)
-
-- **Active & Retained Skills (`.agents/skills/`)**: The six project-specific skills (`cross-agent-plan-review`, `laptopfinder-operator`, `market-gap-scanner`, `prompt-config-parity-audit`, `prompt-search-term-auditor`, `srl-config-guard`) provide critical domain-specific automation, parity audits, and operator workflows. These must remain active and maintained.
-- **Archived / Excluded Skills**: Generic and global boilerplate skills (e.g., `api-and-interface-design`, `ci-cd-and-automation`, `git-workflow-and-versioning`, `test-driven-development`, etc.) are already excluded in `.agents/skills.json`. **Recommendation**: Keep them excluded/archived. They do not contribute to the hardware-sniper domain logic and their exclusion keeps agent context lean and focused on buying outcomes.
-
----
-
 ## Next Steps — eBay API Pipeline
 
 - `[ ]` `[HUMAN]` Run `gh secret list` and confirm `EBAY_CLIENT_ID` and `EBAY_CLIENT_SECRET` are present in GitHub Secrets.
@@ -501,3 +494,17 @@ A GPU was seen in feed files but is absent from both `target_gpus` and `watch_li
 - `[ ]` `[HUMAN]` Run `make pipeline STAGE1=<live_stage1_output> STAGE2=<live_stage2_output>` end-to-end on one real listing; confirm decision output is SHORTLIST/MONITOR/SKIP without crash.
 - `[ ]` `[HUMAN]` Run `make render-matrix` and confirm `data/purchase_matrix.md` contains a ranked SHORTLIST section.
 - `[ ]` `[IDE/DEV]` Evaluate true pairwise architecture penalty (Turing vs Ada same-VRAM) — current `_apply_architecture_penalty()` is a per-listing heuristic; revisit only if a shortlist-ranking batch pass over multiple Stage 2 outputs becomes available.
+
+---
+
+## Backlog: Pipeline Hardening & Alignment (Claude Assessment)
+
+- `[ ]` `[IDE/DEV]` Wrap Gemini API calls in `src/laptopfinder/runners/comet.py` and `aistudio.py` in try/except with exponential backoff retries.
+- `[ ]` `[IDE/DEV]` Add explicit header presence check in `src/laptopfinder/ingest_csv.py` to fail fast on unexpected columns instead of yielding null rows.
+- `[ ]` `[IDE/DEV]` Add warnings and fallback to `ebay_taxonomy.py` for aspect lookups in `src/laptopfinder/runners/ebay_api.py`.
+- `[ ]` `[IDE/DEV]` Deduplicate `data/evidence/undiscovered_hardware.jsonl` entries in `_log_undiscovered_hardware` by matching `listing_id`.
+- `[ ]` `[IDE/DEV]` Add final fallback regex `\b(14|15|16|17|18)["″]` for screen sizes in `scripts/build_shortlist_value.py`.
+- `[ ]` `[DOC]` Update `CLAUDE.md` to clarify that `risk_score == 3.0` exactly passes.
+- `[ ]` `[DOC]` Update `CLAUDE.md` to state that `min_vram_to_shortlist_gb` is deprecated in favor of `vram_gating_logic`.
+- `[ ]` `[IDE/DEV]` Add test case in `tests/test_decide.py` verifying that exactly `risk_score=3.0` passes while `3.1` is skipped.
+- `[ ]` `[DOC]` Add note to `config/silicon_profiles.yaml` explaining that it is only used by agents/prompts, not loaded at runtime by `decide.py`.

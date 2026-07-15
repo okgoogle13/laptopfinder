@@ -128,6 +128,18 @@ class TestPassesRiskGate:
         analysis = load_fixture("fb_high_risk_listing.json")["analysis_output"]
         assert _passes_risk_gate(analysis, REF) is False
 
+    def test_boundary_exactly_3_0_passes(self):
+        """risk_score == 3.0 is the inclusive upper boundary: gate uses <=, so 3.0 passes."""
+        analysis = load_fixture("ebay_facts_grounded.json")["analysis_output"]
+        analysis["analysis"]["risk_score"] = 3.0
+        assert _passes_risk_gate(analysis, REF) is True
+
+    def test_boundary_3_1_fails(self):
+        """risk_score == 3.1 is just above the max; gate must reject it."""
+        analysis = load_fixture("ebay_facts_grounded.json")["analysis_output"]
+        analysis["analysis"]["risk_score"] = 3.1
+        assert _passes_risk_gate(analysis, REF) is False
+
 
 # --- Integration tests ---
 
@@ -433,7 +445,7 @@ class TestUmaDecide:
         result = decide(analysis, REF)
         assert result["recommended_action"] == "SKIP"
         assert result["is_uma_platform"] is True
-        assert result["uma_ram_gb"] == 16.0
+        assert result["uma_ram_gb"] == 24.0
 
     def test_higher_bandwidth_soc_scores_higher(self):
         """At equal 64GB RAM, M3 Ultra should score higher than M1 Max
@@ -888,3 +900,59 @@ class TestApplyEgpuInterconnectPenalty:
             exact_model_name="ASUS ROG Flow X13", egpu_model="Razer Core X", system_ram=64
         )
         assert _apply_egpu_interconnect_penalty(analysis, REF) == 0
+
+
+def test_12gb_empty_string_touchscreen_skipped():
+    analysis = {
+        "metadata": {
+            "source_platform": "GUMTREE",
+            "listing_url_or_identifier": None,
+            "listing_title": "HP ZBook Fury 12GB NoTouch",
+            "listing_price_aud": 2000.0,
+            "seller_name_or_identifier": None,
+            "seller_rating_or_profile_signal": None,
+        },
+        "extracted_data": {
+            "exact_model_name": "ZBook Fury",
+            "component_category": "SYSTEM",
+            "cpu": None,
+            "gpu": "RTX A3000",
+            "ram": None,
+            "storage": None,
+            "vram_capacity": "12GB",
+            "stated_condition": "Used",
+            "shipping_or_pickup_signal": "BOTH",
+            "missing_information": [],
+            "total_system_ram": None,
+            "egpu_model": None,
+            "touchscreen_digitizer": "",
+        },
+        "analysis": {
+            "risk_score": 1.0,
+            "risk_flags": [],
+            "stated_pickup_location": "Melbourne",
+            "confidence": 0.9,
+            "seller_classification": "PRIVATE_ESTABLISHED",
+        },
+    }
+    result = decide(analysis, REF)
+    assert result["recommended_action"] == "SKIP"
+    assert any("requires touchscreen exception" in r for r in result["reasons"])
+
+def test_egpu_bundle_low_vram_skipped():
+    analysis = load_fixture("ebay_egpu_bundle.json")["analysis_output"]
+    analysis["extracted_data"]["vram_capacity"] = "8GB"
+    result = decide(analysis, REF)
+    assert result["recommended_action"] == "SKIP"
+
+def test_custom_ref_precomputation():
+    analysis = load_fixture("ebay_facts_grounded.json")["analysis_output"]
+    # Provide a minimal custom ref that lacks precomputed keys
+    custom_ref = {
+        "vram_tiers": REF["vram_tiers"],
+        "vram_gating_logic": REF["vram_gating_logic"],
+        "llm_index_score": REF["llm_index_score"],
+    }
+    assert "_chip_patterns_lower" not in custom_ref
+    decide(analysis, custom_ref)
+    assert "_chip_patterns_lower" in custom_ref

@@ -48,25 +48,18 @@ Optional .env keys:
 
 from __future__ import annotations
 
-import argparse
+import base64
+import json
 import os
-import smtplib
-import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 
-from ..decide import load_ref
-
-
-from .hunter.api import get_ebay_token, log
-from .hunter.search import collect_corpus
-from .hunter.llm import gemini_client, triage_corpus
-from .hunter.enrich import enrich_and_decide
-from .hunter.score import compute_baselines, annotate_mispricing, is_top_acquisition
-from .hunter.state import load_seen, save_seen, write_jsonl
-from .hunter.alert import send_email, render_email
-load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 
 # ----------------------------------------------------------------------------
@@ -98,30 +91,176 @@ MAX_VISION_IMAGES = 4
 BROWSE_SCOPE = "https://api.ebay.com/oauth/api_scope"
 
 
+def log(msg: str) -> None:
+    print(f"[hunter] {msg}", flush=True)
 
 
 # ----------------------------------------------------------------------------
 # eBay OAuth (client-credentials application token, self-refreshing)
 # ----------------------------------------------------------------------------
+def _api_base() -> str:
+    return os.environ.get("EBAY_API_BASE_URL", "https://api.ebay.com").rstrip("/")
 
 
+def _load_cached_token() -> str | None:
+    if not TOKEN_CACHE_PATH.exists():
+        return None
+    try:
+        cache = json.loads(TOKEN_CACHE_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    # 5-minute safety margin before stated expiry.
+    if cache.get("expires_at", 0) - 300 > time.time():
+        return cache.get("access_token")
+    return None
 
 
+def get_ebay_token(force: bool = False) -> str:
+    """Return a valid Browse-scope application token, minting a fresh one if needed."""
+    if not force:
+        env_token = os.environ.get("EBAY_ACCESS_TOKEN")
+        if env_token:
+            return env_token.strip()
+        cached = _load_cached_token()
+        if cached:
+            return cached
+
+    client_id = os.environ.get("EBAY_CLIENT_ID")
+    client_secret = os.environ.get("EBAY_CLIENT_SECRET")
+    if not client_id or not client_secret:
+        raise ValueError("EBAY_CLIENT_ID / EBAY_CLIENT_SECRET missing from .env")
+
+    creds = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+    body = urllib.parse.urlencode({"grant_type": "client_credentials", "scope": BROWSE_SCOPE}).encode()
+    req = urllib.request.Request(
+        f"{_api_base()}/identity/v1/oauth2/token",
+        data=body,
+        method="POST",
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Authorization": f"Basic {creds}",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            payload = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode(errors="replace")[:300]
+        raise RuntimeError(
+            f"eBay OAuth failed (HTTP {exc.code}): {detail}. "
+            f"Check EBAY_CLIENT_ID/SECRET match the environment in EBAY_API_BASE_URL "
+            f"({_api_base()})."
+        ) from exc
+
+    token = payload["access_token"]
+    expires_at = time.time() + int(payload.get("expires_in", 7200))
+    TOKEN_CACHE_PATH.write_text(
+        json.dumps({"access_token": token, "expires_at": expires_at}), encoding="utf-8"
+    )
+    LEGACY_TOKEN_PATH.write_text(token, encoding="utf-8")  # keep the bash-flow artifact in sync
+    log("minted fresh eBay application token")
+    return token
 
 
 # ----------------------------------------------------------------------------
 # eBay Browse API (structured JSON — the scraper replacement)
 # ----------------------------------------------------------------------------
+def _marketplace_id() -> str:
+    return os.environ.get("EBAY_MARKETPLACE_ID", "EBAY_AU")
+
+
+def ebay_get(path: str, params: dict, token: str) -> dict:
+    """GET a Browse endpoint with retry/backoff; transparently refresh on 401."""
+    url = f"{_api_base()}{path}"
+    if params:
+        url = f"{url}?{urllib.parse.urlencode(params, quote_via=urllib.parse.quote)}"
+
+    for attempt in range(HTTP_RETRIES):
+        req = urllib.request.Request(
+            url,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "X-EBAY-C-MARKETPLACE-ID": _marketplace_id(),
+                "X-EBAY-C-ENDUSERCTX": "contextualLocation=country=AU",
+                "Accept": "application/json",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=45) as resp:
+                return json.loads(resp.read().decode())
+        except urllib.error.HTTPError as exc:
+            if exc.code == 401 and attempt == 0:
+                token = get_ebay_token(force=True)
+                continue
+            if exc.code in (429, 500, 502, 503, 504) and attempt < HTTP_RETRIES - 1:
+                wait = HTTP_BACKOFF_SECONDS * (2 ** attempt)
+                log(f"HTTP {exc.code} on {path} — backing off {wait:.0f}s")
+                time.sleep(wait)
+                continue
+            body = exc.read().decode(errors="replace")[:400]
+            raise RuntimeError(f"eBay {path} failed: HTTP {exc.code} {body}") from exc
+        except urllib.error.URLError as exc:
+            if attempt < HTTP_RETRIES - 1:
+                time.sleep(HTTP_BACKOFF_SECONDS * (2 ** attempt))
+                continue
+            raise RuntimeError(f"eBay {path} network error: {exc}") from exc
+    raise RuntimeError(f"eBay {path} exhausted retries")
 
 
 
 
 
 
+def browse_search(
+    token: str,
+    query: str,
+    max_items: int,
+    *,
+    aspect_filter: str | None = None,
+    category_id: str = "175672",
+    filter_str: str | None = None,
+) -> list[dict]:
+    """Page item_summary/search for one query up to max_items (Browse caps at 10k).
+
+    aspect_filter: eBay aspect_filter string (e.g. GPU Memory Size values).
+    category_id:   Leaf category — 175672 (PC Laptops & Netbooks) is the SRL default.
+                   EBAY_CATEGORY_IDS env var overrides when set.
+    filter_str:    Full filter override (e.g. for seller-scoped sweeps). When None,
+                   uses _build_filter().
+    """
+    collected: list[dict] = []
+    offset = 0
+    page = min(200, max_items)
+    # SRL owns the category ID (config/static_reference_layer.json → ebay_aspect_filter.category_id).
+    # category_id param is passed from collect_corpus via ebay_category_id(ref).
+    cat = category_id
+
+    while len(collected) < max_items and offset <= 9800:
+        params: dict = {
+            "q": query,
+            "filter": filter_str,
+            "sort": "price",
+            "limit": page,
+            "offset": offset,
+            "category_ids": cat,
+        }
+        if aspect_filter:
+            params["aspect_filter"] = aspect_filter
+        data = ebay_get("/buy/browse/v1/item_summary/search", params, token)
+        items = data.get("itemSummaries") or []
+        if not items:
+            break
+        collected.extend(items)
+        total = data.get("total", 0)
+        offset += page
+        if offset >= total:
+            break
+    return collected[:max_items]
 
 
-
-
+def get_item(token: str, item_id: str) -> dict:
+    """Fetch full item detail (localizedAspects, images, description)."""
+    return ebay_get(f"/buy/browse/v1/item/{urllib.parse.quote(item_id, safe='')}", {}, token)
 
 
 # ----------------------------------------------------------------------------
@@ -194,6 +333,17 @@ Return JSON: {"vram_gb": <int or null>, "verbatim_quote": "<exact legible text o
 "source": "<which image, e.g. image 3>", "confidence": <0-1>}."""
 
 
+def _fetch_image_bytes(url: str) -> tuple[bytes, str] | None:
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "laptopfinder-hunter/1.0"})
+        with urllib.request.urlopen(req, timeout=IMAGE_FETCH_TIMEOUT) as resp:
+            data = resp.read()
+            mime = resp.headers.get("Content-Type", "image/jpeg").split(";")[0]
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError):
+        return None
+    if not data or not mime.startswith("image/"):
+        return None
+    return data, mime
 
 
 
@@ -271,101 +421,9 @@ Judge risk_score from seller signals, completeness, and any red flags."""
 # ----------------------------------------------------------------------------
 
 
-def run(args: argparse.Namespace) -> int:
-    ref = load_ref()
-    model = args.model or os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
-    client = gemini_client()
-    token = get_ebay_token()
-
-    log("Stage B — sweeping eBay AU market via Browse API...")
-    corpus = collect_corpus(token, ref, args.max_per_query)
-    write_jsonl(CORPUS_PATH, corpus)
-    log(f"corpus: {len(corpus)} unique listings → {CORPUS_PATH}")
-    if not corpus:
-        log("empty corpus — nothing to do")
-        return 0
-
-    if args.no_enrich:
-        log(f"--no-enrich: skipping Gemini triage and enrichment. Corpus written to {CORPUS_PATH}")
-        return 0
-
-    log("Stage B — single long-context Gemini triage pass...")
-    triage = triage_corpus(client, model, corpus)
-    min_listings = ref.get("data_integrity", {}).get("min_listings_for_baseline", 3)
-    baselines = compute_baselines(corpus, triage, min_listings)
-    log(f"triage classified {len(triage)} listings; {len(baselines)} model baselines")
-
-    # Select enrichment candidates: relevant, highest priority first (Strategy A+D is costly).
-    candidates = [
-        r for r in corpus
-        if triage.get(r["item_id"], {}).get("is_relevant", not triage)  # if triage empty, take all
-    ]
-    candidates.sort(
-        key=lambda r: float(triage.get(r["item_id"], {}).get("priority") or 0),
-        reverse=True,
-    )
-    candidates = candidates[: args.enrich_top]
-    log(f"Stage A+D — enriching top {len(candidates)} candidates (getItem + aspects + vision)...")
-
-    results: list[dict] = []
-    for row in candidates:
-        t = triage.get(row["item_id"], {})
-        result = enrich_and_decide(client, model, token, row, t, ref, use_vision=not args.no_vision)
-        if result:
-            results.append(annotate_mispricing(result, baselines))
-
-    write_jsonl(RESULTS_PATH, results)
-    shortlist = [r for r in results if r["decision"]["recommended_action"] == "SHORTLIST"]
-    top = [r for r in results if is_top_acquisition(r)]
-    log(f"scored {len(results)} listings — {len(shortlist)} SHORTLIST, {len(top)} top-acquisition")
-
-    # New-listing gating + email.
-    seen = load_seen()
-    fresh = [r for r in top if r["item_id"] not in seen]
-    log(f"{len(fresh)} of {len(top)} top-acquisition targets are NEW since last run")
-
-    if fresh and not args.no_email and not args.dry_run:
-        try:
-            send_email(fresh)
-        except (smtplib.SMTPException, OSError) as exc:
-            log(f"email send failed: {exc}")
-    elif fresh:
-        log("email suppressed (--dry-run/--no-email) — preview:\n" + render_email(fresh))
-
-    if not args.dry_run:
-        save_seen(seen | {r["item_id"] for r in fresh})
-
-    # Console digest.
-    for r in sorted(top, key=lambda x: float(x.get("decision", {}).get("llm_index_score") or 0), reverse=True)[:10]:
-        d = r["decision"]
-        log(f"  ★ {r['canonical_model']} | AUD {r['price_aud']} (Δ{r.get('price_delta_aud')}) "
-            f"| {d['vram_gb']}GB | index {d['llm_index_score']} | {r['item_web_url']}")
-    return 0
 
 
-def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(
-        prog="python -m laptopfinder.runners.ebay_hunter",
-        description="One-shot eBay AU acquisition sweep for local-LLM hardware (scraper-free).",
-    )
-    p.add_argument("--max-per-query", type=int, default=200, help="Cap items fetched per query (default 200)")
-    p.add_argument("--enrich-top", type=int, default=25, help="How many top candidates to deep-enrich (default 25)")
-    p.add_argument("--model", default=None, help="Gemini model id (default env GEMINI_MODEL or gemini-3.5-flash)")
-    p.add_argument("--no-vision", action="store_true", help="Disable Strategy D image VRAM recovery")
-    p.add_argument("--no-email", action="store_true", help="Score and persist but never send email")
-    p.add_argument("--dry-run", action="store_true", help="No email and do not update seen-items state")
-    p.add_argument("--no-enrich", action="store_true", help="Stop after corpus collection — skip Gemini triage and enrichment (no LLM calls)")
-    return p
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv if argv is not None else sys.argv[1:])
-    try:
-        return run(args)
-    except (ValueError, RuntimeError) as exc:
-        log(f"FATAL: {exc}")
-        return 1
 
 
-if __name__ == "__main__":
-    sys.exit(main())
