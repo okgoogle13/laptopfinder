@@ -22,6 +22,7 @@ _Update these rows as work completes. Keep estimates rough and honest._
 ## NEXT_TASK
 
 *Completed Tasks:*
+- [x] **S8-04:** Deduplicate `data/evidence/undiscovered_hardware.jsonl` entries in `_log_undiscovered_hardware` by matching `listing_id`. *(src/laptopfinder/decide.py, tests/test_decide.py)*
 - [x] **S8-03:** `ingest_csv.py` — raise `ValueError` on missing required CSV columns at open time. *(src/laptopfinder/ingest_csv.py, tests/test_ingest_csv.py)*
 - [x] **S8-01:** Fix `docs/ebay_sniper.md` — drop nonexistent daemon targets, document real `make live`.
 - [x] **S8-02:** Added `live-daemon`/`live-stop`/`live-tail` Makefile targets (nohup + PID file + log); documented in `docs/ebay_sniper.md`.

@@ -956,3 +956,32 @@ def test_custom_ref_precomputation():
     assert "_chip_patterns_lower" not in custom_ref
     decide(analysis, custom_ref)
     assert "_chip_patterns_lower" in custom_ref
+
+def test_log_undiscovered_hardware_deduplication(monkeypatch, tmp_path):
+    from laptopfinder.decide import _log_undiscovered_hardware
+    import sys
+    import json
+    
+    log_file = tmp_path / "undiscovered.jsonl"
+    monkeypatch.setattr(sys.modules["laptopfinder.decide"], "_UNDISCOVERED_HARDWARE_LOG_PATH", log_file)
+
+    analysis_1 = {"metadata": {"listing_url_or_identifier": "id_123", "listing_title": "Laptop 1"}}
+    analysis_2 = {"metadata": {"listing_url_or_identifier": "id_456", "listing_title": "Laptop 2"}}
+
+    # Call 1: log id_123
+    _log_undiscovered_hardware(analysis_1, "Unknown GPU", 16.0, 64.0, 0, False, False, False)
+    assert log_file.exists()
+    lines = log_file.read_text(encoding="utf-8").strip().split("\n")
+    assert len(lines) == 1
+    assert json.loads(lines[0])["listing_url_or_identifier"] == "id_123"
+
+    # Call 2: duplicate call for id_123, should not append
+    _log_undiscovered_hardware(analysis_1, "Unknown GPU", 16.0, 64.0, 0, False, False, False)
+    lines = log_file.read_text(encoding="utf-8").strip().split("\n")
+    assert len(lines) == 1
+
+    # Call 3: log id_456, should append
+    _log_undiscovered_hardware(analysis_2, "Unknown GPU", 16.0, 64.0, 0, False, False, False)
+    lines = log_file.read_text(encoding="utf-8").strip().split("\n")
+    assert len(lines) == 2
+    assert json.loads(lines[1])["listing_url_or_identifier"] == "id_456"

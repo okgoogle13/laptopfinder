@@ -312,13 +312,30 @@ def _log_undiscovered_hardware(
         return
 
     metadata = analysis.get("metadata", {})
+    listing_id = metadata.get("listing_url_or_identifier")
+
+    if listing_id and _UNDISCOVERED_HARDWARE_LOG_PATH.exists():
+        try:
+            with _UNDISCOVERED_HARDWARE_LOG_PATH.open("r", encoding="utf-8") as f:
+                for line in f:
+                    if not line.strip():
+                        continue
+                    try:
+                        existing = json.loads(line)
+                        if existing.get("listing_url_or_identifier") == listing_id:
+                            return
+                    except json.JSONDecodeError:
+                        pass
+        except OSError:
+            pass
+
     record = {
         "title": metadata.get("listing_title"),
         "price_aud": metadata.get("listing_price_aud"),
         "gpu_string": gpu,
         "vram_gb": vram_gb,
         "system_ram_gb": system_ram_gb,
-        "listing_url_or_identifier": metadata.get("listing_url_or_identifier"),
+        "listing_url_or_identifier": listing_id,
     }
 
     try:

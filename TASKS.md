@@ -499,10 +499,10 @@ A GPU was seen in feed files but is absent from both `target_gpus` and `watch_li
 
 ## Backlog: Pipeline Hardening & Alignment (Claude Assessment)
 
-- `[ ]` `[IDE/DEV]` Wrap Gemini API calls in `src/laptopfinder/runners/comet.py` and `aistudio.py` in try/except with exponential backoff retries.
-- `[ ]` `[IDE/DEV]` Add explicit header presence check in `src/laptopfinder/ingest_csv.py` to fail fast on unexpected columns instead of yielding null rows.
-- `[ ]` `[IDE/DEV]` Add warnings and fallback to `ebay_taxonomy.py` for aspect lookups in `src/laptopfinder/runners/ebay_api.py`.
-- `[ ]` `[IDE/DEV]` Deduplicate `data/evidence/undiscovered_hardware.jsonl` entries in `_log_undiscovered_hardware` by matching `listing_id`.
+- `[x]` `[IDE/DEV]` Wrap Gemini API calls in `src/laptopfinder/runners/comet.py` and `aistudio.py` in try/except with exponential backoff retries. *(obsolete: runners deleted in #13, retries added to enrichment in #18)*
+- `[x]` `[IDE/DEV]` Add explicit header presence check in `src/laptopfinder/ingest_csv.py` to fail fast on unexpected columns instead of yielding null rows.
+- `[~]` `[IDE/DEV]` Add warnings and fallback to `ebay_taxonomy.py` for aspect lookups in `src/laptopfinder/runners/ebay_api.py`. *(obsolete: ebay_api.py folded in #14)*
+- `[x]` `[IDE/DEV]` Deduplicate `data/evidence/undiscovered_hardware.jsonl` entries in `_log_undiscovered_hardware` by matching `listing_id`.
 - `[ ]` `[IDE/DEV]` Add final fallback regex `\b(14|15|16|17|18)["″]` for screen sizes in `scripts/build_shortlist_value.py`.
 - `[ ]` `[DOC]` Update `CLAUDE.md` to clarify that `risk_score == 3.0` exactly passes.
 - `[ ]` `[DOC]` Update `CLAUDE.md` to state that `min_vram_to_shortlist_gb` is deprecated in favor of `vram_gating_logic`.
