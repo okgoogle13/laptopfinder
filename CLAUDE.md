@@ -50,7 +50,7 @@ scripts/authenticate_ebay.sh
 # Batch CSV ingestion → data/shortlist_candidates.jsonl
 .venv/bin/python -m laptopfinder.ingest_csv <csv_path>
 
-# Render JSONL shortlist → data/purchase_matrix.md
+# Render JSONL shortlist → output/shortlist/purchase_matrix.md
 .venv/bin/python scripts/render_matrix.py
 
 # Supporting eBay tooling (run via op_wrap.sh or op run for credentialed calls)
@@ -123,8 +123,8 @@ Two independent live paths since the sniper-simplification refactor — there is
 **CSV / Value-Ranking Pipeline**  
 `ingest_csv.py` → `build_shortlist_value.py` → `render_matrix.py`
 - `src/laptopfinder/ingest_csv.py` — Reads eBay CSV export; calls Gemini to extract specs; runs `decide()`; appends SHORTLIST results to `data/shortlist_candidates.jsonl`. Invoke via `.venv/bin/python -m laptopfinder.ingest_csv <csv_path>` (no Makefile target).
-- `scripts/build_shortlist_value.py` — Ranks candidates across 4 form-factor lanes by VRAM/RAM tier; outputs `data/shortlist_value.jsonl` + markdown.
-- `scripts/render_matrix.py` — Renders JSONL shortlist → sorted Markdown decision table at `data/purchase_matrix.md`. Invoke via `.venv/bin/python scripts/render_matrix.py` (no Makefile target).
+- `scripts/build_shortlist_value.py` — Ranks candidates across 4 form-factor lanes by VRAM/RAM tier; outputs `output/shortlist/shortlist_value.jsonl` + `output/shortlist/shortlist_value.md`.
+- `scripts/render_matrix.py` — Renders JSONL shortlist → sorted Markdown decision table at `output/shortlist/purchase_matrix.md`. Invoke via `.venv/bin/python scripts/render_matrix.py` (no Makefile target).
 
 **Discovery Blind Spots (documented 2026-07)**  
 1. **RAM/VRAM conflation** — eBay AU search surfaces "16GB RAM" (system) listings alongside "16GB VRAM" listings. The Stage 1 hint/fact firewall catches misclassification downstream, but raw discovery may return irrelevant results. Manual photo/spec-sheet verification of VRAM is mandatory on any hit flagged by the search heuristics in `prompts/comet_discovery_agent.txt`.  
@@ -219,6 +219,17 @@ When Claude Code works on this repo:
 - Default behavior:
   - Prefer autonomous execution of NEXT_TASK over asking for new instructions.
   - Use CLAUDE.md only as doctrine and guardrails; do not rewrite it unless explicitly instructed or as part of a docs task in NEXT_TASK.
+
+- Pipeline execution:
+  - Use `make pipeline STAGE1=... STAGE2=...` to run the offline fixture pipeline.
+  - Use `make live` to run the AU sniper daemon (requires credentialed `.env`).
+  - Use `make hunt CONFIG=config/runs/desktop_replacement.json DRY_RUN=1` for a dry ad hoc sweep.
+  - Read `output/decisions/latest_decisions.json` and `output/shortlist/latest_shortlist.md` for sweep results — these are the only authoritative output files.
+
+- LLM boundary (strict):
+  - LLMs (Claude, Gemini, Codex, Copilot) MUST NOT alter routing decisions, scores, or thresholds.
+  - All routing logic lives in `decide.py` + `config/static_reference_layer.json`.
+  - LLM agents are qualitative auditors and researchers only — they read `output/shortlist/latest_shortlist.md` and advise; they never write scores or change SHORTLIST/SKIP outcomes.
 
 ## Agent Workflow Defaults (Gemini, Codex, Copilot)
 

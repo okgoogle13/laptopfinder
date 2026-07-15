@@ -2,31 +2,36 @@
 
 Two-stage AI pipeline that discovers, filters, and scores Australian second-hand hardware listings (eBay AU, Facebook Marketplace, Gumtree) for local LLM inference.
 
-## Quick Start
+## Sniper Quick Start
+
+Three steps to run the AU sniper and read results:
 
 ```bash
-# Run all tests
-make test
+# 1. Authenticate (one-time or when token expires)
+scripts/authenticate_ebay.sh
 
-# Validate a Stage 2 fixture and run the decision engine
-make decide FIXTURE=tests/fixtures/stage2/ebay_facts_grounded.json
+# 2. Run a single-pass dry sweep — no state written, no iMessages sent
+op run --env-file=.env -- .venv/bin/python -m laptopfinder.runners.ebay_sniper --dry-run --once
 
-# Run the primary structured eBay discovery runner (ebay_hunter.py)
-make live
-# or:
-make hunter
-
-# Batch CSV ingestion → data/shortlist_candidates.jsonl
-make process_csv
-
-# Render JSONL shortlist → data/purchase_matrix.md
-make render-matrix
-
-# [LEGACY] Run the legacy raw-text live pipeline (requires 1Password injected .env secrets)
-make live-legacy SOURCE=feed.txt
+# 3. Read results
+cat output/decisions/latest_decisions.json   # machine-readable hit list
+cat output/shortlist/latest_shortlist.md     # human-readable shortlist
 ```
 
-**Environment:** `.venv` managed by uv. Use `.venv/bin/python` / `.venv/bin/pytest`. Copy `.env.example` → `.env` and configure 1Password `op://...` references for `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, etc. Live scripts must be run via `op run --env-file=.env --` (or `./scripts/op_wrap.sh`).
+To start the background daemon: `make live`
+
+**Environment:** `.venv` managed by uv. Copy `.env.example` → `.env` and configure `EBAY_APP_ID`, `EBAY_CERT_ID`, and 1Password `op://...` references. All credentialed commands run via `op run --env-file=.env --`.
+
+## Standard Outputs
+
+Every sniper sweep writes two files:
+
+| File | Purpose |
+|------|---------|
+| `output/decisions/latest_decisions.json` | Machine-readable JSON array of all hits with action, price, URL, and strategy |
+| `output/shortlist/latest_shortlist.md` | Human-readable Markdown summary of SHORTLIST hits only |
+
+These are the only files downstream agents and manual review should read. Overwritten each sweep.
 
 ## Architecture & Pipeline
 
@@ -62,14 +67,20 @@ Platforms: eBay AU, Facebook Marketplace, Gumtree. Currency: AUD. Pickup origin:
 ## Repository Layout
 
 ```
-config/                          # static_reference_layer.json
-prompts/                         # AI Studio, Comet, Claude audit, Perplexity prompts
+config/                          # static_reference_layer.json — single source of truth for all thresholds
+data/                            # inputs, fixtures, and accumulated candidate state
+output/
+  decisions/latest_decisions.json  # sniper hit list (overwritten each sweep)
+  shortlist/latest_shortlist.md    # human-readable shortlist (overwritten each sweep)
+  shortlist/purchase_matrix.md     # ranked matrix from render_matrix.py
 src/laptopfinder/
   core.py                        # Stage 1 / Stage 2 validation + hint/fact firewall
   decide.py                      # decision engine (SHORTLIST / MONITOR / SKIP)
   schemas/                       # JSON Schemas for Stage 1, 1A, Stage 2
-  runners/                       # live pipeline runners (Gemini, Claude, Perplexity)
-  scrape_benchmark.py            # HTML → Stage 2 fixture scraper
+  runners/
+    ebay_sniper.py               # primary AU sniper daemon
+    hunt.py                      # ad hoc JSON-config-driven sweep
+    legacy/                      # retired runners (ebay_hunter, ebay_deals, etc.)
 tests/
   fixtures/stage1/               # Stage 1 test fixtures
   fixtures/stage2/               # Stage 2 test fixtures
