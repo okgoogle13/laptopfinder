@@ -47,6 +47,16 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-next-steps.sh"
+          }
+        ]
+      }
     ]
   }
 }

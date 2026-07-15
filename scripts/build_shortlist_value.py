@@ -25,8 +25,8 @@ import sys
 from pathlib import Path
 
 SHORTLIST_PATH = Path("data/shortlist_candidates.jsonl")
-OUT_JSONL = Path("data/shortlist_value.jsonl")
-OUT_MD = Path("data/shortlist_value.md")
+OUT_JSONL = Path("output/shortlist/shortlist_value.jsonl")
+OUT_MD = Path("output/shortlist/shortlist_value.md")
 
 TOP_N = {
     "gaming_17_18": 4,

@@ -42,3 +42,10 @@ data/purchase_matrix.md
 
 # eBay hunter runtime artifacts (generated each run)
 data/ebay/
+
+# Pipeline outputs (generated each run — do not commit latest_* files)
+output/decisions/latest_decisions.json
+output/shortlist/latest_shortlist.md
+output/shortlist/purchase_matrix.md
+output/shortlist/shortlist_value.jsonl
+output/shortlist/shortlist_value.md

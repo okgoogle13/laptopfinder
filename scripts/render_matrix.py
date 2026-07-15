@@ -78,12 +78,12 @@ def render_table(candidates: list[dict]) -> str:
 
 def main() -> None:
     """CLI entry point.
-    Flags: --in (default: data/shortlist_candidates.jsonl), --out (default: data/purchase_matrix.md).
+    Flags: --in (default: data/shortlist_candidates.jsonl), --out (default: output/shortlist/purchase_matrix.md).
     Loads candidates, sorts, renders table, prepends a heading with ISO timestamp, writes to --out.
     Prints confirmation line to stdout."""
     parser = argparse.ArgumentParser(description="Render JSONL shortlist to Markdown matrix")
     parser.add_argument("--in", dest="input", default="data/shortlist_candidates.jsonl")
-    parser.add_argument("--out", default="data/purchase_matrix.md")
+    parser.add_argument("--out", default="output/shortlist/purchase_matrix.md")
     args = parser.parse_args()
 
     if not os.path.exists(args.input):
@@ -96,6 +96,7 @@ def main() -> None:
     timestamp = datetime.datetime.now().isoformat(timespec="seconds")
     content = f"# Purchase Decision Matrix\n\nGenerated: {timestamp}\n\n{table}\n"
 
+    os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as fh:
         fh.write(content)
 

@@ -47,6 +47,14 @@
       "128 GB"
     ]
   },
+  "sniper_config": {
+    "_comment": "Runtime parameters for ebay_sniper.py. Edit here to adjust sweep behaviour without touching Python source.",
+    "strategy_a_limit": 20,
+    "local_pickup_postal_code": "3070",
+    "local_pickup_radius_km": 100,
+    "local_price_margin_factor": 1.10,
+    "poll_interval_sec": 300
+  },
   "watched_sellers": [],
   "_comment_watched_sellers": "eBay AU seller usernames to poll directly. Each triggers a Browse API sweep scoped to that seller. Empty list disables seller-scoped sweeps.",
   "clearance_sellers": [

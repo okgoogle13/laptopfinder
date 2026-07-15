@@ -157,12 +157,15 @@ def apply_firewall(title: str, srl: dict) -> bool:
 
 def run_strategy_flagship(token: str, seen: set[str], srl: dict, keywords: list[str], dry_run: bool = False) -> set[str]:
     print("[SNIPER] Running Strategy A: Flagship Sweep (National)...")
+    cfg = srl.get("sniper_config", {})
+    category_id = srl.get("ebay_aspect_filter", {}).get("category_id", "175672")
+    limit = str(cfg.get("strategy_a_limit", 20))
     params = {
         "q": f"({', '.join(keywords)})",
-        "category_ids": "175672",
+        "category_ids": category_id,
         "filter": "itemLocationCountry:AU,priceCurrency:AUD",
         "sort": "newlyListed",
-        "limit": "20",
+        "limit": limit,
         "fieldgroups": "EXTENDED",
     }
     data = execute_browse_query(token, params)
@@ -200,18 +203,22 @@ def run_strategy_flagship(token: str, seen: set[str], srl: dict, keywords: list[
 
 
 def run_strategy_local(token: str, seen: set[str], srl: dict, models: list[str], dry_run: bool = False) -> set[str]:
-    print("[SNIPER] Running Strategy B: Local Algorithmic Sniper (Melbourne VIC 3070)...")
+    cfg = srl.get("sniper_config", {})
+    postal_code = cfg.get("local_pickup_postal_code", "3070")
+    radius_km = cfg.get("local_pickup_radius_km", 100)
+    category_id = srl.get("ebay_aspect_filter", {}).get("category_id", "175672")
+    print(f"[SNIPER] Running Strategy B: Local Algorithmic Sniper (Melbourne VIC {postal_code})...")
     headers = {
         "X-EBAY-C-MARKETPLACE-ID": "EBAY_AU",
-        "X-EBAY-C-ENDUSERCTX": "contextualLocation=country=AU,zip=3070",
+        "X-EBAY-C-ENDUSERCTX": f"contextualLocation=country=AU,zip={postal_code}",
     }
     params = {
         "q": f"({', '.join(models)})",
-        "category_ids": "175672",
+        "category_ids": category_id,
         "filter": (
             "pickupCountry:AU,"
-            "pickupPostalCode:3070,"
-            "pickupRadius:100,"
+            f"pickupPostalCode:{postal_code},"
+            f"pickupRadius:{radius_km},"
             "pickupRadiusUnit:km,"
             "buyingOptions:{FIXED_PRICE|BEST_OFFER},"
             "sellerAccountTypes:{INDIVIDUAL}"
@@ -257,8 +264,9 @@ def run_strategy_local(token: str, seen: set[str], srl: dict, models: list[str],
         except (TypeError, ValueError):
             floor_val = None
 
-        if floor_val is None or price > floor_val * 1.10:
-            continue  # ignore unless at or below ~110% of observed floor
+        margin = srl.get("sniper_config", {}).get("local_price_margin_factor", 1.10)
+        if floor_val is None or price > floor_val * margin:
+            continue  # ignore unless at or below configured % of observed floor
 
         url = item.get("itemWebUrl", "")
         msg = (

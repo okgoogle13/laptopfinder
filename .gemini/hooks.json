@@ -1,0 +1,20 @@
+{
+  "_TODO": "Skeleton only — not wired into Gemini CLI yet. Fill in once Gemini CLI hook config format/version is confirmed for this environment.",
+  "hooks": {
+    "AfterModel": [
+      {
+        "_TODO": "Enforce or repair a 'Next steps' section in the model's reply, mirroring .claude/hooks/check-next-steps.sh. Needs the Gemini CLI equivalent of transcript/message access.",
+        "type": "command",
+        "command": null
+      }
+    ],
+    "PreToolUse": [
+      {
+        "_TODO": "Preprocess large logs/HTML/PDF inputs to markdown/JSON before the model reads them, to shrink context. Target tools: file-read equivalents for data/evidence/raw/, saved_pages/.",
+        "matcher": null,
+        "type": "command",
+        "command": null
+      }
+    ]
+  }
+}

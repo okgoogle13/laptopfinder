@@ -18,7 +18,6 @@ from datetime import date
 from pathlib import Path
 
 FINDING_API = "https://svcs.ebay.com/services/search/FindingService/v1"
-CATEGORY_ID = "175672"
 SRL_PATH = Path("config/static_reference_layer.json")
 CACHE_DIR = Path("data/sold_baseline")
 
@@ -27,7 +26,7 @@ def _load_ref() -> dict:
     return json.loads(SRL_PATH.read_text())
 
 
-def fetch_sold_items(app_id: str, keywords: str, category_id: str = CATEGORY_ID) -> dict:
+def fetch_sold_items(app_id: str, keywords: str, category_id: str = "175672") -> dict:
     params = {
         "OPERATION-NAME": "findCompletedItems",
         "SERVICE-VERSION": "1.13.0",
@@ -83,9 +82,11 @@ def compute_baseline(items: list[dict]) -> dict:
 
 
 def main() -> None:
+    ref = _load_ref()
+    default_category = ref.get("ebay_aspect_filter", {}).get("category_id", "175672")
     parser = argparse.ArgumentParser(description="eBay sold price baseline via Finding API")
     parser.add_argument("--keywords", nargs="+", help="GPU keywords to query (default: SRL target_gpus keys)")
-    parser.add_argument("--category", default=CATEGORY_ID)
+    parser.add_argument("--category", default=default_category)
     parser.add_argument("--out-dir", default=str(CACHE_DIR))
     args = parser.parse_args()
 
@@ -93,7 +94,7 @@ def main() -> None:
     if not app_id:
         sys.exit("[SOLD] EBAY_APP_ID not set — copy .env.example to .env and fill in credentials")
 
-    keywords = args.keywords or list(_load_ref().get("target_gpus", {}).keys())
+    keywords = args.keywords or list(ref.get("target_gpus", {}).keys())
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
