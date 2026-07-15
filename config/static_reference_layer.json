@@ -3,14 +3,14 @@
     "target_gpus_role": "Reference list for scoring hints (+5 generation points if GPU matched) and search keyword generation. NOT a routing gate. Any listing with vram_gb >= min_vram_to_shortlist_gb is eligible for shortlisting regardless of target_gpus membership.",
     "target_models_role": "Scoring hint list (+3 points if chassis matched). Not a whitelist. A target_model listing with poor risk_score is not shortlisted.",
     "radeon_path": "Radeon mobile GPUs are evaluated on the same VRAM threshold as NVIDIA. ROCm ecosystem risk is surfaced as a buyer disclosure note (see radeon_ecosystem_disclosure), not added to risk_score.",
-    "apple_silicon_path": "Apple Silicon UMA platforms are routed via uma_platforms rules. Score ceiling removed 2026-06-30 \u2014 UMA platforms now compete at the full 0\u2013100 llm_index_score scale.",
-    "uma_soc_scoring": "UMA generation points come from uma_soc_by_name (chip \u2192 bandwidth tier) + uma_soc_bandwidth_points (tier \u2192 pts), scored via _uma_soc_points() on the cpu/model string \u2014 not gpu_generation_points. uma_soc_by_name is additive scoring metadata only; uma_platforms.chip_patterns remains the authoritative UMA routing gate. A chip in chip_patterns but absent from uma_soc_by_name still detects as UMA and falls back to the flat gpu_generation_points 'Apple Silicon' value (20), so new chips never silently regress to 0.",
+    "apple_silicon_path": "Apple Silicon UMA platforms are routed via uma_platforms rules. Score ceiling removed 2026-06-30 — UMA platforms now compete at the full 0–100 llm_index_score scale.",
+    "uma_soc_scoring": "UMA generation points come from uma_soc_by_name (chip → bandwidth tier) + uma_soc_bandwidth_points (tier → pts), scored via _uma_soc_points() on the cpu/model string — not gpu_generation_points. uma_soc_by_name is additive scoring metadata only; uma_platforms.chip_patterns remains the authoritative UMA routing gate. A chip in chip_patterns but absent from uma_soc_by_name still detects as UMA and falls back to the flat gpu_generation_points 'Apple Silicon' value (20), so new chips never silently regress to 0.",
     "watch_list_promotion": "A watch_list entry is promoted to target_gpus when its graduation_condition is confirmed by the Perplexity research agent. Promotion requires manual review.",
     "min_vram_applies_to_uma": "min_vram_to_shortlist_gb applies to discrete VRAM only. UMA platforms (Apple Silicon, Strix Halo) use uma_platforms.min_total_ram_gb_to_shortlist instead. Do not apply both thresholds to the same listing.",
     "unknown_gpu_behaviour": "A GPU not found in target_gpus, radeon_mobile_gpus, or gpu_generation_by_name scores 0 generation points. It is NOT penalised and does NOT trigger missing-field deductions. The listing proceeds on VRAM tier score alone.",
     "egpu_scoring_behaviour": "When an eGPU enclosure is confirmed, score using the eGPU's VRAM tier and GPU generation. Apply radeon_ecosystem_disclosure if the eGPU is an AMD part. The laptop's internal GPU is ignored for scoring purposes.",
     "radeon_gate_behaviour": "The radeon_ecosystem_disclosure flag does NOT affect risk_score or the low-risk gate. Radeon listings are evaluated at the same risk_score <= 3.0 threshold as all other listings.",
-    "conditional_models_behaviour": "conditional_models entries carry machine-readable fields (requires_discrete_gpu, min_vram_gb) that a future decide.py extension can enforce. Currently decide.py does not read conditional_models \u2014 a conditional chassis match does NOT grant shortlist eligibility unless the listing independently passes the VRAM threshold gate.",
+    "conditional_models_behaviour": "conditional_models entries carry machine-readable fields (requires_discrete_gpu, min_vram_gb) that a future decide.py extension can enforce. Currently decide.py does not read conditional_models — a conditional chassis match does NOT grant shortlist eligibility unless the listing independently passes the VRAM threshold gate.",
     "orphaned_spec_diagnostic_proposal": "When a listing confirms vram_gb >= 12 or system_ram_gb >= 64 but receives 0 generation points (no match in target_gpus, radeon_mobile_gpus, or gpu_generation_by_name), decide.py may in future log a [UNKNOWN_HIGH_CAPACITY_TARGET] diagnostic record to an undiscovered_hardware.jsonl queue. This would be a diagnostic discovery path, not a routing gate: listings still proceed on VRAM tier score alone."
   },
   "vram_tiers": {
@@ -62,7 +62,7 @@
   "watch_list": [
     {
       "name": "RTX 5000 Ada Mobile",
-      "reason": "16 GB Ada Lovelace mobile workstation GPU; excellent 9B/13B host. AU used market non-existent until enterprise 36-month lease cycles expire (late 2026\u20132027).",
+      "reason": "16 GB Ada Lovelace mobile workstation GPU; excellent 9B/13B host. AU used market non-existent until enterprise 36-month lease cycles expire (late 2026–2027).",
       "routing_behaviour": "MONITOR overrides all positive signals until graduation_condition is confirmed.",
       "graduation_condition": "AU domestic used listings confirmed on eBay AU, FB Marketplace, or Gumtree.",
       "graduate_to": "target_gpus",
@@ -95,7 +95,7 @@
       "graduate_vram_gb": null
     }
   ],
-  "_comment_target_gpus": "This list is scoped to training/diffusion/CUDA workloads and scoring hints. It is NOT used for text-centric inference ranking \u2014 that uses score_text_llm_candidate() with scoring_weights.yaml profiles.",
+  "_comment_target_gpus": "This list is scoped to training/diffusion/CUDA workloads and scoring hints. It is NOT used for text-centric inference ranking — that uses score_text_llm_candidate() with scoring_weights.yaml profiles.",
   "target_gpus": {
     "RTX 3080": {
       "vram_gb": 16,
@@ -105,7 +105,7 @@
       "observed_au_price_max_aud": 2000,
       "evidence_type": "Observed_AU",
       "market_verdict": "GRADUATE",
-      "note": "16GB variant is the primary target \u2014 verify VRAM in listing photos, 8GB variants exist. Ampere SM86: native Flash Attention support. Target chassis: ASUS ROG Strix SCAR 15/17, MSI Vector GP66, Alienware m15 R4."
+      "note": "16GB variant is the primary target — verify VRAM in listing photos, 8GB variants exist. Ampere SM86: native Flash Attention support. Target chassis: ASUS ROG Strix SCAR 15/17, MSI Vector GP66, Alienware m15 R4."
     },
     "RTX 3080 Ti": {
       "vram_gb": 16,
@@ -135,7 +135,7 @@
       "observed_au_price_max_aud": 4500,
       "evidence_type": "Observed_AU",
       "market_verdict": "HOLD",
-      "note": "Identical 16GB VRAM to RTX 3080 16GB at $2,000\u2013$2,500 AUD premium. Fallback if found mispriced in local B2B liquidation. Ada Lovelace SM89: FP8 + Flash Attention 2."
+      "note": "Identical 16GB VRAM to RTX 3080 16GB at $2,000–$2,500 AUD premium. Fallback if found mispriced in local B2B liquidation. Ada Lovelace SM89: FP8 + Flash Attention 2."
     },
     "RTX 5070": {
       "vram_gb": 16,
@@ -153,7 +153,7 @@
       "observed_au_price_max_aud": 5000,
       "evidence_type": "Observed_AU",
       "market_verdict": "HOLD",
-      "note": "Sporadically obtainable via clearance retail \u2014 Gigabyte A16 Pro (~$4,697 AUD, 115W TGP). Low secondary market saturation in Greater Melbourne as of July 2026. Blackwell architecture: GDDR7, 5th-gen Tensor Cores, native Flash Attention 3. TGP throttling at 115W has minimal impact on memory-bandwidth-bound LLM decode."
+      "note": "Sporadically obtainable via clearance retail — Gigabyte A16 Pro (~$4,697 AUD, 115W TGP). Low secondary market saturation in Greater Melbourne as of July 2026. Blackwell architecture: GDDR7, 5th-gen Tensor Cores, native Flash Attention 3. TGP throttling at 115W has minimal impact on memory-bandwidth-bound LLM decode."
     },
     "RTX 5090": {
       "vram_gb": 24,
@@ -274,12 +274,12 @@
     }
   },
   "min_vram_to_shortlist_gb": 12,
-  "_comment_min_vram": "DEPRECATED / UNUSED \u2014 decide.py does not read this key. It is a legacy leftover. The live discrete-VRAM shortlist gate is vram_gating_logic.standard_mobile_min_gb (16 GB), with vram_gating_logic.touchscreen_exception_min_gb (12 GB) as the touchscreen exception. UMA platforms use uma_platforms.min_total_ram_gb_to_shortlist. Do not edit this key expecting it to change routing behavior; edit vram_gating_logic instead. Retained only for backward-compat in case an external script reads it directly.",
+  "_comment_min_vram": "DEPRECATED / UNUSED — decide.py does not read this key. It is a legacy leftover. The live discrete-VRAM shortlist gate is vram_gating_logic.standard_mobile_min_gb (16 GB), with vram_gating_logic.touchscreen_exception_min_gb (12 GB) as the touchscreen exception. UMA platforms use uma_platforms.min_total_ram_gb_to_shortlist. Do not edit this key expecting it to change routing behavior; edit vram_gating_logic instead. Retained only for backward-compat in case an external script reads it directly.",
   "min_vram_to_flag_gb": 12,
   "apple_silicon": {
     "routing": "CONDITIONAL",
     "score_ceiling": null,
-    "_comment_score_ceiling": "Ceiling removed 2026-06-30 \u2014 UMA platforms now compete at full 0\u2013100 scale. Raw Mac Studio 128GB score ~89 (extreme=60 + AppleSilicon=20 + seller \u2212 deductions).",
+    "_comment_score_ceiling": "Ceiling removed 2026-06-30 — UMA platforms now compete at full 0–100 scale. Raw Mac Studio 128GB score ~89 (extreme=60 + AppleSilicon=20 + seller − deductions).",
     "eligible": [
       "Mac Studio 64GB",
       "Mac Studio 128GB"
@@ -300,6 +300,10 @@
       "M3 Ultra",
       "M4 Max",
       "M4 Ultra",
+      "Ryzen AI Max",
+      "Strix Halo"
+    ],
+    "amd_chip_patterns": [
       "Ryzen AI Max",
       "Strix Halo"
     ]
@@ -329,7 +333,7 @@
       "vram_gb": 12,
       "architecture": "RDNA2",
       "market_verdict": "DEFER",
-      "note": "12GB VRAM at very low AU secondary price ($700\u2013$1,200 AUD). RDNA2 ROCm stack volatile: persistent kernel panics during sustained autoregressive generation, no ExLlamaV2 support, incomplete quantization library coverage. Operational debugging overhead negates capital saving."
+      "note": "12GB VRAM at very low AU secondary price ($700–$1,200 AUD). RDNA2 ROCm stack volatile: persistent kernel panics during sustained autoregressive generation, no ExLlamaV2 support, incomplete quantization library coverage. Operational debugging overhead negates capital saving."
     }
   },
   "radeon_ecosystem_disclosure": {
@@ -359,14 +363,14 @@
       "high": 40,
       "extreme": 60
     },
-    "_comment_rdna3_score": "RDNA3=15 vs Ada=20 is a software-ecosystem maturity discount (ROCm/Vulkan friction), not a performance ceiling. Revisit as ROCm/Vulkan support matures \u2014 consider raising to 17\u201318 by Q4 2026.",
+    "_comment_rdna3_score": "RDNA3=15 vs Ada=20 is a software-ecosystem maturity discount (ROCm/Vulkan friction), not a performance ceiling. Revisit as ROCm/Vulkan support matures — consider raising to 17–18 by Q4 2026.",
     "gpu_generation_points": {
       "Blackwell": 25,
       "Ada Lovelace": 20,
       "Ampere": 12,
       "RDNA3": 15,
-      "Apple Silicon": 20,
-      "Turing": 5
+      "Turing": 5,
+      "UMA_Architecture": 20
     },
     "gpu_generation_by_name": {
       "RTX 5080": "Blackwell",
@@ -431,7 +435,7 @@
   },
   "architecture_adjustments": {
     "turing_vs_ada_same_vram_penalty_pts": -2,
-    "applies_when": "generation == 'Turing' AND vram_tier is known (single-listing heuristic \u2014 decide() scores one listing at a time, so a true pairwise generation_A/generation_B comparison against a same-tier Ada listing is not resolvable here)",
+    "applies_when": "generation == 'Turing' AND vram_tier is known (single-listing heuristic — decide() scores one listing at a time, so a true pairwise generation_A/generation_B comparison against a same-tier Ada listing is not resolvable here)",
     "_comment": "Applied per-listing whenever the GPU resolves to Turing generation with a known VRAM tier, regardless of whether an Ada comparator is present in the same batch. Additive to the existing gen-points gap (Turing=5 vs Ada=20). True pairwise resolution is a BACKLOG item for a future batch/shortlist-ranking pass."
   }
 }

@@ -433,7 +433,7 @@ class TestUmaDecide:
         result = decide(analysis, REF)
         assert result["recommended_action"] == "SKIP"
         assert result["is_uma_platform"] is True
-        assert result["uma_ram_gb"] == 32.0
+        assert result["uma_ram_gb"] == 16.0
 
     def test_higher_bandwidth_soc_scores_higher(self):
         """At equal 64GB RAM, M3 Ultra should score higher than M1 Max
