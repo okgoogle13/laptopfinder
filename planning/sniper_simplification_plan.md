@@ -99,14 +99,14 @@
 ---
 
 ## Execution Checklist (for STATUS.md)
-- [ ] Task A - Pick primary runner `ebay_sniper.py` and move legacy runners (Files: `src/laptopfinder/runners/` | Validate by: `ls` and `pytest`)
-- [ ] Task B - Clean Makefile to include only `test`, `pipeline`, and `live` (Files: `Makefile` | Validate by: `make pipeline`)
-- [ ] Task C - Archive non-essential agent skills (Files: `.agents/skills/` | Validate by: `tree`)
-- [ ] Task D - Align `deep_plan_config.json` flows with sniper phases (Files: `deep_plan_config.json` | Validate by: `jq .`)
-- [ ] Task E - Centralise routing logic in `decide.py` and write to standard output paths (Files: `src/laptopfinder/decide.py`, `src/laptopfinder/runners/ebay_sniper.py` | Validate by: `make pipeline` output checks)
-- [ ] Task F - Consolidate static references to `config/static_reference_layer.json` (Files: `config/` | Validate by: `pytest`)
-- [ ] Task G - Relocate data files to standardise output directory layout (Files: `data/`, `output/` | Validate by: checking paths after run)
-- [ ] Task H - Enforce strict stage firewall boundary rules (Files: `src/laptopfinder/core.py` | Validate by: `pytest`)
-- [ ] Task I - Update output schemas and details in user documentation (Files: `README.md` | Validate by: manual review)
-- [ ] Task J - Insert quick-start execution instructions to the README (Files: `README.md` | Validate by: manual review)
-- [ ] Task K - Update CLAUDE.md and AGENTS.md for simplified pipeline (Files: `CLAUDE.md`, `AGENTS.md` | Validate by: visual review)
+- [x] Task A - Pick primary runner `ebay_sniper.py` and move legacy runners
+- [x] Task B - Clean Makefile to include only `test`, `pipeline`, `live`, `hunt`
+- [x] Task C - Archive non-essential agent skills
+- [x] Task D - Align `deep_plan_config.json` flows with sniper phases
+- [x] Task E - Centralise routing logic in `decide.py` and write to standard output paths
+- [x] Task F - Consolidate static references to `config/static_reference_layer.json`
+- [x] Task G - Relocate data files to standardise output directory layout
+- [x] Task H - Enforce strict stage firewall boundary rules (audit confirmed — already sound, no changes needed)
+- [x] Task I - Update output schemas and details in user documentation
+- [x] Task J - Insert quick-start execution instructions to the README
+- [x] Task K - Update CLAUDE.md and AGENTS.md for simplified pipeline
