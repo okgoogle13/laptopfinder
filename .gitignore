@@ -25,6 +25,7 @@ node_modules/
 .direnv/
 # eBay OAuth tokens (live credentials — never commit)
 .ebay_access_token
+.ebay_refresh_token
 .ebay_token_cache.json
 
 # Logs
