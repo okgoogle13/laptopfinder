@@ -104,6 +104,12 @@ def _extract_screen_inches(title: str) -> int | None:
     m = re.search(r'\bX(15|17)\b', title)
     if m:
         return int(m.group(1))
+    # Final fallback regex as requested in S8 backlog
+    m = re.search(r'\b(14|15|16|17|18)["″]', title)
+    if not m:
+        m = re.search(r'\b(14|15|16|17|18)\b', title)
+    if m:
+        return int(m.group(1))
     return None
 
 
