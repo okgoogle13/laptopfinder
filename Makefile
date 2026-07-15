@@ -1,4 +1,4 @@
-.PHONY: test lint decide pipeline live evidence-run evidence-run-dry evidence-reset inject-config render-matrix scan-gaps process_csv ebay-auth start-sniper stop-sniper status-sniper test-sniper-alert scan-deals cache-feed sold-baseline
+.PHONY: test lint decide pipeline live evidence-run evidence-run-dry evidence-reset inject-config render-matrix scan-gaps process_csv ebay-auth start-sniper stop-sniper status-sniper test-sniper-alert scan-deals cache-feed sold-baseline hunt
 
 # Overrideable variables
 SCRAPER ?= .venv/bin/python -m laptopfinder.runners.ebay_api
@@ -128,3 +128,12 @@ scan-deals:
 
 sold-baseline:
 	.venv/bin/python scripts/ebay_sold_baseline.py --category 175672 --out-dir data/sold_baseline
+
+# Run a target JSON-driven ad hoc discovery sweep.
+# Usage: make hunt CONFIG=config/runs/desktop_replacement.json
+# Add DRY_RUN=1 to suppress email and state writes regardless of config.
+hunt:
+	@test -n "$(CONFIG)" || (echo "ERROR: Set CONFIG=<path to operator run config JSON>" && exit 1)
+	$(OP_RUN) .venv/bin/python -m laptopfinder.runners.hunt \
+	  --config $(CONFIG) \
+	  $(if $(DRY_RUN),--dry-run)
