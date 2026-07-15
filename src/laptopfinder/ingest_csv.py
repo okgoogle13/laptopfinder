@@ -64,8 +64,12 @@ def parse_ram_gb(ram_str: str | int | None) -> int | None:
     m = re.search(r"(\d+(?:\.\d+)?)\s*GB", str(ram_str), re.IGNORECASE)
     return int(float(m.group(1))) if m else None
 
-def main() -> int:
-    csv_path = Path("data/fixtures/ebay_cleaned.csv")
+def main(csv_path: Path | str | None = None) -> int:
+    if csv_path is None:
+        csv_path = Path("data/fixtures/ebay_cleaned.csv")
+    else:
+        csv_path = Path(csv_path)
+
     if not csv_path.exists():
         print(f"ERROR: Input CSV not found at {csv_path}", file=sys.stderr)
         return 1
@@ -123,16 +127,15 @@ def main() -> int:
     with open(csv_path, mode="r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
+        fieldnames = reader.fieldnames
 
-    if reader.fieldnames is None:
-        print("ERROR: CSV file is empty or has no header row.", file=sys.stderr)
-        return 1
+    if fieldnames is None:
+        raise ValueError("CSV file is empty or has no header row.")
 
-    actual_headers = set(reader.fieldnames)
+    actual_headers = set(fieldnames)
     missing_headers = REQUIRED_HEADERS - actual_headers
     if missing_headers:
-        print(f"ERROR: CSV is missing required columns: {sorted(missing_headers)}", file=sys.stderr)
-        return 1
+        raise ValueError(f"CSV is missing required columns: {sorted(missing_headers)}")
 
     print(f"Total rows to process: {len(rows)}")
 

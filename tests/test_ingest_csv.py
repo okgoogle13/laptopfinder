@@ -74,3 +74,30 @@ def test_schema_validation():
     del invalid_candidate["platform"]
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(invalid_candidate, schema)
+
+def test_missing_csv_columns_raises_valueerror(monkeypatch, tmp_path):
+    from laptopfinder.ingest_csv import main
+    import csv
+
+    monkeypatch.setenv("GEMINI_API_KEY", "dummy")
+
+    csv_file = tmp_path / "missing_cols.csv"
+    with open(csv_file, "w", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["listing_id", "title", "url"])
+        writer.writerow(["123", "Laptop", "http"])
+        
+    with pytest.raises(ValueError, match="CSV is missing required columns"):
+        main(csv_file)
+
+def test_empty_csv_raises_valueerror(monkeypatch, tmp_path):
+    from laptopfinder.ingest_csv import main
+
+    monkeypatch.setenv("GEMINI_API_KEY", "dummy")
+
+    csv_file = tmp_path / "empty.csv"
+    with open(csv_file, "w", encoding="utf-8") as f:
+        pass
+        
+    with pytest.raises(ValueError, match="CSV file is empty or has no header row"):
+        main(csv_file)
