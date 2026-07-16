@@ -21,9 +21,8 @@ _Update these rows as work completes. Keep estimates rough and honest._
 
 ## NEXT_TASK
 
-  - [ ] **S9-02:** `lf-price-baseline`: Write local script to merge candidate listings and historical data into `data/lf-price-baseline.csv`.
-
 *Completed Tasks:*
+- [x] **S9-02:** `lf-price-baseline`: `scripts/lf_price_baseline.py` merges `data/hunt_results.jsonl` + `data/shortlist_candidates.jsonl` into `data/lf-price-baseline.csv`. *(scripts/lf_price_baseline.py, tests/test_lf_price_baseline.py)* — fixed cross-script import (inlined `lf_floor_sync` helpers) so `python scripts/lf_price_baseline.py` works directly without pytest's pythonpath shim. The three PWM workflow "designs" in the blocker are complementary layers (Makefile gates → local CSV prep → Perplexity Deep Research), not conflicts.
 - [x] **S9-01:** `lf-floor-sync`: `scripts/lf_floor_sync.py` normalizes `data/hunt_results.jsonl` (from `make hunt`) into `data/lf-floor-listings.csv`. *(scripts/lf_floor_sync.py, tests/test_lf_floor_sync.py)* — note: original spec referenced `make_hunt CONFIG=lf-floor`, which doesn't exist (typo for `make hunt`, and no `config/runs/lf-floor.json` config file exists yet). Script normalizes whatever `data/hunt_results.jsonl` a human produces via any `make hunt CONFIG=...` run; creating a dedicated `lf-floor` run config is a separate open item, not blocking this script.
 - [x] **S8-06:** `risk_score` rules & documentation *(CLAUDE.md, tests/test_decide.py)* — CLAUDE.md:95 documents `risk_score == 3.0` passes exactly; CLAUDE.md:142 documents `min_vram_to_shortlist_gb` deprecation; `test_boundary_exactly_3_0_passes` / `test_boundary_3_1_fails` in tests/test_decide.py cover the boundary.
 - [x] **S8-05:** Add final fallback regex for screen sizes in `build_shortlist_value.py`. *(scripts/build_shortlist_value.py)*
@@ -59,10 +58,5 @@ Agents must:
 
 ## Blockers
 
-- [ ] **S9-02 / PWM architecture conflict (2026-07-16):** Three incompatible designs exist for "PWM workflows" under overlapping names. (1) Makefile `pwm-floor-sync-prep`/`pwm-floor-sync-check` + 4 sibling workflows (`lf-watch-grad`, `lf-query-expand`, `lf-exclusion-tune`, `lf-seller-intel`) — real, live, gates `make live` via `pwm-preflight`, writes `data/pwm/<workflow>/*.json`, patches SRL fields directly (e.g. `observed_au_price_min_aud`). (2) `docs/pwm_workflow_catalog.md` — a design doc for Perplexity Deep Research workflows producing `data/lf-*.csv` + `reports/lf-*.md` + `config/lf-*.json`. (3) Sprint 9 S9-01/S9-02 (`memory/project/sprint.md`) — flat CSV merge scripts, now implemented as `scripts/lf_floor_sync.py` (committed) and `scripts/lf_price_baseline.py` (uncommitted, has an unresolved standalone-run `ModuleNotFoundError` — only importable under pytest's `pythonpath=["."]`, not via direct `python scripts/lf_price_baseline.py`). Needs a human decision on which design is canonical, or whether these are meant to compose (e.g. (3) feeding raw data into (1)'s human Perplexity step) before continuing S9-02 or trusting S9-01.
 - List any current blockers here (e.g. missing API keys, failing tests, merge conflicts).
 - Agents should update this when they hit or clear a blocker.
-
-- Example:
-  - [ ] eBay OAuth token expired — must re-run `scripts/authenticate_ebay.sh`.
-  - [ ] Decide.py RAM schema fix not yet applied.

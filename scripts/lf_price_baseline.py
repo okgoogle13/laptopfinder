@@ -13,8 +13,7 @@ import re
 import sys
 from pathlib import Path
 
-from scripts.lf_floor_sync import RESULTS_PATH, load_rows, normalize as normalize_hunt_row
-
+HUNT_RESULTS_PATH = Path("data/hunt_results.jsonl")
 HISTORICAL_PATH = Path("data/shortlist_candidates.jsonl")
 OUT_CSV = Path("data/lf-price-baseline.csv")
 
@@ -36,7 +35,7 @@ def parse_price_aud(text: str | None) -> float | None:
         return None
 
 
-def load_historical(path: Path) -> list[dict]:
+def load_jsonl(path: Path) -> list[dict]:
     if not path.exists():
         return []
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -54,20 +53,21 @@ def normalize_historical_row(row: dict) -> dict:
 
 
 def normalize_current_row(row: dict) -> dict:
-    n = normalize_hunt_row(row)
+    extracted = row.get("analysis", {}).get("extracted_data", {})
+    decision = row.get("decision", {})
     return {
         "source": "hunt_current",
-        "gpu": n["gpu"],
-        "price_aud": n["price_aud"],
-        "recommended_action": n["recommended_action"],
-        "llm_index_score": n["llm_index_score"],
-        "title_or_model": n["canonical_model"],
+        "gpu": extracted.get("gpu"),
+        "price_aud": row.get("price_aud"),
+        "recommended_action": decision.get("recommended_action"),
+        "llm_index_score": decision.get("llm_index_score"),
+        "title_or_model": row.get("canonical_model"),
     }
 
 
 def main() -> int:
-    current = [normalize_current_row(r) for r in load_rows(RESULTS_PATH)]
-    historical = [normalize_historical_row(r) for r in load_historical(HISTORICAL_PATH)]
+    current = [normalize_current_row(r) for r in load_jsonl(HUNT_RESULTS_PATH)]
+    historical = [normalize_historical_row(r) for r in load_jsonl(HISTORICAL_PATH)]
     merged = current + historical
 
     if not merged:
