@@ -161,6 +161,9 @@ Canonical alternative silicon findings (AU market, July 2026). Source for agent 
 - `evidence_pipeline.py` — see Evidence Pipeline above
 - `hunter/` — decomposed submodules (`api.py`, `enrich.py`, `llm.py`, `score.py`, `search.py`, `state.py`, `alert.py`) backing `ebay_hunter.py`
 
+**Perplexity Web MCP** (`pwm` CLI, `docs/pwm_workflow_catalog.md`)
+`perplexity-web-mcp-cli` is a separate, current integration from the deleted `perplexity.py` runner above — don't conflate the two. Verify live status anytime with `pwm doctor` / `pwm setup list`; don't trust planning docs claiming it's unconfigured without re-checking. Named Deep Research workflows (`lf-floor-sync`, `lf-price-baseline`, `lf-buy-jury`, `lf-paradigm-debate`, `lf-sniper-shortlist`, `lf-seller-scrutiny`, `lf-status-rollup`) are catalogued in `docs/pwm_workflow_catalog.md`. Per the LLM boundary rule below, PWM output is a qualitative research input only — never a `decide.py` routing input. Shell functions (`pwmh`, `lf-score`, `lf-watchlist`, `lf-price-sweep`, `compare`, etc.) live outside this repo in `~/.config/pwm/workflows.zsh` (sourced by `~/.zshrc`) — not in git, won't show up in an in-repo grep.
+
 ## Key invariants
 
 - **Firewall is enforced in Python, not the prompt.** `run_stage1` and `run_stage2` in `core.py` are the enforcement point. Tests in `test_stage1_fixtures.py` and `test_stage2_fixtures.py` verify rejection of invalid fixtures.

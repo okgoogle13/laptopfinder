@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "INPUT=$(cat); cmd=$(echo \"$INPUT\" | python3 -c \"import sys,json; print(json.load(sys.stdin).get('command',''))\"); if echo \"$cmd\" | grep -qE 'git (add|commit|push|diff)'; then echo 'Blocked: git operations are forbidden for Claude in this project. Delegate to @copilot.'; exit 1; fi"
+            "command": "INPUT=$(cat); cmd=$(echo \"$INPUT\" | python3 -c \"import sys,json; print(json.load(sys.stdin).get('command',''))\"); if echo \"$cmd\" | grep -qE 'git push --force|git reset --hard|git clean -f|git branch -D'; then echo 'Blocked: destructive git operations require explicit user confirmation first.'; exit 1; fi"
           }
         ]
       }
