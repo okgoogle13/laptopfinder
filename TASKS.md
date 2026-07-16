@@ -37,14 +37,14 @@ All sprints below are complete unless noted. Full Why/Status/Shipped detail live
 Items confirmed still open as of 2026-07-16 (not superseded, not duplicated in STATUS.md NEXT_TASK).
 
 - `[ ]` `[HUMAN]` Sprint 6: `python -m laptopfinder.runners.ebay_hunter` runs to completion on ≥3 eBay AU listings without crash.
-- `[ ]` `[HUMAN]` Sprint 6: `data/purchase_matrix.md` renders with ≥1 SHORTLIST candidate and a plausible ranking.
+- `[ ]` `[HUMAN]` Sprint 6: `output/shortlist/purchase_matrix.md` renders with ≥1 SHORTLIST candidate and a plausible ranking.
 - `[ ]` `[HUMAN]` Sprint 6: `make scan-gaps` produces output (even if zero alerts).
 - `[ ]` `[HUMAN/CLAUDE]` eBay Sniper Stage 4: Execute Codex peer review (`scripts/deep_plan_peer_review.sh`), confirm with user, launch daemon (`make start-sniper`), log heartbeat to `docs/ebay_sniper.md`.
 - `[ ]` `[IDE/DEV]` Sprint 7: `.venv/bin/python -m laptopfinder.runners.ebay_hunter --dry-run` still populates corpus/SHORTLIST/underpriced counts.
 - `[ ]` `[HUMAN]` Sprint 7: Run `ebay_hunter --dry-run --no-enrich` (once that flag exists) to verify taxonomy/seller-watch wiring without LLM calls.
 - `[ ]` `[HUMAN]` Sprint 7: Run a full `ebay_hunter --dry-run` with enrichment only when explicitly approved.
 - `[ ]` `[HUMAN]` Run `gh secret list` and confirm `EBAY_CLIENT_ID`/`EBAY_CLIENT_SECRET` are present in GitHub Secrets.
-- `[ ]` `[HUMAN]` Run `make render-matrix` and confirm `data/purchase_matrix.md` contains a ranked SHORTLIST section.
+- `[ ]` `[HUMAN]` Run `make render-matrix` and confirm `output/shortlist/purchase_matrix.md` contains a ranked SHORTLIST section.
 
 ### Sprint 7 backlog (minor, non-blocking)
 - `[ ]` Move `PRICE_MIN_AUD`/`PRICE_MAX_AUD` defaults from `ebay_deals.py` env vars into SRL.
@@ -63,6 +63,7 @@ Items confirmed still open as of 2026-07-16 (not superseded, not duplicated in S
 ## BACKLOG (unsprinted)
 
 - `[ ]` Implement `batch_decide()` as documented in CLAUDE.md to enable multi-listing scoring and processing. *(originally scoped under cancelled Sprint 5 — see sprint.md)*
+- `[ ]` Fix `README.md` Architecture section: demote `ebay_hunter.py` from "Primary Live Path" to legacy, promote `ebay_sniper.py` as primary. Remove Stage 1/1A [LEGACY] confusion from the quick-start flow.
 
 ---
 
@@ -127,7 +128,7 @@ Manually assemble any SHORTLIST outputs (the JSON printed to terminal) into `dat
 make render-matrix
 ```
 
-Open `data/purchase_matrix.md` in any text editor or Markdown viewer.
+Open `output/shortlist/purchase_matrix.md` in any text editor or Markdown viewer.
 
 **Pass:** Table renders with ≥1 row; RTX 3080 16GB ranks above RTX 4090 16GB (better VRAM-to-price ratio).
 **Fail:** "No candidates found" → `data/shortlist_candidates.jsonl` is empty or malformed. Confirm each line is valid JSON.
