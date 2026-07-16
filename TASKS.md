@@ -65,7 +65,7 @@ Items confirmed still open as of 2026-07-16 (not superseded, not duplicated in S
 - `[ ]` Implement `batch_decide()` as documented in CLAUDE.md to enable multi-listing scoring and processing. *(originally scoped under cancelled Sprint 5 — see sprint.md)*
 - `[ ]` Fix `README.md` Architecture section: demote `ebay_hunter.py` from "Primary Live Path" to legacy, promote `ebay_sniper.py` as primary. Remove Stage 1/1A [LEGACY] confusion from the quick-start flow.
 - `[ ]` **PWM council concepts (3 unimplemented):** `lf-council-audit` (adversarial SRL weights audit → `planning/reviews/srl_council_audit.md`), `lf-risk-calibrator` (edge-case risk gate tuning → `planning/risk_rules_patch.json`), `lf-playbook-synth` (AU negotiation playbooks → `planning/playbooks/negotiation_<target>.md`). All council-tier; design in `docs/archive/pwm_council_concepts.md`. Wire when a high-stakes purchase decision triggers multi-model review.
-- `[ ]` **S8-09:** Add "reference only, not loaded at runtime" header comment to `config/silicon_profiles.yaml`.
+- `[x]` **S8-09:** Add "reference only, not loaded at runtime" header comment to `config/silicon_profiles.yaml`. *(done 2026-07-16)*
 
 ---
 

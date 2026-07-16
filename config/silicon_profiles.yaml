@@ -1,3 +1,4 @@
+# Reference only — not loaded at runtime by decide.py. Used as agent/prompt grounding context.
 paradigms:
   apple_silicon_uma:
     description: Apple M-series SoC with unified LPDDR5x memory
