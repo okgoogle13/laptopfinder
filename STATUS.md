@@ -21,7 +21,8 @@ _Update these rows as work completes. Keep estimates rough and honest._
 
 ## NEXT_TASK
 
-_(empty — see Blockers/backlog in memory/project/sprint.md for non-urgent items)_
+  - [ ] **S9-01:** `lf-floor-sync`: Write local script to normalize `make_hunt CONFIG=lf-floor` output into `data/lf-floor-listings.csv`.
+- [ ] **S9-02:** `lf-price-baseline`: Write local script to merge candidate listings and historical data into `data/lf-price-baseline.csv`.
 
 *Completed Tasks:*
 - [x] **S8-06:** `risk_score` rules & documentation *(CLAUDE.md, tests/test_decide.py)* — CLAUDE.md:95 documents `risk_score == 3.0` passes exactly; CLAUDE.md:142 documents `min_vram_to_shortlist_gb` deprecation; `test_boundary_exactly_3_0_passes` / `test_boundary_3_1_fails` in tests/test_decide.py cover the boundary.

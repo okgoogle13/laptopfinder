@@ -69,15 +69,15 @@ metadata:
 - `tests/test_prompts.py` — prompt content sanity checks
 - `CLAUDE.md` / `AGENTS.md` — architecture and invariants updated
 
-## Sprint 2 (active — 2026-07)
+## Sprint 2 — Config Injection, Live Scraping, Decision Matrix (2026-07) — COMPLETE
 
-**Goal:** Wire three new pipeline components to make the system data-driven and operationally self-sufficient.  
-**Plan:** `planning/claude-plan.md` (canonical HOW) · `planning/sections/` (agent work units) · `TASKS.md` Sprint 2 (status).
+**Goal:** Wire three new pipeline components to make the system data-driven and operationally self-sufficient.
+**Status:** Complete. Verified 2026-07-16: `scripts/inject_config.py` and `scripts/render_matrix.py` present and in active use. `src/laptopfinder/scrape_live.py` no longer exists — Firecrawl live-fetch was superseded by the eBay Developer API path (see Sprint 5 CANCELLED below); its removal is expected, not a regression.
 
 Deliverables:
 - `scripts/inject_config.py` — idempotent marker-based injection of SRL values into prompt sentinel pairs
-- `src/laptopfinder/scrape_live.py` — per-listing Firecrawl scrape to `data/feed_live/`; zero-results guard before live pipeline loop
 - `scripts/render_matrix.py` — sorted Markdown purchase-decision table from manually assembled JSONL shortlist
+- (superseded) `src/laptopfinder/scrape_live.py` — per-listing Firecrawl scrape; replaced by eBay Browse API runners
 
 ---
 
@@ -104,11 +104,51 @@ Deliverables:
 - New top-level `egpu_interconnect` block — TB3/4 vs OCuLink vs TB5 bandwidth + penalty values
 - `text_centric_llm_inference.ram_floors` — 32/64/96 GB derived from telemetry
 
-## Sprint 3 (pending)
-- Wire `architecture_adjustments.turing_vs_ada_same_vram_penalty_pts` into `decide.py` via `_apply_architecture_penalty()`
-- Integrate `targets.json` storage spec (`storage_gb.min: 512`) into SRL
-- Discovery prompt search term expansion — wire the 8 Boolean search strings from §8.1 of the July 2026 market topology report into the discovery prompt
-- Prompt audit: grep `prompts/` for hardcoded VRAM/RAM thresholds that duplicate new config keys
+## Sprint 3 — Prompt Hygiene + eGPU Scoring (2026-07) — COMPLETE
+
+**Why:** Close the UMA discovery gap, wire the eGPU interconnect penalty, and put all hardcoded thresholds in prompts under `inject_config` control.
+**Status:** Complete. Verified 2026-07-16: `_apply_egpu_interconnect_penalty()` implemented and wired into `calculate_llm_index_score()` in `decide.py`.
+
+## Changes shipped
+- Fixed UMA RAM threshold in `prompts/comet_discovery_agent.txt` (64GB+ → 32GB+); added inject_config sentinel pairs around UMA RAM floor and VRAM thresholds
+- `_apply_egpu_interconnect_penalty(analysis, ref)` added to `decide.py`, with TB3/4 penalty, OCuLink zero-penalty, and `system_ram_gb ≥ 32` zero-penalty override tests in `test_decide.py`
+- Grepped `prompts/` for hardcoded VRAM/RAM values — all hits resolved (done, prose, telemetry, or clean)
+
+*(Note: the architecture-penalty wiring listed under the original Sprint 3 draft above was actually delivered as part of Sprint 6 — see below — via `_apply_architecture_penalty()`, a distinct function from the eGPU interconnect penalty.)*
+
+---
+
+## Sprint 4 — Light Fixture Collection: eBay AU + Gumtree, FB Marketplace minimal — COMPLETE
+
+**Why:** Obtain a small set of high-quality real-world fixtures for eBay AU and Gumtree, confirm extractors work at a basic level, and establish a Chrome data-export → pipeline converter for eBay batch collection.
+**Status:** Complete. Full task-by-task checklist archived in `TASKS.md` git history (pre-2026-07-16 consolidation) if step-level detail is ever needed.
+
+## Changes shipped
+- `scripts/ebay_export_to_jsonl.py` — converts Chrome data-export JSON/CSV into the `scrape_benchmark.py` raw-record shape
+- `extract_ebay()` / `extract_gumtree()` CSS/regex selectors in `scrape_benchmark.py` patched against real saved-page fixtures
+- `extract_facebook()` fallback path verified against a real saved FB Marketplace page (discovery-only scope, no full parity)
+- 108+ tests green
+
+---
+
+## Sprint 5 — Firecrawl Live Wiring + batch_decide — CANCELLED
+
+**Why cancelled:** Firecrawl was replaced by the eBay Developer API as the live-discovery path (see Sprint 7 below); the planned `fetch_live_firecrawl()` / `make benchmark-live` / `make benchmark-to-feed` wiring was never built for that reason.
+**Status:** Cancelled 2026-07. The `batch_decide()` sub-task originally scoped under this sprint remains open — tracked in `TASKS.md` BACKLOG, not implemented as of 2026-07-16.
+
+---
+
+## Sprint 6 — Architecture Penalty + eBay-First End-to-End Validation
+
+**Why:** Resolve the architecture penalty stub as a per-listing heuristic, run a full end-to-end live pass on eBay AU, capture any runtime failures as fixtures, and produce a plausible purchase matrix.
+**Status:** Architecture Penalty sub-section complete (2026-07-03). End-to-End Live Validation remains open — requires real eBay AU URLs and valid API keys not available in the automated session that implemented the penalty. Tracked as open Human Runbook items in `TASKS.md`.
+
+## Changes shipped
+- `_apply_architecture_penalty(gpu, tier, ref)` in `decide.py` — reads `architecture_adjustments.turing_vs_ada_same_vram_penalty_pts` from SRL; resolves Turing generation via the shared `_resolve_gpu_generation()` helper (extracted from `_gpu_generation_points()`); wired into `calculate_llm_index_score()`
+- Tests: `test_turing_gpu_receives_architecture_penalty`, `test_ada_gpu_receives_no_architecture_penalty`, `TestArchitecturePenaltyIntegration::test_turing_gpu_scores_lower_than_equivalent_ada_gpu`, plus null/unrecognized-GPU edge cases — 183 tests green (up from 180)
+- CLAUDE.md invariants updated: `_apply_architecture_penalty()` documented as a per-listing Turing heuristic, not a pairwise comparator
+
+**Still open (End-to-End Live Validation):** live eBay AU sweep via `ebay_hunter`, purchase matrix render + plausibility check, `make scan-gaps` run — see `TASKS.md` Human Runbook.
 
 ---
 
@@ -149,7 +189,7 @@ Deliverables:
 
 **Why:** Benchmark sprint validated the engine against known-good fixtures. This sprint expands target lists and scoring weights based on what's actually appearing on AU used markets.
 
-**Status:** In progress. See TASKS.md for item-level tracking.
+**Status:** Complete. Verified 2026-07-16: RTX 3080/4080/5070 confirmed present in `config/static_reference_layer.json` `target_gpus`.
 
 ## Phases
 
@@ -175,9 +215,9 @@ Propose concrete edits to `config/static_reference_layer.json`:
 - 1–3 documented blind spots with proposed fixes
 
 ## Definition of Done
-- [ ] Config JSON fragments drafted and reviewed
-- [ ] `make test` still green after any SRL changes
-- [ ] Market gap findings documented in `deep_research_output.md`
+- [x] Config JSON fragments drafted and reviewed
+- [x] `make test` still green after any SRL changes
+- [x] Market gap findings documented (folded into `research/alternative_silicon_dossier_july2026.md` rather than a standalone `deep_research_output.md`)
 
 ---
 
@@ -239,3 +279,22 @@ Propose concrete edits to `config/static_reference_layer.json`:
 - [ ] **S8-08:** Confirm/add `risk_score == 3.0` boundary test. *(tests/test_decide.py)*
 - [ ] **S8-09:** Confirm/add "reference only" header comment. *(config/silicon_profiles.yaml)*
 
+---
+
+# Perplexity Web MCP — Installed & Active (2026-07-16)
+
+**Why:** `pwm doctor` verification confirmed the tool underlying `docs/pwm_workflow_catalog.md` is not hypothetical.
+
+**Status:** `perplexity-web-mcp-cli` v0.14.2 confirmed installed and authenticated (Pro subscription, active). MCP server configured for both `claude-code` and `antigravity` clients. Agent Skills refreshed to v0.14.2 across claude-code, codex, gemini-cli, antigravity (were v0.12.2). Prior "Phantom MCP Setup" language in `planning/pvm_mcp_execution_audit.md` is stale as of this date.
+
+---
+
+# Sprint 9 — PWM Workflow Implementation (Pending)
+
+**Why:** Implement the local scaffolding and data preparation scripts required to execute the PWM Deep Research workflows defined in the catalog.
+
+**Status:** Queued — tooling confirmed ready (MCP installed & authenticated); implementation tasks below still pending. Labs dashboard/app-scaffold tasks dropped 2026-07-16 as out-of-scope (see TASKS.md Output path & routing policy) — `output/decisions/` + `output/shortlist/` are the only canonical outputs.
+
+## Tasks
+- [ ] **S9-01:** `lf-floor-sync`: Write local script to normalize `make_hunt CONFIG=lf-floor` output into `data/lf-floor-listings.csv`.
+- [ ] **S9-02:** `lf-price-baseline`: Write local script to merge candidate listings and historical data into `data/lf-price-baseline.csv`.

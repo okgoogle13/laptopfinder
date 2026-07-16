@@ -186,7 +186,14 @@ This project is developed using **Antigravity IDE** as the visual environment wi
 
 ## Sprint tracking
 
-See `memory/project/sprint.md` and `TASKS.md` for current item-level tracking. Run `make status` for a mechanical snapshot of runner/evidence state (see Commands above) — it's a pull, not a hook, so it doesn't fire on every turn.
+Four planning artifacts exist; each has exactly one job. Do not let sprint-level task lists spread across more than one of them — that produced real drift once already (fixed 2026-07-16) where the same Sprint 9 list existed in three places and `sprint.md` had sprints marked "pending"/"active" that were actually long shipped.
+
+- **`STATUS.md`** — the entry point, read first every session. Owns the single ordered `NEXT_TASK` queue and `Blockers`. Terse by design; work the first `NEXT_TASK` item without asking "what next?" if it's non-empty.
+- **`memory/project/sprint.md`** — the *only* place sprint-by-sprint status lives. Each entry is Why → Status → Changes shipped, append-only, one section per sprint. This is the canonical history of what happened and why.
+- **`TASKS.md`** — archive index (one-line pointers into `sprint.md`, not duplicate checklists) + the unsprinted `BACKLOG` + evergreen operator reference material (User Testing Guide, Common Failure Modes) that isn't tied to any single sprint. Never re-add a full sprint checklist here — link to `sprint.md` instead.
+- **`memory/plans/*.md`** — dated, one-shot deep-plan artifacts (delegation maps, task-by-task batches for subagents) produced by planning skills to execute a specific chunk of work. Archival once the work lands; not maintained afterward. Not a status tracker — check `sprint.md` for whether the plan's work actually shipped, don't assume a plan file being present means it's still active.
+
+Run `make status` for a mechanical snapshot of runner/evidence state (see Commands above) — it's a pull, not a hook, so it doesn't fire on every turn.
 
 Every `sprint.md` entry and `NEXT_TASK` item must carry a one-line Definition of Done and fit in a single sitting. If it doesn't fit in one sitting, split it into sub-bullets rather than writing a vaguer, larger item.
 
@@ -217,6 +224,10 @@ When Claude Code works on this repo:
 - Task and sprint updates:
   - When completing a task, update TASKS.md and/or sprint.md to reflect status (`todo` → `doing` → `done`).
   - Keep edits lean and factual (no long essays).
+
+- Spec-to-Task Bridge (Strict):
+  - If you are asked to design a new workflow, brainstorm a feature, or write a specification document (e.g., in `docs/`), you MUST immediately extract the actionable implementation steps and append them to `TASKS.md` and `sprint.md`, and queue the first step in `STATUS.md`.
+  - Never leave a newly designed workflow un-tracked.
 
 - Blockers:
   - If you hit a genuine blocker (auth, destructive ambiguity, invariant conflict, unrecoverable tests):
