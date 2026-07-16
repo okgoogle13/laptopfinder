@@ -21,10 +21,10 @@ _Update these rows as work completes. Keep estimates rough and honest._
 
 ## NEXT_TASK
 
-  - [ ] **S9-01:** `lf-floor-sync`: Write local script to normalize `make_hunt CONFIG=lf-floor` output into `data/lf-floor-listings.csv`.
-- [ ] **S9-02:** `lf-price-baseline`: Write local script to merge candidate listings and historical data into `data/lf-price-baseline.csv`.
+  - [ ] **S9-02:** `lf-price-baseline`: Write local script to merge candidate listings and historical data into `data/lf-price-baseline.csv`.
 
 *Completed Tasks:*
+- [x] **S9-01:** `lf-floor-sync`: `scripts/lf_floor_sync.py` normalizes `data/hunt_results.jsonl` (from `make hunt`) into `data/lf-floor-listings.csv`. *(scripts/lf_floor_sync.py, tests/test_lf_floor_sync.py)* — note: original spec referenced `make_hunt CONFIG=lf-floor`, which doesn't exist (typo for `make hunt`, and no `config/runs/lf-floor.json` config file exists yet). Script normalizes whatever `data/hunt_results.jsonl` a human produces via any `make hunt CONFIG=...` run; creating a dedicated `lf-floor` run config is a separate open item, not blocking this script.
 - [x] **S8-06:** `risk_score` rules & documentation *(CLAUDE.md, tests/test_decide.py)* — CLAUDE.md:95 documents `risk_score == 3.0` passes exactly; CLAUDE.md:142 documents `min_vram_to_shortlist_gb` deprecation; `test_boundary_exactly_3_0_passes` / `test_boundary_3_1_fails` in tests/test_decide.py cover the boundary.
 - [x] **S8-05:** Add final fallback regex for screen sizes in `build_shortlist_value.py`. *(scripts/build_shortlist_value.py)*
 - [x] **S8-04:** Deduplicate `data/evidence/undiscovered_hardware.jsonl` entries in `_log_undiscovered_hardware` by matching `listing_id`. *(src/laptopfinder/decide.py, tests/test_decide.py)*

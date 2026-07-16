@@ -245,7 +245,7 @@ When Claude Code works on this repo:
   - Use `make pipeline STAGE1=... STAGE2=...` to run the offline fixture pipeline.
   - Use `make live` to run the AU sniper daemon (requires credentialed `.env`).
   - Use `make hunt CONFIG=config/runs/desktop_replacement.json DRY_RUN=1` for a dry ad hoc sweep.
-  - Read `output/decisions/latest_decisions.json` and `output/shortlist/latest_shortlist.md` for sweep results — these are the only authoritative output files.
+  - `output/decisions/latest_decisions.json` and `output/shortlist/latest_shortlist.md` are written only by `runners/ebay_sniper.py` (`make live`). `make hunt` (`runners/hunt.py` → `runners/legacy/ebay_hunter.py`) writes `data/hunt_results.jsonl` and `data/corpus.jsonl` instead — a distinct output path, verified 2026-07-16 against `hunter/state.py` `write_jsonl()` call sites. Check which runner produced a result before assuming which file to read.
 
 - LLM boundary (strict):
   - LLMs (Claude, Gemini, Codex, Copilot) MUST NOT alter routing decisions, scores, or thresholds.

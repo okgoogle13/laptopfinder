@@ -293,8 +293,8 @@ Propose concrete edits to `config/static_reference_layer.json`:
 
 **Why:** Implement the local scaffolding and data preparation scripts required to execute the PWM Deep Research workflows defined in the catalog.
 
-**Status:** Queued — tooling confirmed ready (MCP installed & authenticated); implementation tasks below still pending. Labs dashboard/app-scaffold tasks dropped 2026-07-16 as out-of-scope (see TASKS.md Output path & routing policy) — `output/decisions/` + `output/shortlist/` are the only canonical outputs.
+**Status:** In progress 2026-07-16. Labs dashboard/app-scaffold tasks dropped 2026-07-16 as out-of-scope (see TASKS.md Output path & routing policy) — `output/decisions/` + `output/shortlist/` are the only canonical decision outputs; PWM CSVs are research inputs derived from `make hunt`, not decision outputs.
 
 ## Tasks
-- [ ] **S9-01:** `lf-floor-sync`: Write local script to normalize `make_hunt CONFIG=lf-floor` output into `data/lf-floor-listings.csv`.
+- [x] **S9-01:** `lf-floor-sync`: `scripts/lf_floor_sync.py` normalizes `data/hunt_results.jsonl` (written by `make hunt CONFIG=...`, not `output/decisions/` — that path belongs to `make live` only, see CLAUDE.md) into `data/lf-floor-listings.csv`. 4 tests in `tests/test_lf_floor_sync.py`. No dedicated `config/runs/lf-floor.json` exists yet — the script normalizes whatever `hunt_results.jsonl` a human produces from any `make hunt` run; a floor-specific run config is a separate open item.
 - [ ] **S9-02:** `lf-price-baseline`: Write local script to merge candidate listings and historical data into `data/lf-price-baseline.csv`.
