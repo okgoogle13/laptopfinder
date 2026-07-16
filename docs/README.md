@@ -16,7 +16,7 @@ We use custom `pwm` workflows to leverage Perplexity Deep Research, Perplexity L
 
 *   [Deep Research Workflows](file:///Users/okgoogle13/Projects/laptopfinder/docs/pwm_deep_research.md) — For data-heavy sweeps, pricing baselines, silicon gap-grounding, and vendor risk profiles.
 *   [Labs Workflows](file:///Users/okgoogle13/Projects/laptopfinder/docs/pwm_labs_workflows.md) — For local tool/code creation, dashboards, and sandboxes (e.g., alert-forge, compare-studio, matrix-app).
-*   [Model Council & Consensus Concepts](file:///Users/okgoogle13/Projects/laptopfinder/docs/pwm_council_concepts.md) — Conceptual architectures for multi-model jury decisions, risk calibrators, and adversarial weights audits.
+*   [Model Council & Consensus Concepts](file:///Users/okgoogle13/Projects/laptopfinder/docs/archive/pwm_council_concepts.md) — Archived. `lf-buy-jury` and `lf-paradigm-debate` are in `pwm_workflow_catalog.md`. Three unimplemented concepts (`lf-council-audit`, `lf-risk-calibrator`, `lf-playbook-synth`) tracked in TASKS.md BACKLOG.
 
 ---
 
