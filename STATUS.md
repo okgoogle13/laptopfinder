@@ -59,6 +59,7 @@ Agents must:
 
 ## Blockers
 
+- [ ] **S9-02 / PWM architecture conflict (2026-07-16):** Three incompatible designs exist for "PWM workflows" under overlapping names. (1) Makefile `pwm-floor-sync-prep`/`pwm-floor-sync-check` + 4 sibling workflows (`lf-watch-grad`, `lf-query-expand`, `lf-exclusion-tune`, `lf-seller-intel`) — real, live, gates `make live` via `pwm-preflight`, writes `data/pwm/<workflow>/*.json`, patches SRL fields directly (e.g. `observed_au_price_min_aud`). (2) `docs/pwm_workflow_catalog.md` — a design doc for Perplexity Deep Research workflows producing `data/lf-*.csv` + `reports/lf-*.md` + `config/lf-*.json`. (3) Sprint 9 S9-01/S9-02 (`memory/project/sprint.md`) — flat CSV merge scripts, now implemented as `scripts/lf_floor_sync.py` (committed) and `scripts/lf_price_baseline.py` (uncommitted, has an unresolved standalone-run `ModuleNotFoundError` — only importable under pytest's `pythonpath=["."]`, not via direct `python scripts/lf_price_baseline.py`). Needs a human decision on which design is canonical, or whether these are meant to compose (e.g. (3) feeding raw data into (1)'s human Perplexity step) before continuing S9-02 or trusting S9-01.
 - List any current blockers here (e.g. missing API keys, failing tests, merge conflicts).
 - Agents should update this when they hit or clear a blocker.
 
