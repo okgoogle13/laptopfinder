@@ -98,6 +98,15 @@ Phase 0-5, pausing at the three checkpoints above.
   referenced by documentation are real files on disk — repo history has
   shown documentation drift ahead of the real command surface, so this check
   is load-bearing, not decorative).
+- Before creating any new script, Makefile target, or data file for a named
+  workflow, grep the Makefile and `scripts/` for that workflow's name first.
+  A same-named workflow with an incompatible design can already be live —
+  repo history has produced exactly this (a working `pwm-floor-sync-prep`/
+  `pwm-floor-sync-check` Makefile system, gating `make live`, existed before
+  a same-named script was independently built from a stale planning doc
+  without this check, producing two conflicting implementations of
+  "lf-floor-sync"). A hit means stop and surface it to the human before
+  writing anything, not proceed and reconcile later.
 - Run the test suite; record pass/fail counts.
 - Check for the presence of each required API key name in the environment
   config and flag any that still hold placeholder values.
