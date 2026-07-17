@@ -79,14 +79,30 @@ def platform_from_filename(path: Path) -> str:
 # Price parsing
 # ---------------------------------------------------------------------------
 
-def parse_price_aud(raw: str | None) -> float | None:
-    """Extract a float AUD price from a raw string like '$4,200.00 AUD'."""
+def parse_price_aud(raw: str | None, ref: dict | None = None) -> float | None:
+    """Extract and convert a raw price string ('US $1,980.00', '£2,299 GBP') to AUD."""
     if not raw:
         return None
-    # Strip currency symbols, letters, commas; keep digits and dot
+    if ref is None:
+        from laptopfinder.decide import load_ref
+        ref = load_ref()
+    rates = ref.get("currency_normalization", {}).get("exchange_rates_to_aud", {"AUD": 1.0})
+
+    # Detect currency from prefix or symbol
+    currency = "AUD"
+    upper_raw = raw.upper()
+    if "US $" in upper_raw or "USD" in upper_raw:
+        currency = "USD"
+    elif "£" in upper_raw or "GBP" in upper_raw:
+        currency = "GBP"
+    elif "€" in upper_raw or "EUR" in upper_raw:
+        currency = "EUR"
+
+    # Strip non-numeric characters (keep digits and dot) then convert
     cleaned = re.sub(r"[^\d.]", "", raw.replace(",", ""))
     try:
-        return float(cleaned) if cleaned else None
+        val = float(cleaned) if cleaned else None
+        return round(val * rates.get(currency, 1.0), 2) if val is not None else None
     except ValueError:
         return None
 

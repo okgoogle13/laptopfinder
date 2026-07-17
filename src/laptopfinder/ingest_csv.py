@@ -23,21 +23,43 @@ from laptopfinder.decide import decide
 
 load_dotenv()
 
-def clean_price(price_raw: str | None) -> float | None:
-    """Clean price string like '(AU $7,324.68)' or 'AU $1,900.00*' into float."""
+def clean_price(price_raw: str | None, ref: dict | None = None) -> float | None:
+    """Clean price string like '(AU $7,324.68)', 'US $1,900.00', or '£2,299.00 GBP' into AUD float."""
     if not price_raw or not isinstance(price_raw, str):
         return None
-    # Strip whitespace
     price_raw = price_raw.strip()
     if price_raw.lower() in ("item not available", "not available", ""):
         return None
-    # Match digits, commas, and decimal points after a dollar sign
+
+    if ref is None:
+        from laptopfinder.decide import load_ref
+        ref = load_ref()
+    rates = ref.get("currency_normalization", {}).get("exchange_rates_to_aud", {"AUD": 1.0})
+
+    # Detect currency from prefix or symbol
+    currency = "AUD"
+    raw_upper = price_raw.upper()
+    if "US $" in raw_upper or "USD" in raw_upper:
+        currency = "USD"
+    elif "£" in raw_upper or "GBP" in raw_upper:
+        currency = "GBP"
+    elif "€" in raw_upper or "EUR" in raw_upper:
+        currency = "EUR"
+    elif "CAD" in raw_upper or "CA $" in raw_upper:
+        currency = "CAD"
+
+    # Match dollar-sign amounts first, then fall back to £/€ for non-$ currencies
     m = re.search(r'\$\s*([0-9,]+(?:\.[0-9]+)?)', price_raw)
+    if not m and currency in ("GBP", "EUR"):
+        m = re.search(r'[£€]\s*([0-9,]+(?:\.[0-9]+)?)', price_raw)
     if m:
         val_str = m.group(1).replace(",", "")
         try:
             val = float(val_str)
-            return val if val >= 200 else None
+            if val < 200:
+                return None
+            aud_val = round(val * rates.get(currency, 1.0), 2)
+            return aud_val
         except ValueError:
             return None
     return None

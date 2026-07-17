@@ -265,11 +265,25 @@ def build_metadata(row: dict, detail: dict) -> dict:
     signal = None
     if seller.get("feedbackScore") is not None:
         signal = f"{seller.get('feedbackScore')} feedback, {seller.get('feedbackPercentage')}% positive"
+
+    from laptopfinder.decide import load_ref
+    ref = load_ref()
+    rates = ref.get("currency_normalization", {}).get("exchange_rates_to_aud", {"AUD": 1.0})
+
+    raw_price_val = _num(price.get("value"))
+    price_curr = price.get("currency", "AUD").upper()
+    if raw_price_val is not None:
+        normalized_aud = round(raw_price_val * rates.get(price_curr, 1.0), 2)
+    else:
+        normalized_aud = row.get("price_aud")
+
     return {
         "source_platform": "EBAY_AU",
         "listing_url_or_identifier": detail.get("itemWebUrl") or row.get("item_id"),
         "listing_title": detail.get("title") or row.get("title") or "",
-        "listing_price_aud": _num(price.get("value")) if price.get("currency") == "AUD" else row.get("price_aud"),
+        "listing_price_aud": normalized_aud,
+        "listing_price_original_currency": price_curr,
+        "listing_price_original_value": raw_price_val,
         "seller_name_or_identifier": seller.get("username") or row.get("seller_username"),
         "seller_rating_or_profile_signal": signal or row.get("seller_feedback_pct"),
     }

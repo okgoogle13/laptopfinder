@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Platform-Agnostic Listing Schema",
+  "description": "Canonical neutral schema every source (eBay, Scorptec, JB Hi-Fi, OEM outlets) must map into before entering the scoring engine.",
+  "type": "object",
+  "required": [
+    "platform",
+    "listing_id",
+    "title",
+    "url",
+    "vendor_name",
+    "price_aud",
+    "currency_original",
+    "is_active",
+    "condition"
+  ],
+  "properties": {
+    "platform": {
+      "type": "string",
+      "enum": ["ebay", "scorptec", "jb_hifi", "direct_oem"],
+      "description": "Source platform identifier."
+    },
+    "listing_id": {
+      "type": "string",
+      "description": "Platform ID or URL hash identifying the listing uniquely."
+    },
+    "title": {
+      "type": "string",
+      "description": "Listing title as displayed on the source platform."
+    },
+    "url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Canonical URL to the listing."
+    },
+    "vendor_name": {
+      "type": "string",
+      "description": "Seller or vendor handle/store name."
+    },
+    "vendor_type": {
+      "type": "string",
+      "enum": ["MARKETPLACE_PRIVATE", "MARKETPLACE_STORE", "RETAILER", "OEM_OUTLET"],
+      "default": "MARKETPLACE_PRIVATE",
+      "description": "Classified vendor category driving seller/vendor risk scoring."
+    },
+    "price_aud": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "description": "Normalized price in AUD, including estimated required fees if applicable."
+    },
+    "currency_original": {
+      "type": "string",
+      "description": "3-letter ISO currency code of the original listing (e.g. AUD, USD)."
+    },
+    "is_active": {
+      "type": "boolean",
+      "description": "Whether the listing is active/buyable right now."
+    },
+    "condition": {
+      "type": "string",
+      "enum": ["NEW", "REFURB", "USED", "OPEN_BOX", "UNKNOWN"],
+      "default": "UNKNOWN",
+      "description": "Normalized condition label mapped from platform-specific terms."
+    },
+    "gpu": {
+      "type": ["string", "null"],
+      "description": "Normalized GPU model name (e.g. RTX 4090, RTX 5080, UMA Integrated)."
+    },
+    "vram_gb": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "description": "Dedicated VRAM capacity in GB (or unified capacity if UMA)."
+    },
+    "ram_gb": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "description": "Host system RAM in GB."
+    },
+    "cpu_model": {
+      "type": ["string", "null"],
+      "description": "Normalized CPU processor model name."
+    },
+    "screen_size_inches": {
+      "type": ["number", "null"],
+      "description": "Screen diagonal in inches."
+    },
+    "screen_type": {
+      "type": ["string", "null"],
+      "enum": ["IPS", "OLED", "MiniLED", "UNKNOWN", null],
+      "default": "UNKNOWN",
+      "description": "Display panel technology."
+    },
+    "touch": {
+      "type": "boolean",
+      "default": false,
+      "description": "True if display has a touchscreen digitizer."
+    },
+    "paradigm": {
+      "type": "string",
+      "enum": ["apple_silicon_uma", "discrete_cuda", "discrete_rocm", "amd_uma", "other"],
+      "default": "discrete_cuda",
+      "description": "Hardware architecture paradigm."
+    },
+    "connectivities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["tb4", "tb5", "oculink", "usb4", "10gbe"]
+      },
+      "default": [],
+      "description": "Detected future-proof connectivity features."
+    }
+  },
+  "additionalProperties": true
+}

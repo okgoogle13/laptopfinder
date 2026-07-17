@@ -55,6 +55,18 @@
     "local_price_margin_factor": 1.10,
     "poll_interval_sec": 300
   },
+  "currency_normalization": {
+    "_comment": "Exchange rates to AUD used by clean_price(), parse_price_aud(), and build_metadata(). Update periodically; do NOT hardcode rates in Python.",
+    "exchange_rates_to_aud": {
+      "AUD": 1.0,
+      "USD": 1.55,
+      "GBP": 1.98,
+      "EUR": 1.65,
+      "CAD": 1.10
+    },
+    "apply_au_gst_on_imports_over_1000_aud": true,
+    "au_gst_rate": 0.10
+  },
   "watched_sellers": [],
   "_comment_watched_sellers": "eBay AU seller usernames to poll directly. Each triggers a Browse API sweep scoped to that seller. Empty list disables seller-scoped sweeps.",
   "clearance_sellers": [
@@ -146,11 +158,19 @@
       "note": "Identical 16GB VRAM to RTX 3080 16GB at $2,000–$2,500 AUD premium. Fallback if found mispriced in local B2B liquidation. Ada Lovelace SM89: FP8 + Flash Attention 2."
     },
     "RTX 5070": {
-      "vram_gb": 16,
+      "vram_gb": 8,
       "platform_class": "gaming_laptop",
       "budget_band": "new_5k",
-      "observed_au_price_min_aud": 3500,
-      "observed_au_price_max_aud": 4500,
+      "observed_au_price_min_aud": 2400,
+      "observed_au_price_max_aud": 3600,
+      "evidence_type": "Observed_AU"
+    },
+    "RTX 5070 Ti": {
+      "vram_gb": 12,
+      "platform_class": "gaming_laptop",
+      "budget_band": "new_5k",
+      "observed_au_price_min_aud": 3200,
+      "observed_au_price_max_aud": 4200,
       "evidence_type": "Observed_AU"
     },
     "RTX 5080": {
@@ -397,6 +417,7 @@
       "RTX 3090": "Ampere",
       "RTX 4080": "Ada Lovelace",
       "RTX 5070": "Blackwell",
+      "RTX 5070 Ti": "Blackwell",
       "RTX A5000": "Ampere",
       "RTX A3000": "Ampere",
       "RX 7900M": "RDNA3",

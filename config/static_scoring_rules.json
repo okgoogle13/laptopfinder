@@ -1,0 +1,257 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Static Scoring Rules & Capability Bands",
+  "description": "Declarative single-source-of-truth configuration for form-factor lanes, tier classifications, hardware signals, and value index formulas for laptopfinder shortlist builders and decision runners.",
+  "version": "2.0.0",
+  "last_updated": "2026-07-16",
+  "platform_agnostic_listing_fields": {
+    "required_dimensions": [
+      "platform", "listing_id", "title", "url", "vendor_name", "vendor_type",
+      "price_aud", "currency_original", "is_active", "condition",
+      "gpu", "vram_gb", "ram_gb", "cpu_model", "screen_size_inches",
+      "screen_type", "touch", "paradigm", "connectivities"
+    ],
+    "supported_platforms": ["ebay", "scorptec", "jb_hifi", "direct_oem"],
+    "condition_vocabulary": ["NEW", "REFURB", "USED", "OPEN_BOX"]
+  },
+  "lanes": {
+    "gaming_17_18": {
+      "priority_order": 1,
+      "display_name": "Gaming — 17-18\" Desktop Replacements",
+      "description": "High-TGP discrete CUDA/ROCm gaming laptops with large thermal envelopes and maximum VRAM capacity.",
+      "target_screen_inches": [17, 18],
+      "accepted_paradigms": ["discrete_cuda", "discrete_rocm"],
+      "minimum_requirements": {
+        "vram_gb": 16,
+        "system_ram_gb": 32
+      },
+      "skips_form_factor_bonus": false
+    },
+    "workstation_16_touch_or_pro": {
+      "priority_order": 2,
+      "display_name": "RTX Workstations — 14-17\" (incl. Touch & UMA Pro)",
+      "description": "Professional mobile workstations, creator laptops, and compact high-RAM touch rigs (e.g., 14-16\" HP ZBook with 64GB UMA + touch or discrete GPU).",
+      "target_screen_inches": [14, 15, 16, 17],
+      "accepted_paradigms": ["discrete_cuda", "apple_silicon_uma", "amd_uma"],
+      "brand_keywords": ["precision", "thinkpad p", "zbook", "proart", "creator"],
+      "minimum_requirements": {
+        "vram_gb_standard": 16,
+        "vram_gb_touchscreen_exception": 12,
+        "uma_unified_min_gb": 64,
+        "system_ram_gb": 32
+      },
+      "skips_form_factor_bonus": false
+    },
+    "macbook_16_high_ram": {
+      "priority_order": 3,
+      "display_name": "High-RAM Apple Silicon — 14-16\" / Desktop",
+      "description": "Apple Silicon unified memory architecture (UMA) rigs with massive shared VRAM/system RAM pools for large LLM inference.",
+      "target_screen_inches": [14, 16],
+      "accepted_paradigms": ["apple_silicon_uma"],
+      "title_keywords": ["macbook pro", "mac studio", "mac mini"],
+      "chip_patterns": ["M1 Max", "M1 Ultra", "M2 Max", "M2 Ultra", "M3 Max", "M3 Ultra", "M4 Max", "M4 Ultra"],
+      "minimum_requirements": {
+        "system_ram_gb": 32
+      },
+      "skips_form_factor_bonus": true
+    },
+    "uma_dev_rig": {
+      "priority_order": 4,
+      "display_name": "UMA Dev Rigs & Workstation Outliers",
+      "description": "AMD/Intel/Apple high-RAM unified rigs and compact workstations (e.g. 14\" HP ZBook UMA 64GB touch) that provide local-LLM pathways without discrete CUDA VRAM ceilings.",
+      "target_screen_inches": [13, 14, 15, 16, 17, 18],
+      "accepted_paradigms": ["amd_uma", "apple_silicon_uma"],
+      "model_patterns": ["Strix Halo", "zbook", "ROG Z13", "ROG Z16", "ProArt PX13", "ProArt PX16", "Ryzen AI Max", "XG Mobile", "HX 370"],
+      "minimum_requirements": {
+        "system_ram_gb": 32
+      },
+      "skips_form_factor_bonus": true
+    }
+  },
+  "signals_and_tiers": {
+    "screen_class_bonuses": {
+      "desktop_replacement_18": {
+        "condition": "screen_inches >= 18",
+        "bonus_pts": 8,
+        "is_fallback": false
+      },
+      "desktop_replacement_17": {
+        "condition": "screen_inches == 17",
+        "bonus_pts": 6,
+        "is_fallback": false
+      },
+      "workstation_touch_16": {
+        "condition": "screen_inches == 16 and has_touchscreen == true",
+        "bonus_pts": 5,
+        "is_fallback": false
+      },
+      "workstation_touch_14_15": {
+        "condition": "screen_inches in [14, 15] and has_touchscreen == true",
+        "bonus_pts": 4,
+        "is_fallback": false
+      },
+      "standard_16": {
+        "condition": "screen_inches == 16 and has_touchscreen == false",
+        "bonus_pts": 3,
+        "is_fallback": false
+      },
+      "fallback_compact_14_15": {
+        "condition": "screen_inches < 16 and has_touchscreen == false",
+        "bonus_pts": 0,
+        "is_fallback": true,
+        "note": "Sorted last within discrete lanes unless explicitly categorized under uma_dev_rig or workstation_16_touch_or_pro."
+      }
+    },
+    "connectivity_bonuses": {
+      "description": "Additive Karpathy-style point bonuses for high-bandwidth/future-proof interconnects (Thunderbolt 4/5, OCuLink). Evaluated flatly from listing.connectivities or title/text flags.",
+      "bonuses_pts": {
+        "tb4": 2,
+        "tb5": 4,
+        "oculink": 5,
+        "usb4": 1,
+        "10gbe": 2
+      }
+    },
+    "discrete_tier_classification": {
+      "description": "Tier thresholds applied when lane is gaming_17_18 or workstation_16_touch_or_pro.",
+      "tiers": {
+        "A": {"min_vram_gb": 16, "min_system_ram_gb": 64},
+        "B": {"min_vram_gb": 12, "min_system_ram_gb": 32},
+        "C": {"min_vram_gb": 8,  "min_system_ram_gb": 32}
+      }
+    },
+    "uma_tier_classification": {
+      "description": "Tier thresholds applied when lane is macbook_16_high_ram or uma_dev_rig.",
+      "tiers": {
+        "A": {"min_unified_ram_gb": 96},
+        "B": {"min_unified_ram_gb": 64},
+        "C": {"min_unified_ram_gb": 32}
+      }
+    }
+  },
+  "adjustments_and_penalties": {
+    "ram_vram_bottleneck": {
+      "severe_bottleneck_penalty_pts": -5,
+      "severe_bottleneck_condition": "system_ram_gb < vram_gb",
+      "healthy_headroom_bonus_pts": 3,
+      "healthy_headroom_condition": "system_ram_gb >= vram_gb * 1.25"
+    },
+    "architecture_adjustments": {
+      "turing_vs_ada_same_vram_penalty_pts": -10,
+      "turing_condition": "gpu_generation == 'Turing' and vram_gb is not null"
+    },
+    "seller_risk_adjustments": {
+      "overseas_import_penalty_pts": -10,
+      "overseas_import_condition": "title contains 'import' or 'azerty'"
+    },
+    "vendor_risk_lens": {
+      "description": "Modest additive bonuses and penalties derived from data/lf-vendor-risk.json and price/floor comparisons.",
+      "vendor_type_bonuses_pts": {
+        "AUTHORISED_RESELLER": 4,
+        "RETAILER": 3,
+        "OEM_OUTLET": 5,
+        "MARKETPLACE_STORE": 1,
+        "MARKETPLACE_PRIVATE": 0
+      },
+      "risk_score_deduction": {
+        "expression": "-round(vendor_risk_score * 1.5)",
+        "note": "Modest linear penalty for vendor risk (0 to -15 pts maximum for risk_score=10)."
+      },
+      "flags_adjustments_pts": {
+        "clearance_outlet": 3,
+        "authorised_reseller": 4,
+        "grey_import": -6,
+        "fraud_suspect": -25
+      },
+      "fraud_suspect_heuristics": {
+        "price_vs_floor_ratio_trigger": 0.55,
+        "spec_mismatch_trigger": true,
+        "action": "Flag fraud_suspect=true, deduct -25 pts, and force decision to IGNORE or high-risk WATCH."
+      }
+    },
+    "missing_data_handling": {
+      "policy": "Replace 'missing critical field -> IGNORE' with point deductions on overall score, allowing high-value/promising items to route to WATCH with a 'needs_manual_spec_check' flag.",
+      "missing_field_penalties_pts": {
+        "vram_gb": -6,
+        "system_ram_gb": -4,
+        "cpu_model": -2,
+        "condition": -1,
+        "screen_type": -1
+      },
+      "decision_rules": {
+        "ignore_conditions": [
+          "data_integrity_ok == false (parts-only, salvaged, read desc)",
+          "price_aud is null AND both vram_gb AND system_ram_gb are null",
+          "fraud_suspect == true AND risk_score >= 7.0"
+        ],
+        "watch_conditions": [
+          "missing vram_gb OR system_ram_gb BUT estimated adjusted_score >= 45 AND price_band_tag in ['VALUE_ZONE', 'BELOW_FLOOR']",
+          "missing exact GPU model BUT title confirms high-tier UMA or workstation paradigm AND price_aud <= baseline * 0.9"
+        ],
+        "watch_flag": "needs_manual_spec_check"
+      }
+    }
+  },
+  "local_llm_fit_flags": {
+    "is_cuda_inference_ready": {
+      "expression": "paradigm == 'discrete_cuda' and vram_gb >= 16"
+    },
+    "is_rocm_inference_ready": {
+      "expression": "paradigm == 'discrete_rocm' and vram_gb >= 16",
+      "requires_buyer_disclosure": true,
+      "disclosure_note": "Radeon mobile GPUs are viable via ROCm/Linux but lack native CUDA ecosystem optimizations."
+    },
+    "is_high_capacity_uma": {
+      "expression": "is_uma == true and system_ram_gb >= 64"
+    },
+    "is_touchscreen_exception_eligible": {
+      "expression": "has_touchscreen == true and vram_gb >= 12"
+    }
+  },
+  "value_index_formula": {
+    "adjusted_score": {
+      "expression": "round(llm_index_score * workload_penalty_mult) + form_factor_bonus_pts + ram_vram_bottleneck_pts + connectivity_bonus_pts + vendor_risk_adjustment_pts + missing_data_penalty_pts",
+      "workload_penalty_multipliers": {
+        "discrete_cuda": 0.85,
+        "discrete_rocm": 0.85,
+        "apple_silicon_uma": 1.0,
+        "amd_uma": 1.0
+      }
+    },
+    "score_0_100_normalization": {
+      "field_name": "score_0_100",
+      "description": "Transparent, shared 0-100 score mapping normalized from raw adjusted_score across all form-factor lanes and platforms.",
+      "mapping_formula": {
+        "expression": "max(0, min(100, round((adjusted_score / lane_score_ceiling) * 100)))",
+        "lane_score_ceilings": {
+          "gaming_17_18": 85,
+          "workstation_16_touch_or_pro": 80,
+          "macbook_16_high_ram": 90,
+          "uma_dev_rig": 85
+        },
+        "global_fallback_ceiling": 85
+      },
+      "interpretation_scale": {
+        "80_to_100": "Exceptional Local-LLM Workhorse (Immediate SHORTLIST consideration)",
+        "65_to_79": "Strong Competitor (SHORTLIST if Value/$ >= 0.015)",
+        "50_to_64": "Viable / Niche Workstation (WATCH or SHORTLIST if heavily discounted)",
+        "0_to_49": "Insufficient Capability or Excessive Risk (IGNORE)"
+      }
+    },
+    "value_index": {
+      "expression": "round(adjusted_score / price_aud, 5)",
+      "null_if_price_missing_or_zero": true
+    },
+    "shortlist_qualification_gates": {
+      "min_value_index": 0.015,
+      "min_adjusted_score": 50,
+      "min_score_0_100": 60,
+      "max_risk_score": 3.0,
+      "allowed_price_bands": ["VALUE_ZONE", "FAIR_MARKET"]
+    },
+    "ranking_sort_orders": {
+      "discrete_lanes": ["is_fallback ASC", "value_index is null ASC", "value_index DESC", "score_0_100 DESC"],
+      "uma_dev_rig_lane": ["-(score_0_100 * 0.7 + value_index * 10000 * 0.3) DESC", "system_ram_gb DESC", "value_index is null ASC"]
+    }
+  }
+}

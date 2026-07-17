@@ -1,0 +1,20 @@
+{
+  "platform_id": "scorptec",
+  "display_name": "Scorptec Computers (Retailer)",
+  "currency_default": "AUD",
+  "price_and_fee_semantics": {
+    "buyer_premium_pct": 0.0,
+    "estimated_shipping_default_aud": 15.0
+  },
+  "retailer_bonuses": {
+    "local_warranty_bonus_pts": 5,
+    "pickup_option_bonus_pts": 3,
+    "authorised_reseller_bonus_pts": 4
+  },
+  "condition_mappings": {
+    "Brand New": "NEW",
+    "Ex-Demo": "OPEN_BOX",
+    "Factory Refurbished": "REFURB"
+  },
+  "url_format": "https://www.scorptec.com.au/product/laptops-&-notebooks/{listing_id}"
+}

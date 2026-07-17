@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Vendor & Seller Risk Lens",
+  "description": "Unified vendor risk database supporting both marketplace handles (eBay usernames) and retailer/OEM identities (domains/store codes).",
+  "version": "1.0.0",
+  "schema_definition": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": ["vendor_id", "vendor_type", "region", "risk_score", "flags"],
+      "properties": {
+        "vendor_id": {
+          "type": "string",
+          "description": "eBay username, retailer domain, or canonical store identifier."
+        },
+        "vendor_type": {
+          "type": "string",
+          "enum": ["MARKETPLACE_PRIVATE", "MARKETPLACE_STORE", "RETAILER", "OEM_OUTLET"]
+        },
+        "region": {
+          "type": "string",
+          "description": "Region code, e.g. AU, US, EU, GLOBAL."
+        },
+        "risk_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10,
+          "description": "Normalized baseline vendor risk from 0 (pristine/official) to 10 (unverified/high-risk)."
+        },
+        "flags": {
+          "type": "object",
+          "properties": {
+            "clearance_outlet": {"type": "boolean", "default": false},
+            "authorised_reseller": {"type": "boolean", "default": false},
+            "grey_import": {"type": "boolean", "default": false},
+            "fraud_suspect": {"type": "boolean", "default": false}
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  },
+  "vendors": [
+    {
+      "vendor_id": "scorptec_au",
+      "vendor_type": "RETAILER",
+      "region": "AU",
+      "risk_score": 0.5,
+      "flags": {
+        "clearance_outlet": false,
+        "authorised_reseller": true,
+        "grey_import": false,
+        "fraud_suspect": false
+      }
+    },
+    {
+      "vendor_id": "jb_hifi_au",
+      "vendor_type": "RETAILER",
+      "region": "AU",
+      "risk_score": 0.5,
+      "flags": {
+        "clearance_outlet": false,
+        "authorised_reseller": true,
+        "grey_import": false,
+        "fraud_suspect": false
+      }
+    },
+    {
+      "vendor_id": "lenovo_outlet_au",
+      "vendor_type": "OEM_OUTLET",
+      "region": "AU",
+      "risk_score": 0.2,
+      "flags": {
+        "clearance_outlet": true,
+        "authorised_reseller": true,
+        "grey_import": false,
+        "fraud_suspect": false
+      }
+    },
+    {
+      "vendor_id": "realslimginz",
+      "vendor_type": "MARKETPLACE_PRIVATE",
+      "region": "AU",
+      "risk_score": 1.0,
+      "flags": {
+        "clearance_outlet": false,
+        "authorised_reseller": false,
+        "grey_import": false,
+        "fraud_suspect": false
+      }
+    },
+    {
+      "vendor_id": "minipcsnmore",
+      "vendor_type": "MARKETPLACE_STORE",
+      "region": "AU",
+      "risk_score": 1.5,
+      "flags": {
+        "clearance_outlet": false,
+        "authorised_reseller": false,
+        "grey_import": false,
+        "fraud_suspect": false
+      }
+    },
+    {
+      "vendor_id": "kier-84056",
+      "vendor_type": "MARKETPLACE_PRIVATE",
+      "region": "AU",
+      "risk_score": 2.0,
+      "flags": {
+        "clearance_outlet": false,
+        "authorised_reseller": false,
+        "grey_import": false,
+        "fraud_suspect": false
+      }
+    },
+    {
+      "vendor_id": "azerty_global_imports",
+      "vendor_type": "MARKETPLACE_STORE",
+      "region": "EU",
+      "risk_score": 6.5,
+      "flags": {
+        "clearance_outlet": false,
+        "authorised_reseller": false,
+        "grey_import": true,
+        "fraud_suspect": false
+      }
+    }
+  ]
+}

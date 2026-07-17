@@ -1,0 +1,26 @@
+{
+  "platform_id": "ebay",
+  "display_name": "eBay Australia (Marketplace)",
+  "currency_default": "AUD",
+  "price_and_fee_semantics": {
+    "buyer_premium_pct": 0.0,
+    "estimated_shipping_default_aud": 25.0,
+    "auction_semantics": {
+      "is_auction": "listing_type == 'AUCTION' or auction_end_time is not null",
+      "auction_volatility_penalty_pts": -4
+    }
+  },
+  "buyer_protection": {
+    "has_money_back_guarantee": true,
+    "buyer_protection_bonus_pts": 2
+  },
+  "condition_mappings": {
+    "1000": "NEW",
+    "1500": "OPEN_BOX",
+    "2000": "REFURB",
+    "2500": "REFURB",
+    "3000": "USED",
+    "7000": "UNKNOWN"
+  },
+  "url_format": "https://www.ebay.com.au/itm/{listing_id}"
+}
