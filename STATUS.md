@@ -21,6 +21,20 @@ _Update these rows as work completes. Keep estimates rough and honest._
 
 ## NEXT_TASK
 
+- [ ] **S10-00 (Phase 1):** Execute peer review, audit, critique, and flag gaps of the new scoring rules and workflows defined in [handover.md](file:///Users/okgoogle13/Projects/laptopfinder/docs/handover.md).
+- [ ] **S10-01 (Phase 1):** Clean up obsolete `scripts/ebay_sniper.py` duplicate file and ensure `Makefile` targets reference `src/laptopfinder/runners/ebay_sniper.py`.
+- [ ] **S10-02 (Phase 2):** Refactor `src/laptopfinder/decide.py` to ingest `Listing` instances and load unified `static_scoring_rules.json` and `lf-vendor-risk.json` parameters.
+- [ ] **S10-03 (Phase 3):** Migrate `src/laptopfinder/runners/ebay_sniper.py` and `src/laptopfinder/ingest_csv.py` to wrap raw listings in adapters before decision scoring.
+- [ ] **S10-04 (Phase 4):** Align `scripts/render_matrix.py` and `scripts/build_shortlist_value.py` to render unified multi-vendor columns and rank via `score_0_100`.
+- [ ] **S10-05:** Update status dashboard counts in `scripts/status_snapshot.py` to report across watchlist and sniper outputs.
+- [ ] **S10-06:** Verify validation suite passes 264+ tests cleanly and confirm dry-run sweeps function without regression.
+- [ ] **S10-07 (Phase 3):** Create watchlist hunt run config at `config/runs/watchlist_hunt.json` declaring `"source": "watchlist"`.
+- [ ] **S10-08 (Phase 3):** Refactor `collect_corpus` in `src/laptopfinder/runners/legacy/hunter/search.py` to support watchlist loading via `tools.ebay_watchlist_snapshot`.
+- [ ] **S10-09 (Phase 3):** Refactor `src/laptopfinder/runners/legacy/ebay_hunter.py` to route output paths dynamically for watchlist sweeps.
+- [ ] **S10-10 (Phase 3):** Update Makefile to link `ebay-watchlist-snapshot` target to consolidated `make hunt CONFIG=config/runs/watchlist_hunt.json` flow.
+- [ ] **S10-11 (Phase 3):** Deprecate and delete obsolete `scripts/score_active_watchlist.py`.
+- [ ] **S10-12 (Phase 3):** Verify complete test suite coverage and perform live dry-run of watchlist hunter.
+
 *Completed Tasks:*
 - [x] **S9-02:** `lf-price-baseline`: `scripts/lf_price_baseline.py` merges `data/hunt_results.jsonl` + `data/shortlist_candidates.jsonl` into `data/lf-price-baseline.csv`. *(scripts/lf_price_baseline.py, tests/test_lf_price_baseline.py)* — fixed cross-script import (inlined `lf_floor_sync` helpers) so `python scripts/lf_price_baseline.py` works directly without pytest's pythonpath shim. The three PWM workflow "designs" in the blocker are complementary layers (Makefile gates → local CSV prep → Perplexity Deep Research), not conflicts.
 - [x] **S9-01:** `lf-floor-sync`: `scripts/lf_floor_sync.py` normalizes `data/hunt_results.jsonl` (from `make hunt`) into `data/lf-floor-listings.csv`. *(scripts/lf_floor_sync.py, tests/test_lf_floor_sync.py)* — note: original spec referenced `make_hunt CONFIG=lf-floor`, which doesn't exist (typo for `make hunt`, and no `config/runs/lf-floor.json` config file exists yet). Script normalizes whatever `data/hunt_results.jsonl` a human produces via any `make hunt CONFIG=...` run; creating a dedicated `lf-floor` run config is a separate open item, not blocking this script.

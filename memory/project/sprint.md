@@ -289,12 +289,35 @@ Propose concrete edits to `config/static_reference_layer.json`:
 
 ---
 
-# Sprint 9 — PWM Workflow Implementation (Pending)
+# Sprint 9 — PWM Workflow Implementation (COMPLETE)
 
 **Why:** Implement the local scaffolding and data preparation scripts required to execute the PWM Deep Research workflows defined in the catalog.
 
-**Status:** In progress 2026-07-16. Labs dashboard/app-scaffold tasks dropped 2026-07-16 as out-of-scope (see TASKS.md Output path & routing policy) — `output/decisions/` + `output/shortlist/` are the only canonical decision outputs; PWM CSVs are research inputs derived from `make hunt`, not decision outputs.
+**Status:** Complete. `lf-floor-sync` and `lf-price-baseline` local scripts written and verified.
 
 ## Tasks
 - [x] **S9-01:** `lf-floor-sync`: `scripts/lf_floor_sync.py` normalizes `data/hunt_results.jsonl` (written by `make hunt CONFIG=...`, not `output/decisions/` — that path belongs to `make live` only, see CLAUDE.md) into `data/lf-floor-listings.csv`. 4 tests in `tests/test_lf_floor_sync.py`. No dedicated `config/runs/lf-floor.json` exists yet — the script normalizes whatever `hunt_results.jsonl` a human produces from any `make hunt` run; a floor-specific run config is a separate open item.
-- [ ] **S9-02:** `lf-price-baseline`: Write local script to merge candidate listings and historical data into `data/lf-price-baseline.csv`.
+- [x] **S9-02:** `lf-price-baseline`: Write local script to merge candidate listings and historical data into `data/lf-price-baseline.csv`.
+
+---
+
+# Sprint 10 — Platform-Agnostic Integration & Refactoring (PENDING)
+
+**Why:** Transition `laptopfinder` from an eBay-coupled scoring script to a clean Platform-Agnostic, Multi-Vendor Decision Engine as outlined in `docs/handover.md`. This will unify the scoring rule mathematical boundaries, vendor risk profile parameters, and missing-data recovery logic across all platforms.
+
+**Status:** Pending.
+
+## Tasks
+- [ ] **S10-00 (Phase 1):** Execute peer review, audit, critique, and flag gaps of the new scoring rules and workflows defined in [handover.md](file:///Users/okgoogle13/Projects/laptopfinder/docs/handover.md).
+- [ ] **S10-01 (Phase 1):** Clean up obsolete `scripts/ebay_sniper.py` duplicate file and ensure `Makefile` targets reference `src/laptopfinder/runners/ebay_sniper.py`.
+- [ ] **S10-02 (Phase 2):** Refactor `src/laptopfinder/decide.py` to ingest `Listing` instances and load unified `static_scoring_rules.json` and `lf-vendor-risk.json` parameters.
+- [ ] **S10-03 (Phase 3):** Migrate `src/laptopfinder/runners/ebay_sniper.py` and `src/laptopfinder/ingest_csv.py` to wrap raw listings in adapters before decision scoring.
+- [ ] **S10-04 (Phase 4):** Align `scripts/render_matrix.py` and `scripts/build_shortlist_value.py` to render unified multi-vendor columns and rank via `score_0_100`.
+- [ ] **S10-05:** Update status dashboard counts in `scripts/status_snapshot.py` to report across watchlist and sniper outputs.
+- [ ] **S10-06:** Verify validation suite passes 264+ tests cleanly and confirm dry-run sweeps function without regression.
+- [ ] **S10-07 (Phase 3):** Create watchlist hunt run config at `config/runs/watchlist_hunt.json` declaring `"source": "watchlist"`.
+- [ ] **S10-08 (Phase 3):** Refactor `collect_corpus` in `src/laptopfinder/runners/legacy/hunter/search.py` to support watchlist loading via `tools.ebay_watchlist_snapshot`.
+- [ ] **S10-09 (Phase 3):** Refactor `src/laptopfinder/runners/legacy/ebay_hunter.py` to route output paths dynamically for watchlist sweeps.
+- [ ] **S10-10 (Phase 3):** Update Makefile to link `ebay-watchlist-snapshot` target to consolidated `make hunt CONFIG=config/runs/watchlist_hunt.json` flow.
+- [ ] **S10-11 (Phase 3):** Deprecate and delete obsolete `scripts/score_active_watchlist.py`.
+- [ ] **S10-12 (Phase 3):** Verify complete test suite coverage and perform live dry-run of watchlist hunter.

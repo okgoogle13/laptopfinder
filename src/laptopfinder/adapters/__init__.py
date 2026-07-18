@@ -14,7 +14,7 @@ from typing import Any, Callable
 @dataclass
 class Listing:
     """Canonical neutral schema every source maps into before scoring."""
-    platform: str  # 'ebay', 'scorptec', 'jb_hifi', 'direct_oem'
+    platform: str  # 'ebay', 'scorptec', 'jb_hifi', 'direct_oem', 'EBAY', 'SCORPTEC', 'JB_HIFI', 'LENOVO_OUTLET_AU', 'HP_STORE_AU'
     listing_id: str
     title: str
     url: str
@@ -32,7 +32,7 @@ class Listing:
     touch: bool = False
     paradigm: str = "discrete_cuda"  # 'apple_silicon_uma', 'discrete_cuda', 'discrete_rocm', 'amd_uma'
     connectivities: list[str] = field(default_factory=list)
-    vendor_type: str = "MARKETPLACE_PRIVATE"  # 'MARKETPLACE_PRIVATE', 'MARKETPLACE_STORE', 'RETAILER', 'OEM_OUTLET'
+    vendor_type: str = "MARKETPLACE_PRIVATE"  # 'MARKETPLACE_PRIVATE', 'RETAILER', 'OEM_OUTLET', 'OEM_DIRECT', 'Specialist retailer', 'National retailer', 'OEM outlet', 'OEM direct'
     raw_payload: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:

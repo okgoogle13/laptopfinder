@@ -22,7 +22,8 @@ All sprints below are complete unless noted. Full Why/Status/Shipped detail live
 - eBay AU Active Sniper Setup (2026-07-05) — complete, pending daemon launch sign-off, see Human Runbook below
 - Sprint 7 — eBay Browse & Developer API Discovery Expansion — mostly complete, Batch C blocked on human D1 (OAuth scope request)
 - Sprint 8 — Hardening Closeout & Daemon Reliability — in progress
-- Sprint 9 — PWM Workflow Implementation — queued (see `STATUS.md` NEXT_TASK for the active items)
+- Sprint 9 — PWM Workflow Implementation — complete
+- Sprint 10 — Platform-Agnostic Integration & Refactoring — pending (detailed plan saved at [simplification plan](file:///Users/okgoogle13/Projects/laptopfinder/memory/plans/2026-07-18-engine-simplification-plan.md))
 
 **Platform priority:** eBay AU is the primary target for all remaining sprints. eBay API runners plus the sniper are primary. Gumtree AU is secondary/opportunistic. Facebook Marketplace is deferred to discovery-only; no full scraping parity.
 
@@ -66,6 +67,7 @@ Items confirmed still open as of 2026-07-16 (not superseded, not duplicated in S
 - `[ ]` Fix `README.md` Architecture section: demote `ebay_hunter.py` from "Primary Live Path" to legacy, promote `ebay_sniper.py` as primary. Remove Stage 1/1A [LEGACY] confusion from the quick-start flow.
 - `[ ]` **PWM council concepts (3 unimplemented):** `lf-council-audit` (adversarial SRL weights audit → `planning/reviews/srl_council_audit.md`), `lf-risk-calibrator` (edge-case risk gate tuning → `planning/risk_rules_patch.json`), `lf-playbook-synth` (AU negotiation playbooks → `planning/playbooks/negotiation_<target>.md`). All council-tier; design in `docs/archive/pwm_council_concepts.md`. Wire when a high-stakes purchase decision triggers multi-model review.
 - `[x]` **S8-09:** Add "reference only, not loaded at runtime" header comment to `config/silicon_profiles.yaml`. *(done 2026-07-16)*
+- `[ ]` **Watchlist Consolidation**: Integrate the eBay watchlist snapshot into the Stage 2 hunter pipeline, eliminating title-only regex scoring heuristics. *(plan: `memory/plans/watchlist_consolidation_plan.md`)*
 
 ---
 

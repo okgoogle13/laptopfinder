@@ -15,7 +15,10 @@
         },
         "vendor_type": {
           "type": "string",
-          "enum": ["MARKETPLACE_PRIVATE", "MARKETPLACE_STORE", "RETAILER", "OEM_OUTLET"]
+          "enum": [
+            "MARKETPLACE_PRIVATE", "MARKETPLACE_STORE", "RETAILER", "OEM_OUTLET", "OEM_DIRECT",
+            "Specialist retailer", "National retailer", "OEM outlet", "OEM direct"
+          ]
         },
         "region": {
           "type": "string",
@@ -41,6 +44,54 @@
     }
   },
   "vendors": [
+    {
+      "vendor_id": "SCORPTEC",
+      "vendor_type": "RETAILER",
+      "region": "AU",
+      "risk_score": 0.3,
+      "flags": {
+        "clearance_outlet": false,
+        "authorised_reseller": true,
+        "grey_import": false,
+        "fraud_suspect": false
+      }
+    },
+    {
+      "vendor_id": "JB_HIFI",
+      "vendor_type": "RETAILER",
+      "region": "AU",
+      "risk_score": 0.5,
+      "flags": {
+        "clearance_outlet": false,
+        "authorised_reseller": true,
+        "grey_import": false,
+        "fraud_suspect": false
+      }
+    },
+    {
+      "vendor_id": "LENOVO_OUTLET_AU",
+      "vendor_type": "OEM_OUTLET",
+      "region": "AU",
+      "risk_score": 0.2,
+      "flags": {
+        "clearance_outlet": true,
+        "authorised_reseller": true,
+        "grey_import": false,
+        "fraud_suspect": false
+      }
+    },
+    {
+      "vendor_id": "HP_STORE_AU",
+      "vendor_type": "OEM_DIRECT",
+      "region": "AU",
+      "risk_score": 0.1,
+      "flags": {
+        "clearance_outlet": false,
+        "authorised_reseller": true,
+        "grey_import": false,
+        "fraud_suspect": false
+      }
+    },
     {
       "vendor_id": "scorptec_au",
       "vendor_type": "RETAILER",

@@ -12,6 +12,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from collections import Counter
 
 IN_PATH = Path("data/pwm/lf-watchlist/watchlist_raw.jsonl")
 OUT_JSONL = Path("output/shortlist/watchlist_scored_active.jsonl")
@@ -20,6 +21,14 @@ SRL_PATH = Path("config/static_reference_layer.json")
 RULES_PATH = Path("config/static_scoring_rules.json")
 VENDOR_RISK_PATH = Path("data/lf-vendor-risk.json")
 BASELINE_PATH = Path("data/lf-price-baseline.csv")
+
+
+TRUSTED_NULL_VRAM_MODELS = {
+    "RTX 5090", "RTX 5080", "RTX 4090", "RTX 4080", "RTX 3090", "RTX 3080",
+    "RTX A4000", "RTX A5000", "RX 7900M",
+    "RTX PRO 3000", "RTX PRO 4000", "RTX PRO 5000",
+    "Quadro RTX 3000", "Quadro RTX 4000", "Quadro RTX 5000"
+}
 
 
 def load_baselines() -> dict[str, float]:
@@ -86,13 +95,18 @@ def extract_hardware_from_title(title: str) -> dict:
     rocm_disclosure = False
 
     # Check RAM
-    ram_match = re.search(r'\b(\d+)\s*GB\s*(?:RAM|MEM|DDR5|LPDDR5|Unified)\b', title, re.I)
+    ram_match = re.search(r'\b(\d+)\s*G(?:B)?\s*(?:RAM|MEM|DDR5|LPDDR5|Unified)\b', title, re.I)
     if ram_match:
         system_ram_gb = float(ram_match.group(1))
     else:
-        rm = re.search(r'\b(16|32|64|96|128|192)\s*GB\b.*?\b(512GB|1TB|2TB|4TB|5TB|6TB)\b', title, re.I)
+        rm = re.search(r'\b(16|32|64|96|128|192)\s*G(?:B)?\b.*?\b(512GB|1TB|2TB|4TB|5TB|6TB)\b', title, re.I)
         if rm:
             system_ram_gb = float(rm.group(1))
+        else:
+            # Fallback for just 16/32/64/96/128/192 G/GB if no SSD is listed but it's clearly RAM
+            rm_fallback = re.search(r'\b(16|32|64|96|128|192)\s*G(?:B)?\b', title, re.I)
+            if rm_fallback:
+                system_ram_gb = float(rm_fallback.group(1))
 
     # Check UMA
     if re.search(r'\b(M[1-5]\s*(?:Max|Ultra)|Ryzen AI Max|Strix Halo|ROG Z13|ProArt PX13)\b', title, re.I):
@@ -164,6 +178,27 @@ def extract_hardware_from_title(title: str) -> dict:
         vram_gb = 16
     elif re.search(r'\bA5000\b', title):
         gpu_model = "RTX A5000"
+        vram_gb = 16
+    elif re.search(r'\bRTX\s*PRO\s*2000\b', title, re.I):
+        gpu_model = "RTX PRO 2000"
+        vram_gb = 8
+    elif re.search(r'\bRTX\s*PRO\s*3000\b', title, re.I):
+        gpu_model = "RTX PRO 3000"
+        vram_gb = 12
+    elif re.search(r'\bRTX\s*PRO\s*4000\b', title, re.I):
+        gpu_model = "RTX PRO 4000"
+        vram_gb = 16
+    elif re.search(r'\bRTX\s*PRO\s*5000\b', title, re.I):
+        gpu_model = "RTX PRO 5000"
+        vram_gb = 16
+    elif re.search(r'\bQuadro\s*RTX\s*3000\b', title, re.I):
+        gpu_model = "Quadro RTX 3000"
+        vram_gb = 6
+    elif re.search(r'\bQuadro\s*RTX\s*4000\b', title, re.I):
+        gpu_model = "Quadro RTX 4000"
+        vram_gb = 8
+    elif re.search(r'\bQuadro\s*RTX\s*5000\b', title, re.I):
+        gpu_model = "Quadro RTX 5000"
         vram_gb = 16
     elif re.search(r'\b3500\s*Ada\b', title, re.I):
         gpu_model = "RTX 3500 Ada"
@@ -249,12 +284,12 @@ def main():
         screen_inches = extract_screen_inches(title)
         hw = extract_hardware_from_title(title)
 
-        gpu_model = hw["gpu_model"]
-        vram_gb = hw["vram_gb"]
-        system_ram_gb = hw["system_ram_gb"]
-        is_uma = hw["is_uma"]
-        paradigm = hw["paradigm"]
-        rocm_disclosure = hw["rocm_disclosure"]
+        gpu_model = item.get("gpu_model") or hw["gpu_model"]
+        vram_gb = item.get("vram_gb") or hw["vram_gb"]
+        system_ram_gb = item.get("system_ram_gb") or hw["system_ram_gb"]
+        is_uma = item.get("is_uma", hw["is_uma"])
+        paradigm = item.get("paradigm") or hw["paradigm"]
+        rocm_disclosure = item.get("rocm_disclosure", hw["rocm_disclosure"])
 
         # Connectivities detection
         connectivities = list(item.get("connectivities", []))
@@ -325,7 +360,7 @@ def main():
         elif vram_gb is not None and not is_uma:
             if vram_gb >= 16 or (vram_gb >= 12 and touchscreen_present):
                 scope_ok = True
-        elif vram_gb is None and not is_uma and gpu_model in ["RTX 5090", "RTX 5080", "RTX 4090", "RTX 4080", "RTX 3090", "RTX 3080", "RTX A4000", "RTX A5000", "RX 7900M"]:
+        elif vram_gb is None and not is_uma and gpu_model in TRUSTED_NULL_VRAM_MODELS:
             scope_ok = True
         elif is_uma and system_ram_gb is None and any(pat in title.lower() for pat in ["max", "ultra", "strix halo", "64gb", "96gb", "128gb"]):
             scope_ok = True
@@ -343,7 +378,7 @@ def main():
             missing_data_penalty_pts -= 6
         if system_ram_gb is None:
             missing_data_penalty_pts -= 4
-        if item.get("cpu_model") is None and not re.search(r'\b(i[579]|ryzen|m[1-4]|xeon)\b', title, re.I):
+        if item.get("cpu_model") is None and not re.search(r'\b(i[579]|ryzen|m[1-5]|xeon|ultra\s*\d|cu[579])\b', title, re.I):
             missing_data_penalty_pts -= 2
 
         gen = gen_by_name.get(gpu_model)
@@ -434,24 +469,36 @@ def main():
                 watchlist_reason_flag = wl["reason"]
                 break
 
+        decision_reason = None
         if not data_integrity_ok or (vendor_info.get("flags", {}).get("fraud_suspect") and risk_score >= 7.0) or (price is None and vram_gb is None and system_ram_gb is None) or price_band_tag == "BELOW_FLOOR":
             decision = "IGNORE"
+            decision_reason = "data_integrity_or_floor"
         elif not scope_ok and adjusted_score < 45:
             decision = "IGNORE"
+            decision_reason = "scope_fail_low_score"
         elif risk_score > 3.0:
             decision = "IGNORE"
+            decision_reason = "risk_gate"
         elif watchlist_reason_flag is not None or (rocm_disclosure and adjusted_score >= 50) or (missing_data_penalty_pts < 0 and scope_ok and adjusted_score >= 45 and price_band_tag in ["VALUE_ZONE", "FAIR_MARKET"]) or (price is None and scope_ok and adjusted_score >= 45):
             decision = "WATCH"
+            decision_reason = "watch_criteria_or_missing_data"
             if missing_data_penalty_pts < 0:
                 watchlist_reason_flag = (watchlist_reason_flag + "; " if watchlist_reason_flag else "") + "needs_manual_spec_check"
         elif scope_ok and adjusted_score >= 50 and price_band_tag in ["VALUE_ZONE", "FAIR_MARKET"] and (value_per_dollar or 0) >= 0.015:
             decision = "SHORTLIST"
+            decision_reason = "value_shortlist"
         elif scope_ok and adjusted_score >= 45 and (missing_data_penalty_pts < 0 or (value_per_dollar or 0) >= 0.012):
             decision = "WATCH"
+            decision_reason = "value_watch_needs_spec_check"
             if missing_data_penalty_pts < 0:
                 watchlist_reason_flag = (watchlist_reason_flag + "; " if watchlist_reason_flag else "") + "needs_manual_spec_check"
+        elif scope_ok is True and vram_gb is None and gpu_model in TRUSTED_NULL_VRAM_MODELS and adjusted_score >= 40:
+            decision = "WATCH"
+            decision_reason = "trusted_gpu_null_vram_watch"
+            watchlist_reason_flag = (watchlist_reason_flag + "; " if watchlist_reason_flag else "") + "needs_manual_spec_check"
         else:
             decision = "IGNORE"
+            decision_reason = "default_ignore"
 
         decision_counts[decision] += 1
 
@@ -485,8 +532,18 @@ def main():
             "value_per_dollar": value_per_dollar,
             "watchlist_reason_flag": watchlist_reason_flag,
             "decision": decision,
+            "decision_reason": decision_reason,
         }
         scored_items.append(scored_item)
+
+    null_vram_ignores = [si["gpu_model"] for si in scored_items if si["decision"] == "IGNORE" and si["vram_gb"] is None and si["gpu_model"] is not None]
+    if null_vram_ignores:
+        top_null = Counter(null_vram_ignores).most_common(5)
+        print(f"Null VRAM IGNOREs with known GPU: {len(null_vram_ignores)}")
+        for model, count in top_null:
+            print(f"  {count}x {model}")
+    else:
+        print("Null VRAM IGNOREs with known GPU: 0")
 
     # Save JSONL
     OUT_JSONL.parent.mkdir(parents=True, exist_ok=True)

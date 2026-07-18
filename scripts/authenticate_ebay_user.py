@@ -132,8 +132,83 @@ def step2_exchange(callback_url):
         print("✅ Refresh token saved to .ebay_refresh_token (valid ~18 months)")
 
 
+def step_refresh():
+    """Refresh the access token using the saved refresh token."""
+    if not os.path.exists(".ebay_refresh_token"):
+        print("ERROR: .ebay_refresh_token not found. Run step 1 to log in via browser.", file=sys.stderr)
+        sys.exit(1)
+
+    with open(".ebay_refresh_token", "r") as f:
+        refresh_token = f.read().strip()
+
+    if not refresh_token:
+        print("ERROR: .ebay_refresh_token is empty. Run step 1 to log in via browser.", file=sys.stderr)
+        sys.exit(1)
+
+    client_id, client_secret, ru_name, api_base = _get_config()
+    token_url = f"{api_base}/identity/v1/oauth2/token"
+
+    print("Refreshing user access token via refresh_token...")
+    creds = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+    body = urllib.parse.urlencode({
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token,
+        "scope": "https://api.ebay.com/oauth/api_scope",
+    }).encode()
+
+    req = urllib.request.Request(
+        token_url,
+        data=body,
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Authorization": f"Basic {creds}",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        print(f"ERROR: HTTP {e.code}", file=sys.stderr)
+        print(e.read().decode("utf-8", errors="ignore"), file=sys.stderr)
+        sys.exit(1)
+
+    access_token = data.get("access_token")
+    new_refresh_token = data.get("refresh_token")
+
+    if not access_token:
+        print("ERROR: No access_token in response.", file=sys.stderr)
+        print(json.dumps(data, indent=2), file=sys.stderr)
+        sys.exit(1)
+
+    with open(".ebay_access_token", "w") as f:
+        f.write(access_token)
+
+    if new_refresh_token:
+        with open(".ebay_refresh_token", "w") as f:
+            f.write(new_refresh_token)
+
+    print("✅ User token refreshed and saved to .ebay_access_token (Valid for 2 hours)")
+
+
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        step2_exchange(sys.argv[1])
+        arg = sys.argv[1].strip()
+        if arg in ("--refresh", "refresh"):
+            step_refresh()
+        elif arg.startswith("http://") or arg.startswith("https://") or "code=" in arg:
+            step2_exchange(arg)
+        elif arg in ("--login", "--browser", "login"):
+            step1_open_browser()
+        else:
+            print(f"Unknown argument: {arg}", file=sys.stderr)
+            print("Usage: authenticate_ebay_user.py [--refresh | --login | <callback_url>]", file=sys.stderr)
+            sys.exit(1)
     else:
-        step1_open_browser()
+        # Default behavior: if refresh token exists, refresh; otherwise open browser
+        if os.path.exists(".ebay_refresh_token"):
+            step_refresh()
+        else:
+            step1_open_browser()
+

@@ -11,16 +11,24 @@
       "gpu", "vram_gb", "ram_gb", "cpu_model", "screen_size_inches",
       "screen_type", "touch", "paradigm", "connectivities"
     ],
-    "supported_platforms": ["ebay", "scorptec", "jb_hifi", "direct_oem"],
+    "supported_platforms": [
+      "EBAY", "SCORPTEC", "JB_HIFI", "LENOVO_OUTLET_AU", "HP_STORE_AU",
+      "ebay", "scorptec", "jb_hifi", "direct_oem"
+    ],
     "condition_vocabulary": ["NEW", "REFURB", "USED", "OPEN_BOX"]
   },
   "lanes": {
     "gaming_17_18": {
       "priority_order": 1,
-      "display_name": "Gaming — 17-18\" Desktop Replacements",
+      "display_name": "Gaming — 17-18\" Desktop Replacements & Flagship Value",
       "description": "High-TGP discrete CUDA/ROCm gaming laptops with large thermal envelopes and maximum VRAM capacity.",
       "target_screen_inches": [17, 18],
       "accepted_paradigms": ["discrete_cuda", "discrete_rocm"],
+      "model_patterns": [
+        "Alienware Area-51", "Alienware x17", "Alienware m18",
+        "Raider 18 HX", "GE76 Raider", "Predator Helios 18",
+        "ROG Strix Scar 18", "Legion Pro 7", "Legion 9i", "Aorus 17"
+      ],
       "minimum_requirements": {
         "vram_gb": 16,
         "system_ram_gb": 32
@@ -33,7 +41,10 @@
       "description": "Professional mobile workstations, creator laptops, and compact high-RAM touch rigs (e.g., 14-16\" HP ZBook with 64GB UMA + touch or discrete GPU).",
       "target_screen_inches": [14, 15, 16, 17],
       "accepted_paradigms": ["discrete_cuda", "apple_silicon_uma", "amd_uma"],
-      "brand_keywords": ["precision", "thinkpad p", "zbook", "proart", "creator"],
+      "brand_keywords": [
+        "precision", "thinkpad p", "thinkpad p16", "zbook fury", "zbook",
+        "proart p16", "proart", "blade 16", "razer blade", "creator"
+      ],
       "minimum_requirements": {
         "vram_gb_standard": 16,
         "vram_gb_touchscreen_exception": 12,
@@ -60,8 +71,12 @@
       "display_name": "UMA Dev Rigs & Workstation Outliers",
       "description": "AMD/Intel/Apple high-RAM unified rigs and compact workstations (e.g. 14\" HP ZBook UMA 64GB touch) that provide local-LLM pathways without discrete CUDA VRAM ceilings.",
       "target_screen_inches": [13, 14, 15, 16, 17, 18],
-      "accepted_paradigms": ["amd_uma", "apple_silicon_uma"],
-      "model_patterns": ["Strix Halo", "zbook", "ROG Z13", "ROG Z16", "ProArt PX13", "ProArt PX16", "Ryzen AI Max", "XG Mobile", "HX 370"],
+      "accepted_paradigms": ["amd_uma", "apple_silicon_uma", "intel_uma"],
+      "model_patterns": [
+        "Strix Halo", "ROG Flow Z13", "ROG Z16", "ProArt PX13", "ProArt PX16",
+        "HP ZBook Ultra G1a", "Ryzen AI Max", "ThinkPad P16s", "P16s Gen 3",
+        "HX 370", "zbook"
+      ],
       "minimum_requirements": {
         "system_ram_gb": 32
       },
@@ -147,9 +162,14 @@
     "vendor_risk_lens": {
       "description": "Modest additive bonuses and penalties derived from data/lf-vendor-risk.json and price/floor comparisons.",
       "vendor_type_bonuses_pts": {
-        "AUTHORISED_RESELLER": 4,
-        "RETAILER": 3,
+        "OEM_DIRECT": 5,
+        "OEM direct": 5,
         "OEM_OUTLET": 5,
+        "OEM outlet": 5,
+        "AUTHORISED_RESELLER": 4,
+        "Specialist retailer": 4,
+        "RETAILER": 3,
+        "National retailer": 3,
         "MARKETPLACE_STORE": 1,
         "MARKETPLACE_PRIVATE": 0
       },

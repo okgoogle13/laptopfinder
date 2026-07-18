@@ -17,7 +17,11 @@
   "properties": {
     "platform": {
       "type": "string",
-      "enum": ["ebay", "scorptec", "jb_hifi", "direct_oem"],
+      "enum": [
+        "ebay", "scorptec", "jb_hifi", "direct_oem",
+        "EBAY", "SCORPTEC", "JB_HIFI", "LENOVO_OUTLET_AU", "HP_STORE_AU",
+        "lenovo_outlet_au", "hp_store_au"
+      ],
       "description": "Source platform identifier."
     },
     "listing_id": {
@@ -39,7 +43,10 @@
     },
     "vendor_type": {
       "type": "string",
-      "enum": ["MARKETPLACE_PRIVATE", "MARKETPLACE_STORE", "RETAILER", "OEM_OUTLET"],
+      "enum": [
+        "MARKETPLACE_PRIVATE", "MARKETPLACE_STORE", "RETAILER", "OEM_OUTLET", "OEM_DIRECT",
+        "Specialist retailer", "National retailer", "OEM outlet", "OEM direct"
+      ],
       "default": "MARKETPLACE_PRIVATE",
       "description": "Classified vendor category driving seller/vendor risk scoring."
     },
