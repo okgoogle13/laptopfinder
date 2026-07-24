@@ -109,6 +109,20 @@
 28. HP OmniBook Ultra Ryzen AI Max
 29. ASUS laptop Ryzen AI Max 395
 
+# --- Intel UMA Laptops — Arc iGPU (Core Ultra / Lunar Lake / Panther Lake) ---
+# Laptop form factor only. Narrower memory bus than Strix Halo (dual-channel
+# LPDDR5X vs Strix Halo's wider bus) but genuine unified-memory flexibility
+# on 32-64GB configs. Arc 140V/130V = Lunar Lake. Arc B390/Xe3 = Panther Lake.
+# Verify llama.cpp Vulkan/SYCL backend maturity before purchase.
+
+30. ThinkPad X9 Aura Edition Intel Arc
+31. Yoga Slim 7i Ultra Aura Edition Intel Arc
+32. Core Ultra Arc laptop 32GB
+33. Core Ultra Arc laptop 64GB
+34. Lunar Lake laptop Arc 140V
+35. Panther Lake laptop Arc graphics
+36. Yoga Pro 7i Aura Edition Intel Arc
+
 
 # --- Workstation Laptop Models — GPU Often Omitted from Title ---
 # Enterprise chassis that ship with RTX A-series or Ada workstation GPUs.
