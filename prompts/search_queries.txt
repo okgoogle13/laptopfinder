@@ -123,6 +123,21 @@
 35. Panther Lake laptop Arc graphics
 36. Yoga Pro 7i Aura Edition Intel Arc
 
+#   Brand-agnostic Intel Core Ultra/Arc UMA queries (Jul 2026) ---
+#   ASUS ExpertBook Ultra: Arc PRO graphics, up to 64GB LPDDR5x - matches Strix Halo ceiling.
+#   ASUS Zenbook S14: Lunar Lake Core Ultra 258V, Arc 140V, 32GB LPDDR5x (Lunar Lake max).
+#   HP: multiple Core Ultra 7 + Arc 140V, 32GB LPDDR5x SKUs sold direct via HP AU store.
+#   Panther Lake reference platform (Lenovo IdeaPad Pro 5) uses new Arc B390 iGPU - track for brand spread.
+
+37. ASUS Zenbook S14 laptop Lunar Lake 32GB
+38. ASUS ExpertBook Ultra Arc Pro 64GB
+39. ASUS Zenbook S14 Panther Lake laptop
+40. HP OmniBook Core Ultra Arc 140V 32GB
+41. HP laptop Intel Arc 140V 32GB
+42. Panther Lake laptop Arc B390
+43. Acer laptop Core Ultra Arc iGPU 32GB
+44. Dell laptop Core Ultra 9 Arc iGPU 32GB
+
 
 # --- Workstation Laptop Models — GPU Often Omitted from Title ---
 # Enterprise chassis that ship with RTX A-series or Ada workstation GPUs.
