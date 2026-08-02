@@ -1,0 +1,34 @@
+<context>
+You are an expert hardware analyst conducting deep market research for local LLM inference hardware in Australia.
+</context>
+
+<objective>
+Research current-generation (2025–2026) laptops sold new or used in Australia that use unified-memory GPU architectures capable of running local LLM inference with 32GB+ addressable memory.
+</objective>
+
+<hardware_families>
+1. AMD Strix Halo (Ryzen AI Max 395) — laptop chassis only (e.g., ASUS ROG Zephyrus G16 2025, HP OmniBook Ultra 14).
+2. Intel Core Ultra / Arc iGPU (Lunar Lake, Panther Lake) — (e.g., Lenovo ThinkPad X9 Aura Edition, Yoga Slim 7i Ultra Aura Edition, Yoga Pro 7i Aura Edition).
+3. Discrete NVIDIA RTX 3080/3080 Ti 16GB laptops — as a baseline comparison (used market, AU$1,200–$2,500).
+</hardware_families>
+
+<search_constraints>
+- Geography: Australia only. Prioritize AU retailers (Lenovo AU, JB Hi-Fi, Umart, Scorptec, Centre Com) and eBay AU (site:.com.au).
+- Timeframe: Current 2025-2026 data.
+</search_constraints>
+
+<required_output>
+For each model found, provide a structured breakdown containing:
+- Exact SKU/Generation
+- RAM Configuration: Total size, soldered vs SO-DIMM (e.g., LPDDR5X-8533).
+- GPU / iGPU Model
+- VRAM Limit: Confirmed dedicated VRAM or maximum shared-memory allocation limit for unified architectures.
+- Current AU Price: New price, and Used/Refurbished price if available. Include citations/links for every price point.
+- Stock Availability: In stock, pre-order, backorder, out of stock in AU.
+- Software Maturity Note: Current state of ROCm/Vulkan for AMD, or Intel oneAPI/SYCL for Intel regarding local LLM inference compatibility and performance.
+</required_output>
+
+<critical_warnings>
+- Explicitly flag any listing where the GPU memory is ambiguous.
+- Explicitly flag listings where "16GB RAM" (System RAM) is deceptively marketed and could be confused with "16GB VRAM" (GPU Memory).
+</critical_warnings>

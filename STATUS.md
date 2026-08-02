@@ -21,7 +21,7 @@ _Update these rows as work completes. Keep estimates rough and honest._
 
 ## NEXT_TASK
 
-- [ ] **S10-00 (Phase 1):** Execute peer review, audit, critique, and flag gaps of the new scoring rules and workflows defined in [handover.md](file:///Users/okgoogle13/Projects/laptopfinder/docs/handover.md).
+- [x] **S10-00 (Phase 1):** Execute peer review, audit, critique, and flag gaps of the new scoring rules and workflows defined in [handover.md](file:///Users/okgoogle13/Projects/laptopfinder/docs/handover.md). *(PLANS.md)*
 - [ ] **S10-01 (Phase 1):** Clean up obsolete `scripts/ebay_sniper.py` duplicate file and ensure `Makefile` targets reference `src/laptopfinder/runners/ebay_sniper.py`.
 - [ ] **S10-02 (Phase 2):** Refactor `src/laptopfinder/decide.py` to ingest `Listing` instances and load unified `static_scoring_rules.json` and `lf-vendor-risk.json` parameters.
 - [ ] **S10-03 (Phase 3):** Migrate `src/laptopfinder/runners/ebay_sniper.py` and `src/laptopfinder/ingest_csv.py` to wrap raw listings in adapters before decision scoring.

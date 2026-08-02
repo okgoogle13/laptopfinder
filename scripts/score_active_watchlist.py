@@ -231,6 +231,252 @@ def extract_hardware_from_title(title: str) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# Multi-factor hardware rubric scorer
+# Weights: RAM 0.35 | CPU 0.25 | Thermals 0.20 | GPU VRAM 0.15 | Storage 0.05
+# ---------------------------------------------------------------------------
+
+_HW_RUBRIC = {
+    "ram_capacity": {
+        "weight": 0.35,
+        "metrics": {
+            "8gb": 0.1,
+            "16gb": 0.7,
+            "32gb": 0.9,
+            "64gb_plus": 1.0,
+        },
+    },
+    "cpu_tier": {
+        "weight": 0.25,
+        "metrics": {
+            "pre_avx2": 0.0,
+            "avx2_legacy": 0.3,
+            "avx2_modern_mobile": 0.6,
+            "avx512_or_equivalent": 0.9,
+            "arm_high_efficiency": 0.9,
+        },
+    },
+    "thermals": {
+        "weight": 0.20,
+        "metrics": {
+            "fanless_ultrathin": 0.2,
+            "thin_light_single_fan": 0.4,
+            "balanced_dual_fan": 0.7,
+            "gaming_dual_fan": 0.9,
+            "mobile_workstation": 1.0,
+        },
+    },
+    "gpu_vram": {
+        "weight": 0.15,
+        "metrics": {
+            "none_igpu": 0.1,
+            "4gb": 0.4,
+            "6gb": 0.6,
+            "8gb": 0.8,
+            "12gb": 0.9,
+            "16gb_plus": 1.0,
+        },
+    },
+    "storage_io": {
+        "weight": 0.05,
+        "metrics": {
+            "sata_ssd_or_emmc": 0.1,
+            "nvme_gen3": 0.6,
+            "nvme_gen4_plus": 1.0,
+        },
+    },
+}
+
+
+def _bucket_ram(ram_gb: float | None) -> str:
+    if not ram_gb or ram_gb < 16:
+        return "8gb"
+    if ram_gb < 32:
+        return "16gb"
+    if ram_gb < 64:
+        return "32gb"
+    return "64gb_plus"
+
+
+def _bucket_gpu_vram(vram_gb: float | None) -> str:
+    if not vram_gb:
+        return "none_igpu"
+    if vram_gb <= 4:
+        return "4gb"
+    if vram_gb <= 6:
+        return "6gb"
+    if vram_gb <= 8:
+        return "8gb"
+    if vram_gb <= 12:
+        return "12gb"
+    return "16gb_plus"
+
+
+def _bucket_cpu(cpu_model: str | None) -> str:
+    """Classify a CPU model string into one of 5 AVX/arch tiers.
+
+    Ordered from highest to lowest capability so the first match wins.
+    """
+    s = (cpu_model or "").lower()
+    # Apple Silicon and Snapdragon X Elite — efficient + high-BW
+    if re.search(r"\b(m[1-5]|snapdragon\s*x)\b", s):
+        return "arm_high_efficiency"
+    # Intel Core Ultra (Meteor/Arrow Lake) and AMD Zen 4 (7x40/8x40 series)
+    if re.search(r"\b(core\s*ultra|i[3579]-1[4-9]\d{3}|ryzen\s*[579]\s*[78][0-9]{3}[a-z]?)\b", s):
+        return "avx512_or_equivalent"
+    # Intel 11th–13th gen and AMD Zen 3/3+ (Ryzen 5x00 series)
+    if re.search(r"\b(i[3579]-1[123]\d{3}|ryzen\s*[579]\s*[56][0-9]{3}[a-z]?)\b", s):
+        return "avx2_modern_mobile"
+    # Intel 8th–10th gen and AMD Zen 1/2 (Ryzen 1x00–4x00)
+    if re.search(r"\b(i[3579]-[89]\d{3}|i[3579]-10\d{3}|ryzen\s*[357]\s*[1-4][0-9]{3}[a-z]?)\b", s):
+        return "avx2_legacy"
+    # Anything older (pre-Haswell, Atom, etc.) or unrecognised
+    return "pre_avx2"
+
+
+# Map the existing lane/chassis tags → thermal rubric keys.
+# The watchlist scorer derives lane from title keywords; we reuse that signal.
+_LANE_TO_THERMAL = {
+    "macbook_16_high_ram": "fanless_ultrathin",    # Apple Silicon: passively cooled
+    "uma_dev_rig": "balanced_dual_fan",             # Strix Halo / ProArt UMA rigs
+    "workstation_16_touch_or_pro": "mobile_workstation",
+    "gaming_17_18": "gaming_dual_fan",
+}
+
+
+def _bucket_thermals(lane: str | None) -> str:
+    return _LANE_TO_THERMAL.get(lane or "", "balanced_dual_fan")
+
+
+def _bucket_storage(storage_type: str | None) -> str:
+    """Map a free-text storage descriptor to a rubric key.
+
+    Falls back to nvme_gen3 when the type is unknown — a safe middle ground.
+    """
+    s = (storage_type or "").lower()
+    if re.search(r"(emmc|sata)", s):
+        return "sata_ssd_or_emmc"
+    if re.search(r"gen\s*4|pcie\s*4|gen4", s):
+        return "nvme_gen4_plus"
+    # Default: most modern laptop SSDs are at least NVMe Gen 3
+    return "nvme_gen3"
+
+
+def is_value_candidate(item: dict) -> bool:
+    """Determine whether an item qualifies as a strong value candidate.
+
+    Requires capability guardrails:
+        - scope_ok is True
+        - vram_gb >= 12
+        - system_ram_gb >= 32
+        - llm_hw_score >= 0.50
+
+    And either:
+        - price_band_tag in ["VALUE_ZONE", "FAIR_MARKET"] and value_per_dollar >= 0.018
+        - or non-standard unicorn: screen size <= 14.5, vram_gb >= 16, value_per_dollar >= 0.015
+    """
+    if item.get("scope_ok") is not True:
+        return False
+    vram_gb = item.get("vram_gb")
+    if vram_gb is None or vram_gb < 12:
+        return False
+    system_ram_gb = item.get("system_ram_gb")
+    if system_ram_gb is None or system_ram_gb < 32:
+        return False
+    llm_hw_score = item.get("llm_hw_score")
+    if llm_hw_score is None or llm_hw_score < 0.50:
+        return False
+
+    price_band_tag = item.get("price_band_tag")
+    value_per_dollar = item.get("value_per_dollar")
+    if value_per_dollar is None:
+        value_per_dollar = 0.0
+
+    if price_band_tag in ["VALUE_ZONE", "FAIR_MARKET"] and value_per_dollar >= 0.018:
+        return True
+
+    screen_size = item.get("screen_inches") if item.get("screen_inches") is not None else item.get("screen_size_inch")
+    if screen_size is not None and 0 < screen_size <= 14.5 and vram_gb >= 16 and value_per_dollar >= 0.015:
+        return True
+
+    return False
+
+
+def decide_watchlist_item(item: dict) -> tuple[str, str | None, bool]:
+    """Determine (decision, decision_reason, value_candidate) for a watchlist item."""
+    data_integrity_ok = item.get("data_integrity_ok", True)
+    vendor_fraud_suspect = item.get("vendor_fraud_suspect", False)
+    risk_score = item.get("risk_score", 1.0)
+    price = item.get("price", 1000.0)
+    vram_gb = item.get("vram_gb")
+    system_ram_gb = item.get("system_ram_gb")
+    price_band_tag = item.get("price_band_tag", "FAIR_MARKET")
+    scope_ok = item.get("scope_ok", False)
+    llm_hw_score = item.get("llm_hw_score", 0.0)
+    watchlist_reason_flag = item.get("watchlist_reason_flag")
+    rocm_disclosure = item.get("rocm_disclosure", False)
+    missing_data_penalty_pts = item.get("missing_data_penalty_pts", 0)
+    value_per_dollar = item.get("value_per_dollar", 0.0)
+    gpu_model = item.get("gpu_model")
+
+    val_candidate = is_value_candidate(item)
+
+    if not data_integrity_ok or (vendor_fraud_suspect and risk_score >= 7.0) or (price is None and vram_gb is None and system_ram_gb is None) or price_band_tag == "BELOW_FLOOR":
+        return "IGNORE", "data_integrity_or_floor", val_candidate
+    if not scope_ok:
+        return "IGNORE", "scope_fail", val_candidate
+    if risk_score > 3.0:
+        return "IGNORE", "risk_gate", val_candidate
+    if watchlist_reason_flag is not None or (rocm_disclosure and llm_hw_score >= 0.55) or (missing_data_penalty_pts < 0 and scope_ok and llm_hw_score >= 0.50 and price_band_tag in ["VALUE_ZONE", "FAIR_MARKET"]) or (price is None and scope_ok and llm_hw_score >= 0.50):
+        return "WATCH", "watch_criteria_or_missing_data", val_candidate
+    if scope_ok and llm_hw_score >= 0.57 and price_band_tag in ["VALUE_ZONE", "FAIR_MARKET"] and (value_per_dollar or 0) >= 0.015:
+        return "SHORTLIST", "shortlist_criteria", val_candidate
+    if val_candidate:
+        return "VALUE_SHORTLIST", "value_shortlist_candidate", val_candidate
+    if scope_ok and llm_hw_score >= 0.50 and (missing_data_penalty_pts < 0 or (value_per_dollar or 0) >= 0.012):
+        return "WATCH", "value_watch_needs_spec_check", val_candidate
+    if scope_ok is True and vram_gb is None and gpu_model in TRUSTED_NULL_VRAM_MODELS and llm_hw_score >= 0.45:
+        return "WATCH", "trusted_gpu_null_vram_watch", val_candidate
+    return "IGNORE", "default_ignore", val_candidate
+
+
+def compute_llm_hw_score(laptop: dict) -> float:
+    """Return a float in [0, 1] that combines:
+
+    - RAM          (weight 0.35)
+    - CPU tier     (weight 0.25)
+    - Thermals     (weight 0.20)
+    - GPU VRAM     (weight 0.15)
+    - Storage      (weight 0.05)
+
+    using a simple bucket + lookup + weighted-sum scheme.
+
+    Accepts a laptop dict with optional keys:
+        ram_gb, cpu_model, lane, vram_gb, storage_type
+
+    This score drives sorting/ranking; it does not alter SHORTLIST/WATCH/IGNORE
+    routing, which remains governed by decide.py + static_reference_layer.json.
+    """
+    ram_gb = laptop.get("ram_gb")
+    cpu_model = laptop.get("cpu_model")
+    lane = laptop.get("lane")
+    vram_gb = laptop.get("vram_gb")
+    storage_type = laptop.get("storage_type")
+
+    total = 0.0
+    for dim_key, bucket_key in [
+        ("ram_capacity", _bucket_ram(ram_gb)),
+        ("cpu_tier", _bucket_cpu(cpu_model)),
+        ("thermals", _bucket_thermals(lane)),
+        ("gpu_vram", _bucket_gpu_vram(vram_gb)),
+        ("storage_io", _bucket_storage(storage_type)),
+    ]:
+        dim = _HW_RUBRIC[dim_key]
+        score = dim["metrics"].get(bucket_key, 0.0)
+        total += score * dim["weight"]
+    return min(round(total, 4), 1.0)
+
+
 def main():
     if not IN_PATH.exists() or not SRL_PATH.exists() or not RULES_PATH.exists():
         print("ERROR: Missing required input/config files.", file=sys.stderr)
@@ -264,7 +510,7 @@ def main():
 
     scored_items = []
     lane_counts = {"gaming_17_18": 0, "workstation_16_touch_or_pro": 0, "macbook_16_high_ram": 0, "uma_dev_rig": 0}
-    decision_counts = {"SHORTLIST": 0, "WATCH": 0, "IGNORE": 0}
+    decision_counts = {"SHORTLIST": 0, "VALUE_SHORTLIST": 0, "WATCH": 0, "IGNORE": 0}
 
     for item in active_rows:
         title = item["title"]
@@ -381,6 +627,16 @@ def main():
         if item.get("cpu_model") is None and not re.search(r'\b(i[579]|ryzen|m[1-5]|xeon|ultra\s*\d|cu[579])\b', title, re.I):
             missing_data_penalty_pts -= 2
 
+        # --- Multi-factor hardware rubric score (drives sorting/ranking) ---
+        score = compute_llm_hw_score({
+            "ram_gb": system_ram_gb,
+            "cpu_model": item.get("cpu_model"),
+            "lane": lane,
+            "vram_gb": vram_gb,
+            "storage_type": item.get("storage_type"),
+        })
+        llm_hw_score = score
+
         gen = gen_by_name.get(gpu_model)
         if is_uma:
             gen = "UMA_Architecture"
@@ -431,15 +687,8 @@ def main():
 
         adjusted_score = round(llm_index_score * workload_penalty_mult) + form_factor_bonus_pts + bottleneck_pts + connectivity_bonus_pts + vendor_risk_adjustment_pts + missing_data_penalty_pts
 
-        # 0-100 Score Normalization
-        ceilings = {
-            "gaming_17_18": 85,
-            "workstation_16_touch_or_pro": 80,
-            "macbook_16_high_ram": 90,
-            "uma_dev_rig": 85
-        }
-        lane_ceiling = ceilings.get(lane, 85)
-        score_0_100 = max(0, min(100, round((adjusted_score / lane_ceiling) * 100)))
+        # 0-100 Score Normalization — derived from multi-factor llm_hw_score
+        score_0_100 = max(0, min(100, round(llm_hw_score * 100)))
 
         baseline_median_aud = baselines.get(gpu_model)
         value_per_dollar = round(adjusted_score / price, 5) if price and price > 0 else None
@@ -469,36 +718,25 @@ def main():
                 watchlist_reason_flag = wl["reason"]
                 break
 
-        decision_reason = None
-        if not data_integrity_ok or (vendor_info.get("flags", {}).get("fraud_suspect") and risk_score >= 7.0) or (price is None and vram_gb is None and system_ram_gb is None) or price_band_tag == "BELOW_FLOOR":
-            decision = "IGNORE"
-            decision_reason = "data_integrity_or_floor"
-        elif not scope_ok and adjusted_score < 45:
-            decision = "IGNORE"
-            decision_reason = "scope_fail_low_score"
-        elif risk_score > 3.0:
-            decision = "IGNORE"
-            decision_reason = "risk_gate"
-        elif watchlist_reason_flag is not None or (rocm_disclosure and adjusted_score >= 50) or (missing_data_penalty_pts < 0 and scope_ok and adjusted_score >= 45 and price_band_tag in ["VALUE_ZONE", "FAIR_MARKET"]) or (price is None and scope_ok and adjusted_score >= 45):
-            decision = "WATCH"
-            decision_reason = "watch_criteria_or_missing_data"
-            if missing_data_penalty_pts < 0:
-                watchlist_reason_flag = (watchlist_reason_flag + "; " if watchlist_reason_flag else "") + "needs_manual_spec_check"
-        elif scope_ok and adjusted_score >= 50 and price_band_tag in ["VALUE_ZONE", "FAIR_MARKET"] and (value_per_dollar or 0) >= 0.015:
-            decision = "SHORTLIST"
-            decision_reason = "value_shortlist"
-        elif scope_ok and adjusted_score >= 45 and (missing_data_penalty_pts < 0 or (value_per_dollar or 0) >= 0.012):
-            decision = "WATCH"
-            decision_reason = "value_watch_needs_spec_check"
-            if missing_data_penalty_pts < 0:
-                watchlist_reason_flag = (watchlist_reason_flag + "; " if watchlist_reason_flag else "") + "needs_manual_spec_check"
-        elif scope_ok is True and vram_gb is None and gpu_model in TRUSTED_NULL_VRAM_MODELS and adjusted_score >= 40:
-            decision = "WATCH"
-            decision_reason = "trusted_gpu_null_vram_watch"
+        decision, decision_reason, val_candidate = decide_watchlist_item({
+            "data_integrity_ok": data_integrity_ok,
+            "vendor_fraud_suspect": bool(vendor_info.get("flags", {}).get("fraud_suspect")),
+            "risk_score": risk_score,
+            "price": price,
+            "vram_gb": vram_gb,
+            "system_ram_gb": system_ram_gb,
+            "price_band_tag": price_band_tag,
+            "scope_ok": scope_ok,
+            "llm_hw_score": llm_hw_score,
+            "watchlist_reason_flag": watchlist_reason_flag,
+            "rocm_disclosure": rocm_disclosure,
+            "missing_data_penalty_pts": missing_data_penalty_pts,
+            "value_per_dollar": value_per_dollar,
+            "gpu_model": gpu_model,
+            "screen_inches": screen_inches,
+        })
+        if decision == "WATCH" and missing_data_penalty_pts < 0:
             watchlist_reason_flag = (watchlist_reason_flag + "; " if watchlist_reason_flag else "") + "needs_manual_spec_check"
-        else:
-            decision = "IGNORE"
-            decision_reason = "default_ignore"
 
         decision_counts[decision] += 1
 
@@ -526,10 +764,12 @@ def main():
             "scope_ok": scope_ok,
             "risk_score": risk_score,
             "llm_index_score": llm_index_score,
+            "llm_hw_score": llm_hw_score,
             "adjusted_score": adjusted_score,
             "score_0_100": score_0_100,
             "price_band_tag": price_band_tag,
             "value_per_dollar": value_per_dollar,
+            "value_candidate": val_candidate,
             "watchlist_reason_flag": watchlist_reason_flag,
             "decision": decision,
             "decision_reason": decision_reason,
@@ -553,9 +793,10 @@ def main():
 
     print(f"Saved {len(scored_items)} active scored items to {OUT_JSONL}")
     print(f"\nDecision Summary across {len(scored_items)} Active Items:")
-    print(f"  - SHORTLIST: {decision_counts['SHORTLIST']}")
-    print(f"  - WATCH    : {decision_counts['WATCH']}")
-    print(f"  - IGNORE   : {decision_counts['IGNORE']}")
+    print(f"  - SHORTLIST      : {decision_counts['SHORTLIST']}")
+    print(f"  - VALUE_SHORTLIST: {decision_counts['VALUE_SHORTLIST']}")
+    print(f"  - WATCH          : {decision_counts['WATCH']}")
+    print(f"  - IGNORE         : {decision_counts['IGNORE']}")
 
     # Render Markdown Matrix
     md_lines = [
@@ -563,7 +804,7 @@ def main():
         "",
         "Scored against `config/static_reference_layer.json`, `config/static_scoring_rules.json`, and `data/lf-vendor-risk.json`.",
         "",
-        f"**Decision Summary**: `SHORTLIST`: **{decision_counts['SHORTLIST']}** | `WATCH`: **{decision_counts['WATCH']}** | `IGNORE`: **{decision_counts['IGNORE']}**",
+        f"**Decision Summary**: `SHORTLIST`: **{decision_counts['SHORTLIST']}** | `VALUE_SHORTLIST`: **{decision_counts['VALUE_SHORTLIST']}** | `WATCH`: **{decision_counts['WATCH']}** | `IGNORE`: **{decision_counts['IGNORE']}**",
         "",
     ]
 
@@ -600,7 +841,7 @@ def main():
 
     watch_items = [si for si in scored_items if si["decision"] == "WATCH"]
     if watch_items:
-        watch_items.sort(key=lambda x: (x["adjusted_score"] or 0), reverse=True)
+        watch_items.sort(key=lambda x: (x["llm_hw_score"] or 0.0), reverse=True)
         md_lines.append(f"## Promising Watchlist Candidates ({len(watch_items)} Watch Items)")
         md_lines.append("_Items requiring manual specification check or matching a watchlist criteria._")
         md_lines.append("")
@@ -615,6 +856,24 @@ def main():
             md_lines.append(f"| `{si['lane']}` | `{plat_str}` | `{vtype_str}` | [{t_short}]({si['url'] or ''}) | {p_str} | **{si.get('score_0_100', 0)}/100** | **{si['adjusted_score']}** | `{reason}` |")
         md_lines.append("")
 
+    value_items = [si for si in scored_items if si["decision"] == "VALUE_SHORTLIST"]
+    if value_items:
+        value_items.sort(key=lambda x: (x["value_per_dollar"] or 0.0, x["llm_hw_score"] or 0.0), reverse=True)
+        md_lines.append(f"## Best Value LLM Rigs ({len(value_items)} Value Picks)")
+        md_lines.append("_High value-per-dollar rigs meeting strong capability guardrails._")
+        md_lines.append("")
+        md_lines.append("| Lane | Listing Title | Price (AUD) | VRAM | System RAM | HW Score | Value/$ |")
+        md_lines.append("|---|---|---|---|---|---|---|")
+        for si in value_items:
+            p_str = f"${si['current_price']:,.2f}" if si["current_price"] else "N/A"
+            v_str = f"{si['value_per_dollar']:.5f}" if si["value_per_dollar"] else "N/A"
+            vram_str = f"{si['vram_gb']}GB" if si["vram_gb"] else "?"
+            ram_str = f"{si['system_ram_gb']}GB" if si["system_ram_gb"] else "?"
+            t_short = (si["title"][:50] + "...") if len(si["title"]) > 53 else si["title"]
+            hw_score_str = f"{si['llm_hw_score']:.4f}" if si["llm_hw_score"] is not None else "N/A"
+            md_lines.append(f"| `{si['lane']}` | [{t_short}]({si['url'] or ''}) | {p_str} | {vram_str} | {ram_str} | **{hw_score_str}** | `{v_str}` |")
+        md_lines.append("")
+
     with open(OUT_MD, "w", encoding="utf-8") as f:
         f.write("\n".join(md_lines) + "\n")
 
@@ -623,5 +882,35 @@ def main():
 
 
 if __name__ == "__main__":
+    # ------------------------------------------------------------------
+    # Dev sanity check: demonstrates that balanced hardware beats a
+    # GPU-heavy / RAM-starved machine.  Run: python scripts/score_active_watchlist.py
+    #
+    # Laptop A: 8 GB RAM, i5-8250U, fanless ultrabook chassis, 4 GB RTX 3050, SATA SSD.
+    # Laptop B: 16 GB RAM, Ryzen 5 5500U, balanced dual-fan chassis, iGPU only, NVMe Gen3.
+    # ------------------------------------------------------------------
+    laptop_a = {
+        "ram_gb": 8,
+        "cpu_model": "i5-8250U",
+        "lane": "macbook_16_high_ram",  # fanless_ultrathin thermal bucket
+        "vram_gb": 4,
+        "storage_type": "sata",
+    }
+    laptop_b = {
+        "ram_gb": 16,
+        "cpu_model": "Ryzen 5 5500U",
+        "lane": "gaming_17_18",  # gaming_dual_fan thermal bucket
+        "vram_gb": None,          # iGPU only → none_igpu
+        "storage_type": "nvme gen3",
+    }
+    score_a = compute_llm_hw_score(laptop_a)
+    score_b = compute_llm_hw_score(laptop_b)
+    print("--- compute_llm_hw_score sanity check ---")
+    print(f"Laptop A (8GB RAM / i5-8250U / fanless / 4GB dGPU / SATA):      {score_a:.4f}")
+    print(f"Laptop B (16GB RAM / R5-5500U / gaming dual-fan / iGPU / Gen3): {score_b:.4f}")
+    assert score_b > score_a, f"FAIL: expected B ({score_b:.4f}) > A ({score_a:.4f})"
+    print("PASS: Laptop B scores higher — RAM + CPU + thermals dominate over small dGPU VRAM.")
+    print()
+
     sys.exit(main())
 

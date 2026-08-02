@@ -9,7 +9,7 @@ metadata:
 
 **Why:** Batch runners (`ebay_hunter.py`) introduce email/LLM latency and token costs that miss underpriced "Buy It Now" private listings. To solve this, a lean, token-free background sniper (`scripts/ebay_sniper.py`) was implemented for instantaneous acquisition of high-VRAM/UMA hardware in AU, alerting via macOS iMessage.
 
-**Status:** Complete (Stages 1–3). 174 tests green. Dry-run verified against live eBay API. Waiting for user sign-off to start background daemon via `make start-sniper` (Stage 4). Handover detailed in `handover.md` and `planning/laptopfinder-ebay-sniper-deep-plan.md`.
+**Status:** Complete (Stages 1–3). 174 tests green. Dry-run verified against live eBay API. Waiting for user sign-off to start background daemon via `make start-sniper` (Stage 4). Handover detailed in `handover.md` (the older `planning/laptopfinder-ebay-sniper-deep-plan.md` is now archived).
 
 ## Changes shipped
 - `scripts/ebay_sniper.py` — Flat, Karpathy-compliant daemon with national flagship sweep (Strategy A) and local Melbourne algorithmic pricing sweep (Strategy B), HTTP 429 backoff / 401 token auto-refresh, and iMessage alerting.

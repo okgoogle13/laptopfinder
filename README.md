@@ -35,10 +35,8 @@ These are the only files downstream agents and manual review should read. Overwr
 
 ## Architecture & Pipeline
 
-- **Primary Live Path (`ebay_hunter.py`):** The default structured eBay acquisition runner. It calls the Browse API, enriches with Gemini, reuses the Stage 2 grounding firewall and decision engine, and can email shortlist targets.
-- **Legacy Live Paths:** The unstructured raw-text runners (e.g., `make pipeline`) and auxiliary API wrappers (e.g., `ebay_api.py`) are legacy, archival, or experimental workflows.
-- **Stage 1 — Discovery [LEGACY]:** parses raw search text, extracts candidates, generates `inferred_hint` fields only. Fact-shaped keys are rejected.
-- **Stage 1A — Handoff [LEGACY]:** human/agent assembles the selected candidate's hints into a typed handoff packet. Only this packet crosses into Stage 2.
+- **Primary Live Path (`ebay_sniper.py`):** The default structured eBay AU acquisition daemon. It polls the Browse API, applies local rules directly, and pushes alerts without LLM dependencies.
+- **Legacy Live Paths (`legacy/ebay_hunter.py`):** The older unstructured raw-text runners, legacy LLM enrichment pipelines, and Stage 1/1A hints-based parsing. These are archival workflows.
 - **Stage 2 — Analysis:** promotes hints to confirmed facts only when `full_listing_text` explicitly supports them (word-boundary regex). `vram_capacity` is `{semantic_value, verbatim_quote}|null`; `missing_information` is 6 boolean flags.
 - **Decision Engine (`decide.py`):** outputs `SHORTLIST` / `MONITOR` / `SKIP` plus a `llm_index_score` (0–100). Score is informational; routing is threshold-driven.
 

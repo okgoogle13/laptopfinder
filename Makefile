@@ -1,4 +1,5 @@
 .PHONY: test lint pipeline live live-daemon live-stop live-tail hunt status \
+        check-operator-surface operator/help \
         pwm-preflight \
         pwm-floor-sync-prep pwm-floor-sync-check \
         pwm-watch-grad-prep pwm-watch-grad-check \
@@ -24,7 +25,7 @@ lint:
 pipeline:
 	@test -n "$(STAGE1)" || (echo "ERROR: Set STAGE1=<path>" && exit 1)
 	@test -n "$(STAGE2)" || (echo "ERROR: Set STAGE2=<path>" && exit 1)
-	.venv/bin/python -m laptopfinder.core pipeline $(STAGE1) $(STAGE2)
+	.venv/bin/python -m laptopfinder pipeline $(STAGE1) $(STAGE2)
 
 # Run the AU sniper live in the foreground (requires credentials via 1Password).
 live:
@@ -58,6 +59,27 @@ hunt:
 	$(OP_RUN) .venv/bin/python -m laptopfinder.runners.hunt \
 	  --config $(CONFIG) \
 	  $(if $(DRY_RUN),--dry-run)
+
+check-operator-surface:
+	bash scripts/check_operator_surface.sh
+
+operator/help:
+	@echo "Laptopfinder Operator Command Help"
+	@echo "=================================="
+	@echo "Available run_modes in SKILL.md:"
+	@echo "  - fixtures_only     : Phase 0-1 (sanity run, local fixtures)"
+	@echo "  - sniper_preflight  : Phase 0 only (checks operator surface)"
+	@echo "  - sniper_live       : Phase 0-5 (polls Browse API, alerts via iMessage)"
+	@echo "  - hunter_dry_run    : Phase 0-5 (dry ad hoc sweep, zero state writes)"
+	@echo "  - hunter_live       : Phase 0-5 (full ad hoc sweep with alerts)"
+	@echo ""
+	@echo "Key Make Targets:"
+	@echo "  make check-operator-surface"
+	@echo "  make pipeline STAGE1=<path> STAGE2=<path>"
+	@echo "  make status"
+	@echo "  make live            (runs sniper)"
+	@echo "  make live-daemon     (runs sniper in background)"
+	@echo "  make hunt CONFIG=<path> [DRY_RUN=1]  (runs hunter)"
 
 # ─── PWM: Sniper Pre-flight Gate ───────────────────────────────────────────────
 pwm-preflight:

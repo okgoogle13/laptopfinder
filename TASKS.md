@@ -23,7 +23,7 @@ All sprints below are complete unless noted. Full Why/Status/Shipped detail live
 - Sprint 7 — eBay Browse & Developer API Discovery Expansion — mostly complete, Batch C blocked on human D1 (OAuth scope request)
 - Sprint 8 — Hardening Closeout & Daemon Reliability — in progress
 - Sprint 9 — PWM Workflow Implementation — complete
-- Sprint 10 — Platform-Agnostic Integration & Refactoring — pending (detailed plan saved at [simplification plan](file:///Users/okgoogle13/Projects/laptopfinder/memory/plans/2026-07-18-engine-simplification-plan.md))
+- Sprint 10 — Platform-Agnostic Integration & Refactoring — pending (see STATUS.md for active tasks, detailed plan saved at [simplification plan](file:///Users/okgoogle13/Projects/laptopfinder/memory/plans/2026-07-18-engine-simplification-plan.md))
 
 **Platform priority:** eBay AU is the primary target for all remaining sprints. eBay API runners plus the sniper are primary. Gumtree AU is secondary/opportunistic. Facebook Marketplace is deferred to discovery-only; no full scraping parity.
 

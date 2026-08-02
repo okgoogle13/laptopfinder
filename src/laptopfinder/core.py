@@ -98,7 +98,7 @@ def run_pipeline(stage1_fixture: str | Path, stage2_fixture: str | Path) -> dict
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="python -m laptopfinder.core",
+        prog="python -m laptopfinder",
         description="laptopfinder Stage 1 / Stage 2 / decision CLI",
     )
     subparsers = parser.add_subparsers(dest="mode", required=True)
@@ -142,6 +142,4 @@ def main(argv: list[str] | None = None) -> int:
         print(f"FAILED: {e}", file=sys.stderr)
         return 1
 
-if __name__ == "__main__":
-    sys.exit(main())
 

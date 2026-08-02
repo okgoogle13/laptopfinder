@@ -210,7 +210,7 @@ class TestDecide:
             "vram_gb", "vram_tier", "is_target", "is_watch_only",
             "risk_gate_passed", "recommended_action", "reasons",
             "is_uma_platform", "uma_ram_gb", "is_radeon_mobile", "has_egpu_bundle",
-            "llm_index_score", "paradigm", "paradigm_note",
+            "llm_index_score", "score_0_100", "paradigm", "paradigm_note",
         }
 
     def test_touchscreen_exception_shortlisted(self):

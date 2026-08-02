@@ -23,11 +23,13 @@ skill supplies concrete implementations of the four primitives below.
 
 ## Inputs
 
-- `run_mode`: `fixtures_only` (default) | `live`
+- `run_mode`: `fixtures_only` (default) | `sniper_preflight` | `sniper_live` | `hunter_dry_run` | `hunter_live`
   - `fixtures_only` → Phase 0-1 only. Zero network, zero cost.
-  - `live` → full Phase 0-5, pausing at the checkpoints below.
-- `feed_source`: path, default `data/urls.txt` (mirrors the `FIRECRAWL_URLS`
-  Makefile override).
+  - `sniper_preflight` → Phase 0 only. Runs `make check-operator-surface`.
+  - `sniper_live` → full Phase 0-5, pausing at checkpoints (iMessage Sniper).
+  - `hunter_dry_run` → full Phase 0-5 with dry-run override, zero email/state writes.
+  - `hunter_live` → full Phase 0-5, pausing at checkpoints (Email Hunter).
+- `feed_source`: path to input listings or config (depends on runner mode).
 
 ## Tool primitives required from the host runtime
 
@@ -49,8 +51,8 @@ any specific tool implementation — the host runtime supplies these:
 
 **read_allow:**
 - `Makefile`, `CLAUDE.md`, `TASKS.md`
-- `config/static_reference_layer.json`
-- `data/urls.txt`, `data/feed_live/**`, `data/shortlist_candidates.jsonl`
+- `config/static_reference_layer.json`, `config/runs/*.json`
+- `data/feed_live/**`, `data/shortlist_candidates.jsonl`
 - `data/evidence/undiscovered_hardware.jsonl`
 - `tests/fixtures/stage1/**`, `tests/fixtures/stage2/**`
 - `.env` — presence and placeholder-pattern check only; contents are never
@@ -89,15 +91,11 @@ one until it receives an explicit approval.
 
 ## Execution flow (phases)
 
-Behavior by `run_mode`: `fixtures_only` runs Phase 0-1 only. `live` runs
-Phase 0-5, pausing at the three checkpoints above.
+Behavior by `run_mode`: `fixtures_only` runs Phase 0-1 only. `sniper_preflight` runs Phase 0 only.
+`sniper_live`, `hunter_dry_run`, and `hunter_live` run Phase 0-5, pausing at checkpoints.
 
 **Phase 0 — Preconditions (auto)**
-- Confirm the commands this skill is about to rely on actually exist before
-  running them (dry-run/list known targets; check that any script paths
-  referenced by documentation are real files on disk — repo history has
-  shown documentation drift ahead of the real command surface, so this check
-  is load-bearing, not decorative).
+- Run `make check-operator-surface` to confirm the commands this skill is about to rely on actually exist before running them. This check is load-bearing, not decorative.
 - Before creating any new script, Makefile target, or data file for a named
   workflow, grep the Makefile and `scripts/` for that workflow's name first.
   A same-named workflow with an incompatible design can already be live —
@@ -115,8 +113,8 @@ Phase 0-5, pausing at the three checkpoints above.
 - Check whether the scoring config has changed more recently than the
   generated prompt files; if so, run the config-sync command automatically
   (pure regeneration from already-approved config — reversible, diffable).
-- Output: a go/no-go report covering all of the above, plus whether `live`
-  mode is currently viable.
+- Output: a go/no-go report covering all of the above, plus whether `sniper_live`
+  or `hunter_live` modes are currently viable.
 
 **Phase 1 — Fixture sanity (auto, runs in both modes)**
 - Run the single-fixture decision command against the known reference
@@ -127,7 +125,7 @@ Phase 0-5, pausing at the three checkpoints above.
   still green — a zero-cost, zero-network regression check before touching
   live data.
 
-**Phase 2 — Live scrape (confirm: pre_live_scrape, `live` mode only)**
+**Phase 2 — Live scrape (confirm: pre_live_scrape, `sniper_live`, `hunter_live`, or `hunter_dry_run` modes only)**
 - Run the live scrape command, which fetches each queued URL and pushes it
   through the analysis pipeline.
 - Capture full console output and any generated listing text files.

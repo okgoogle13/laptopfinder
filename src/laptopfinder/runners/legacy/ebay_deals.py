@@ -1,15 +1,15 @@
-import os
 from laptopfinder.runners.legacy.hunter.api import ebay_get
 from laptopfinder.ebay_taxonomy import build_aspect_filter, ebay_category_id
 
-PRICE_MIN_AUD = int(os.environ.get("EBAY_PRICE_MIN_AUD", "800"))
-PRICE_MAX_AUD = int(os.environ.get("EBAY_PRICE_MAX_AUD", "8000"))
-
-
-def build_clearance_filter(sellers: list[str]) -> str:
+def build_clearance_filter(ref: dict) -> str:
+    sellers = ref.get("clearance_sellers", [])
+    deals_config = ref.get("deals_config", {})
+    price_min_aud = deals_config.get("price_min_aud", 800)
+    price_max_aud = deals_config.get("price_max_aud", 8000)
+    
     encoded = "|".join(sellers)
     return (
-        f"price:[{PRICE_MIN_AUD}..{PRICE_MAX_AUD}],"
+        f"price:[{price_min_aud}..{price_max_aud}],"
         "priceCurrency:AUD,"
         "conditions:{NEW|SELLER_REFURBISHED|CERTIFIED_REFURBISHED},"
         "buyingOptions:{FIXED_PRICE},"
@@ -25,7 +25,7 @@ def scan_clearance(token: str, ref: dict) -> list[dict]:
     cat_id = ebay_category_id(ref)
     params = {
         "q": "laptop",
-        "filter": build_clearance_filter(sellers),
+        "filter": build_clearance_filter(ref),
         "sort": "newlyListed",
         "limit": 50,
         "category_ids": cat_id,

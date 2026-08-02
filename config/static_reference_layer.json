@@ -75,6 +75,10 @@
     "asusrefurbishedau"
   ],
   "_comment_clearance_sellers": "Known AU refurbisher eBay accounts for Deal/clearance sweeps. Seller usernames only — no URLs. Used by ebay_deals.py runner.",
+  "deals_config": {
+    "price_min_aud": 800,
+    "price_max_aud": 8000
+  },
   "data_integrity": {
     "min_listings_for_baseline": 3,
     "exclusion_regex": "(?i)(bare shell|missing motherboard|screen only|no mobile-gpu|no core|chassis only|parts only|read description|junk|as-is|bare board)"

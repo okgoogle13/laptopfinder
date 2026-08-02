@@ -7,7 +7,7 @@ REF = json.loads(Path("config/static_reference_layer.json").read_text())
 
 
 def test_build_clearance_filter_includes_sellers():
-    result = build_clearance_filter(["delloutletau", "lenovoaustralia"])
+    result = build_clearance_filter({"clearance_sellers": ["delloutletau", "lenovoaustralia"]})
     assert "sellers:{delloutletau|lenovoaustralia}" in result
 
 

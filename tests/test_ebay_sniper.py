@@ -4,7 +4,7 @@ Verifies normalization, firewall rejection regex, and local price floor logic
 without making network requests or invoking osascript.
 """
 
-from scripts.ebay_sniper import normalize, apply_firewall, run_strategy_local
+from laptopfinder.runners.ebay_sniper import normalize, apply_firewall, run_strategy_local
 
 
 def test_normalize():
@@ -64,11 +64,11 @@ def test_price_floor_logic(monkeypatch):
     }
     
     # Mock execute_browse_query to return our mock_items
-    monkeypatch.setattr("scripts.ebay_sniper.execute_browse_query", lambda token, params, headers=None: mock_items)
+    monkeypatch.setattr("laptopfinder.runners.ebay_sniper.execute_browse_query", lambda token, params, headers=None: mock_items)
     
     seen = set()
     models = list(mock_srl["target_gpus"].keys())
-    new_seen = run_strategy_local("mock_token", seen, mock_srl, models=models, dry_run=True)
+    new_seen, new_hits = run_strategy_local("mock_token", seen, mock_srl, models=models, dry_run=True)
     
     assert "v1|101|0" in new_seen
     assert "v1|102|0" not in new_seen  # Rejected by price floor threshold

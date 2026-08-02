@@ -217,7 +217,7 @@ def run_strategy_flagship(token: str, seen: set[str], srl: dict, keywords: list[
         print(f"  [HIT] {title[:60]} -> ${price} AUD")
         send_imessage(TARGET_APPLE_ID, msg, dry_run=dry_run)
         seen.add(item_id)
-        hits.append({"item_id": item_id, "title": title, "price_aud": price, "url": url, "action": "SHORTLIST", "strategy": "A"})
+        hits.append({"item_id": item_id, "title": title, "price_aud": price, "url": url, "action": "SHORTLIST", "strategy": "A", "score_0_100": None, "llm_index_score": None})
 
     return seen, hits
 
@@ -299,7 +299,7 @@ def run_strategy_local(token: str, seen: set[str], srl: dict, models: list[str],
         print(f"  [LOCAL HIT] {title[:60]} -> ${price} AUD (Floor: ${floor_val})")
         send_imessage(TARGET_APPLE_ID, msg, dry_run=dry_run)
         seen.add(item_id)
-        hits.append({"item_id": item_id, "title": title, "price_aud": price, "url": url, "action": "SHORTLIST", "strategy": "B", "floor_aud": floor_val})
+        hits.append({"item_id": item_id, "title": title, "price_aud": price, "url": url, "action": "SHORTLIST", "strategy": "B", "floor_aud": floor_val, "score_0_100": None, "llm_index_score": None})
 
     return seen, hits
 

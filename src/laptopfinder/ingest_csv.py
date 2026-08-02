@@ -369,6 +369,7 @@ Strict Constraints:
             shortlist_candidates.append({
                 "recommended_action": decision["recommended_action"],
                 "llm_index_score": decision["llm_index_score"],
+                "score_0_100": decision.get("score_0_100", 0),
                 "listing_title": title,
                 "gpu": gpu_name if gpu_name else "—",
                 "price": f"AU ${price_cleaned:.2f}" if price_cleaned is not None else "—",

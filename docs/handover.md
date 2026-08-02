@@ -191,6 +191,12 @@ The system governs six core hardware archetypes across our four canonical scorin
 Copy and paste the prompt below into **Claude Code** (`claude`) to initiate its architectural review:
 
 ```markdown
+## 5.5 Link to Sprint 10 Active Tasks
+
+The implementation details corresponding to this architecture are outlined as 12 tasks (S10-01 to S10-12) currently staged in `STATUS.md`'s `NEXT_TASK` queue. Claude Code must review this `handover.md` architecture contract, run the verification commands, and then sequentially execute the S10 tasks tracked in `STATUS.md` to land these changes in production.
+
+---
+
 <CLAUDE_REVIEW_TASK>
 You are tasked with conducting a meticulous code review, architectural audit, and compliance check of the new **Platform-Agnostic Decision Architecture**, **Multi-Platform Retailer Archetypes**, and **Declarative Capability Governance** (`score_0_100`, missing-data recovery, and vendor risk lens) in the `laptopfinder` workspace.
 
@@ -203,7 +209,7 @@ Please read `CLAUDE.md` / `AGENTS.md` and review the following files:
 
 After completing your review, execute the verification suite:
 ```bash
-# 1. Run all 262 baseline unit tests across stage1/stage2 firewalls, decide() routing, and scoring rules
+# 1. Run all 264+ baseline unit tests across stage1/stage2 firewalls, decide() routing, and scoring rules
 make test
 
 # 2. Re-run active watchlist scoring to verify 0-100 normalisation, vendor risk, and WATCH recovery

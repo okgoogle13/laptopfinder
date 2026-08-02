@@ -1,13 +1,13 @@
 ---
 name: tooling-usage
-description: Operator usage guide for inject-config, scrape-live, and render-matrix tooling
+description: Operator usage guide for laptopfinder live discovery and tooling
 metadata:
   type: reference
 ---
 
 # Usage Guide — Live Tooling
 
-Relocated 2026-07-02 from `planning/implementation/usage.md` (originally built by `/deep-implement` from `planning/sections/` during Sprint 2) — this file now holds both the active setup notes and the operational guide, so it lives here in `memory/reference/` alongside the other stable reference docs rather than in the historical `planning/` tree. See [[pipeline]] for pipeline terminology.
+Relocated 2026-07-02 from `planning/implementation/usage.md` — this file now holds both the active setup notes and the operational guide, so it lives here in `memory/reference/` alongside the other stable reference docs. See [pipeline.md](pipeline.md) for pipeline terminology.
 
 ## Tooling Setup
 
@@ -21,159 +21,83 @@ Relocated 2026-07-02 from `planning/implementation/usage.md` (originally built b
 
 **MCP:** Desktop Commander and Filesystem MCP are redundant here. Claude Code has native file access and shell execution, so no extra MCP servers are needed for this project.
 
-**Python environment:** uv-managed `.venv`. Always invoke as `.venv/bin/python` or `.venv/bin/pytest`, never system Python.
-
-Covers `inject_config.py`, `scrape_live.py`, `render_matrix.py`, and their Makefile targets.
+**Python environment:** uv-managed `.venv`. Always invoke as `.venv/bin/python` or `.venv/bin/pytest`, never system Python. Execute live scripts via `op run --env-file=.env --` to securely inject credentials.
 
 ---
 
-## Quick Start
+## Live eBay Discovery
 
-```bash
-# 1. Inject current SRL values into prompt sentinel markers
-make inject-config
+There are two primary live paths for discovery (the single "primary" runner was deprecated during the sniper-simplification refactor):
 
-# 2. Populate your URL list
-echo "https://www.ebay.com.au/itm/123456789012" >> data/urls.txt
+### 1. eBay Sniper (`make live`)
+**Runner:** `runners/ebay_sniper.py`
 
-# 3. Scrape listings and run the full pipeline on each
-make scrape-and-live          # uses data/urls.txt by default
-# or override:
-make scrape-and-live FIRECRAWL_URLS=path/to/other.txt
-
-# 4. Assemble shortlisted candidates and render the decision matrix
-# (manually populate data/shortlist_candidates.jsonl first)
-make render-matrix
-cat data/purchase_matrix.md
-```
-
----
-
-## inject-config (`scripts/inject_config.py`)
-
-Reads `config/static_reference_layer.json` and replaces content between `<!-- BEGIN_INJECT:KEY -->` / `<!-- END_INJECT:KEY -->` sentinel pairs in the three prompt files.
-
-**Markers supported:**
-| Key | Injected content |
-|-----|-----------------|
-| `target_gpu_list` | Comma-separated GPU names from SRL `target_hardware.gpus` (excludes watch-list entries) |
-| `target_model_list` | All target GPU + watch-list names combined |
-| `uma_min_ram_gb` | Value of `vram_gating_logic.uma_unified_min_gb` as a string |
-| `uma_chip_patterns` | Comma-separated chip name patterns from `uma_platforms.chip_patterns` |
+Token-free, zero-LLM daemon. Polls the Browse API directly, applies `static_reference_layer.json` gating in-process, and alerts via macOS iMessage. No Gemini enrichment, no Stage 2 grounding pass — flagship national sweep + local Melbourne basement-price sweep. Simplest and cheapest path to run continuously.
 
 **Run:**
 ```bash
-make inject-config
-# or directly:
-.venv/bin/python scripts/inject_config.py
+make live
+# equivalent: op run --env-file=.env -- .venv/bin/python -m laptopfinder.runners.ebay_sniper
 ```
 
-**Expected output:**
-```
-comet_discovery_agent.txt: 1 block(s) replaced
-alternative_silicon_gemini.txt: 3 block(s) replaced
-alternative_silicon_perplexity.txt: 3 block(s) replaced
-```
+### 2. Ad Hoc Hunt (`make hunt`)
+**Runner:** `runners/hunt.py`
 
-Idempotent — running twice produces no further `git diff`.
+Ad hoc, JSON-config-driven sweep for heavier discovery runs. Loads a `config/runs/*.json` operator config and delegates to `runners/legacy/ebay_hunter.py` which owns Browse API acquisition, Gemini enrichment, `run_stage2` grounding, `decide()` scoring, and email alerting.
 
-Note (2026-07-02 doc audit): `prompts/perplexity_space_description.txt` has no sentinel markers and is NOT covered by this injection step. Its target/watch lists must be updated by hand whenever SRL's `target_gpus` or `watch_list` change — see `.agents/skills/prompt-config-parity-audit/SKILL.md`.
+**Run:**
+```bash
+make hunt CONFIG=config/runs/desktop_replacement.json
+# add DRY_RUN=1 to suppress email/state writes
+make hunt CONFIG=config/runs/desktop_replacement.json DRY_RUN=1
+```
 
 ---
 
-## scrape-live (`src/laptopfinder/scrape_live.py`)
+## Status and Pre-flight
 
-Fetches listing pages via Firecrawl and writes one `listing-NNN.txt` file per URL to the output directory.
-
-**CLI:**
+### Zero-LLM Snapshot
+Run a mechanical snapshot of the runner/evidence state + NEXT_TASK queue.
 ```bash
-.venv/bin/python -m laptopfinder.scrape_live \
-    --urls-file data/urls.txt \
-    --out-dir data/feed_live/
+make status
 ```
 
-**URL file format** (`data/urls.txt`):
+### PWM Pre-flight Gate
+Validates SRL JSON, search query count, token age, and checks the PWM workflow checklist before launching the sniper.
+```bash
+make pwm-preflight
 ```
-# Lines starting with # are ignored
-# Blank lines are ignored
-https://www.ebay.com.au/itm/123456789012
-https://www.gumtree.com.au/s-ad/sydney/...
-```
-
-**Requires:** `FIRECRAWL_API_KEY` in `.env`. Exits with code 1 and a clear error if the key is missing.
-
-**Output files:** `data/feed_live/listing-001.txt`, `listing-002.txt`, … Each file begins with a provenance comment `# source: <url>`.
 
 ---
 
-## render-matrix (`scripts/render_matrix.py`)
+## Testing & Offline Pipeline
 
-Reads a JSONL shortlist file and writes a sorted Markdown purchase-decision table.
-
-**CLI:**
+### Offline Fixture Pipeline
+Run Stage 1 + Stage 2 + decision in sequence using paired fixtures to verify routing logic without making live API calls.
 ```bash
-.venv/bin/python scripts/render_matrix.py \
-    --in data/shortlist_candidates.jsonl \
-    --out data/purchase_matrix.md
+make pipeline STAGE1=tests/fixtures/stage1/ebay_rtx4090_laptop.json STAGE2=tests/fixtures/stage2/ebay_facts_grounded.json
 ```
 
-**Makefile:**
+### Tests & Linting
+All logic changes must be verifiable with `make test`.
 ```bash
-make render-matrix
+# Run all tests
+make test
+# Lint
+make lint
 ```
-
-**Input JSONL schema** (one JSON object per line):
-```json
-{
-  "recommended_action": "SHORTLIST|MONITOR|SKIP",
-  "llm_index_score": 72,
-  "listing_title": "ASUS ROG Zephyrus G14 RTX 4090",
-  "price": "AUD 2,800",
-  "gpu": "RTX 4090 Laptop",
-  "notes": "Clean listing, includes charger"
-}
-```
-
-**Sort order:** SHORTLIST → MONITOR → SKIP; within group, descending `llm_index_score` (nulls last).
-
-**Example output** (`data/purchase_matrix.md`):
-```markdown
-# Purchase Decision Matrix
-
-Generated: 2026-07-02T05:47:12
-
-| Rank | Action | Score | Title | GPU | Price | Notes |
-|------|--------|-------|-------|-----|-------|-------|
-| 1 | SHORTLIST | 72 | ASUS ROG Zephyrus G14 RTX 4090 | RTX 4090 Laptop | AUD 2,800 | Clean listing, includes charger |
-| 2 | MONITOR | — | MSI Titan \| parts only? | RTX 3080 Ti | AUD 1,200 | Uncertain condition |
-| 3 | SKIP | 31 | Dell XPS 15 | — | AUD 800 | No GPU info |
-```
-
-Pipe characters in titles are escaped as `\|`. Missing fields render as `—`.
 
 ---
 
-## Makefile Targets Summary
+## Supporting Tooling
 
-| Target | What it does | Key variable |
-|--------|-------------|--------------|
-| `inject-config` | Inject SRL values into prompt sentinels | — |
-| `scrape-and-live` | Scrape URLs → run `make live` per listing | `FIRECRAWL_URLS` (default: `data/urls.txt`) |
-| `render-matrix` | Render shortlist JSONL → Markdown table | — |
+Run these directly with `.venv/bin/python` (no Makefile targets):
 
-`scrape-and-live` purges `data/feed_live/listing-*.txt` before each run to prevent stale re-processing. Each per-listing `make live` failure aborts the loop immediately.
-
----
-
-## Tests
-
-```bash
-make test          # 163 tests
-make lint          # ruff check
-```
-
-Tests covering this tooling:
-- `tests/test_inject_config.py` — 14 tests
-- `tests/test_scrape_live.py` — 14 tests
-- `tests/test_render_matrix.py` — 15 tests
-- `tests/test_prompt_markers.py` — 1 test (sentinel markers present in all prompt files)
+| Script | Purpose |
+|--------|---------|
+| `scripts/ebay_feed_cache.py` | Pre-cache Feed API snapshots |
+| `scripts/scan_market_gaps.py` | Price drift / watch-list sweep |
+| `scripts/inject_config.py` | Inject SRL values into prompt sentinels |
+| `scripts/render_matrix.py` | Render JSONL shortlist → Markdown table |
+| `src/laptopfinder/scrape_benchmark.py` | Convert saved HTML to Stage 2 fixture format |
+| `src/laptopfinder/ingest_csv.py` | Batch CSV ingestion → `data/shortlist_candidates.jsonl` |

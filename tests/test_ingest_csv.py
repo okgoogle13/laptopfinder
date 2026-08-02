@@ -96,7 +96,7 @@ def test_empty_csv_raises_valueerror(monkeypatch, tmp_path):
     monkeypatch.setenv("GEMINI_API_KEY", "dummy")
 
     csv_file = tmp_path / "empty.csv"
-    with open(csv_file, "w", encoding="utf-8") as f:
+    with open(csv_file, "w", encoding="utf-8"):
         pass
         
     with pytest.raises(ValueError, match="CSV file is empty or has no header row"):

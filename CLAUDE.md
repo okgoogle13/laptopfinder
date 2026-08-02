@@ -60,7 +60,6 @@ scripts/authenticate_ebay.sh
 
 # Supporting eBay tooling (run via op_wrap.sh or op run for credentialed calls)
 .venv/bin/python scripts/ebay_feed_cache.py       # pre-cache Feed API snapshots
-.venv/bin/python scripts/ebay_sold_baseline.py     # sold price medians via Finding API
 .venv/bin/python scripts/scan_market_gaps.py       # price drift / watch-list sweep
 .venv/bin/python scripts/inject_config.py          # inject SRL values into prompt sentinels
 ```
@@ -121,7 +120,8 @@ Two independent live paths since the sniper-simplification refactor — there is
 - `runners/ebay_sniper.py` (`make live`) — Token-free, zero-LLM daemon. Polls the Browse API directly, applies `static_reference_layer.json` gating in-process, and alerts via macOS iMessage. No Gemini enrichment, no Stage 2 grounding pass — flagship national sweep + local Melbourne basement-price sweep. Simplest and cheapest path to run continuously.
 - `runners/hunt.py` (`make hunt CONFIG=...`) — Ad hoc, JSON-config-driven sweep for heavier discovery runs. Loads a `config/runs/*.json` operator config and delegates to `runners/legacy/ebay_hunter.py`, which owns Browse API acquisition, Gemini enrichment, `run_stage2` grounding, `decide()` scoring, and email alerting.
 - `runners/legacy/ebay_hunter.py` — retired from being the standalone "primary" runner but still the engine behind `make hunt`; treat as maintenance-only.
-- `runners/legacy/ebay_deals.py`, `scripts/ebay_feed_cache.py`, `scripts/ebay_sold_baseline.py`, `scripts/scan_market_gaps.py` — supporting helpers for clearance scanning, feed caching, sold price baselines, and watch-list drift sweeps. Run directly with `.venv/bin/python`.
+- `runners/legacy/ebay_deals.py`, `scripts/ebay_feed_cache.py`, `scripts/scan_market_gaps.py` — supporting helpers for clearance scanning, feed caching, and watch-list drift sweeps. Run directly with `.venv/bin/python`.
+- `scripts/ebay_sold_baseline.py` (deleted 2026-08-01) — used the Finding API's `findCompletedItems`, which eBay has retired for consumer app keys (no drop-in REST replacement; Marketplace Insights API sold-item search requires limited-release approval). Sold-price comps are now sourced via the `ebay-market-analyzer` skill's Step 2 live web search, with an RRP-fallback path for when no sold comps exist.
 - `ebay_taxonomy.py` — category ID + Browse API aspect filter helpers; governs all Browse queries.
 - `ebay_api.py`, `comet.py`, `aistudio.py`, `perplexity.py` have been deleted (folded into `ebay_hunter.py` / deprecated per GitHub issues #13–14) — do not reference them as live paths.
 

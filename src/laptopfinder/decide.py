@@ -502,6 +502,9 @@ def decide(analysis: dict, ref: dict | None = None, workload: str | None = None)
     capacity_tier = uma_tier if is_uma else tier
     llm_index_score = calculate_llm_index_score(analysis, capacity_tier, gpu, cpu, model, is_uma, ref)
 
+    # Calculate normalized score_0_100 using global fallback ceiling of 85
+    score_0_100 = max(0, min(100, round((llm_index_score / 85.0) * 100)))
+
     # Radeon ecosystem risk is surfaced as a buyer disclosure note, not added to risk_score.
     low_risk = _passes_risk_gate(analysis, ref, 0.0)
 
@@ -578,6 +581,7 @@ def decide(analysis: dict, ref: dict | None = None, workload: str | None = None)
         "is_radeon_mobile": radeon_match,
         "has_egpu_bundle": has_egpu,
         "llm_index_score": llm_index_score,
+        "score_0_100": score_0_100,
         "paradigm": paradigm,
         "paradigm_note": paradigm_note,
     }

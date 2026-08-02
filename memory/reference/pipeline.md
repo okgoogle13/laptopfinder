@@ -24,6 +24,10 @@ metadata:
 - `missing_information`: 6-boolean object `{gpu, vram, cpu, ram, storage, condition}` — never omit fields
 - Stage 2 fixture format: `{handoff_packet, full_listing_text, analysis_output}` at top level
 - Stage 1A `inferred_component_category` enum: `["GPU", "CPU", "RAM", "SYSTEM", "OTHER"]`
-3. UMA platform with system RAM ≥ 32GB → `SHORTLIST`
-4. Target GPU/model match, or eGPU bundle, or VRAM ≥ 16GB → `SHORTLIST`
+## Decision Logic (`decide.py`)
+
+1. Watch-list GPU → `MONITOR` (too new/unreleased)
+2. Risk gate failure (`risk_score > 3.0`, or too many missing fields) → `SKIP`
+3. UMA platform (Apple Silicon Max/Ultra, Strix Halo) with system RAM ≥ 32GB → `SHORTLIST`
+4. eGPU bundle, VRAM ≥ 16GB, or touchscreen exception (VRAM ≥ 12GB + `touchscreen_digitizer` present) → `SHORTLIST`
 5. Otherwise → `SKIP`

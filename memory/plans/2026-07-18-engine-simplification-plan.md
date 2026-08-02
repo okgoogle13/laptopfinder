@@ -22,7 +22,7 @@ This dated plan guides the transition of the `laptopfinder` decision engine into
 - `runners/legacy/*` (Legacy hunter, deals, evidence, audit pipelines) — **MAINTENANCE ONLY**
 
 ### Operational Scripts (`scripts/`)
-- `scripts/score_active_watchlist.py` (Watchlist normalization engine) — **KEEP**: merge logic to `decide.py` over time.
+- `scripts/score_active_watchlist.py` (Watchlist normalization engine) — **DELETE**: obsolete due to watchlist consolidation plan.
 - `scripts/render_matrix.py` (Matrix markdown generator) — **NEEDS UPGRADE (Phase 4)**: render `Score (0-100)`, `Platform`, and `Vendor Type`.
 - `scripts/build_shortlist_value.py` (Lane/tier shortlist sorter) — **NEEDS UPGRADE (Phase 4)**: align sorting to `score_0_100` and `value_index`.
 - `scripts/status_snapshot.py` (Dashboard status snapshot) — **NEEDS UPGRADE (Phase 4)**: count results across active watchlist and live sniper.
