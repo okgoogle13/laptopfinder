@@ -104,7 +104,7 @@ Changes flow one direction: out of these files. **Never edit a deployed copy** �
 | CORE | Every surface — 12 fields | Twice a year |
 | +DEPTH | 7 fields | Rarely |
 | +CODE | Coding surfaces — 5 fields | Rarely |
-| +COMMS | Comms project on Claude, ChatGPT and Gemini — 3 fields | When a tier rule proves wrong |
+| +COMMS | Comms project on Claude, ChatGPT and Gemini, and the `my-voice-comms` Claude Desktop skill — 4 fields | When a tier rule proves wrong |
 
 **Quarterly drift check:** run the eleven verification tests against every deployed surface. Log which failed. If the same clause fails on two surfaces, the clause is the problem, not the platform.
 

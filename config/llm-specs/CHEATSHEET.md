@@ -21,6 +21,7 @@ Four blocks, none derived from another, none restating another. **CORE** is the 
 | ChatGPT comms project | +COMMS + roster | `voice-profile.md` + `comms-project.md` | Project instructions. Mirrors Claude exactly. |
 | Gemini Saved info | CORE | `agent-operating-spec.md` | Settings → Personalization → Saved info |
 | Gemini comms | +COMMS + roster | `voice-profile.md` + `comms-project.md` | A Gem, or the head of the drafting conversation. Not Saved info — it would apply to everything. |
+| Claude Desktop skill `my-voice-comms` | +COMMS (no roster) | `voice-profile.md` | `SKILL.md` under Claude's local skills-plugin folder. Backstop for drafting outside the comms project — repaste by hand, never symlinked. |
 | Gemini CLI | CORE + +DEPTH + +CODE | `agent-operating-spec.md` | `GEMINI.md` |
 | Codex / Antigravity | CORE + +DEPTH + +CODE | `agent-operating-spec.md` | `AGENTS.md` at repo root, or the agent's rules file if it doesn't read `AGENTS.md` |
 | Perplexity | CORE | `agent-operating-spec.md` | Settings → Preferences / AI Profile |
