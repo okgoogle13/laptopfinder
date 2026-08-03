@@ -47,9 +47,11 @@ ChatGPT raised custom instructions to 5,000 characters on 15 July 2026 for Pro, 
 | CORE | 1,196 | 201 |
 | +DEPTH | 1,065 | 168 |
 | +CODE | 919 | 146 |
-| +COMMS | 3,087 | 515 |
-| CORE + COMMS | 4,285 | — |
+| +COMMS | 3,080 | 515 |
+| CORE + COMMS | 4,278 | — |
 | CORE + DEPTH + CODE | 3,184 | — |
+
+Counted **as pasted**: Unicode codepoints, including the blank line between paragraphs and the two-character join between stacked blocks — not bytes. `ops/check.sh` recomputes this way; `wc -m` does not, unless the locale is UTF-8.
 
 **Design constraint: CORE alone stays under 1,500 characters**, so it deploys to the tightest field anywhere without an edit. Re-check after any CORE change. If it won't fit, cut a rule — don't abbreviate per surface, because that's how derived text gets reinvented.
 
@@ -57,7 +59,7 @@ ChatGPT raised custom instructions to 5,000 characters on 15 July 2026 for Pro, 
 
 ## Fallback
 
-If a project instruction field rejects the full 3,035-character +COMMS, see `_archive/2026-07-31_comms-go-fallback.md`. It is a contingency, not part of the deploy map.
+If a project instruction field rejects the full +COMMS, see `_archive/2026-07-31_comms-go-fallback.md`. It is a contingency, not part of the deploy map — and it is the one derived variant that exists anywhere in this system, so it stays archived and unused unless a field actually refuses.
 
 ---
 
@@ -84,10 +86,12 @@ Don't deploy everywhere at once. A bad clause landing in nine places is unattrib
 | Ask for a decision with no context | At most three questions, then it proceeds on a stated assumption | CORE |
 | Ask for something emotionally heavy | Named plainly, then options — not analysis | CORE |
 | Ask for a plan | One implementation-ready pass, no invented side projects | +DEPTH |
-| Ask for a draft declining a friend's invite | Refusal in the first clause, reason after, one reason | +COMMS |
+| Ask for a draft declining an Inside friend's invite | Refusal in the first clause; if a reason appears it comes after, and only one | +COMMS |
+| Ask for a draft declining an Outside invite | Refusal in the first clause, no reason at all | +COMMS |
 | Ask for a draft to a parent | Boundary once, alternative in the same message, no re-litigating | +COMMS |
 | Ask for a draft to your manager | Outcome first, no apology opener, no emoji | +COMMS |
-| Ask for any message draft | Three genuinely different angles, labelled, no commentary | +COMMS |
+| Claude comms project, ask for any message draft | The patterns `comms-project.md` maps to that scenario, labelled, no commentary | +COMMS + roster |
+| Chat surface with no project-defined set, ask for any draft | Three genuinely different angles, labelled, no commentary | +COMMS |
 | Coding tool, edit a 100-line file | Whole updated file, how to verify, what wasn't tested | +CODE |
 | Coding tool, ask for a Slack message | Comms voice should *not* appear — not a chat surface | Block separation |
 
@@ -106,7 +110,7 @@ Changes flow one direction: out of these files. **Never edit a deployed copy** �
 | +CODE | Coding surfaces — 5 fields | Rarely |
 | +COMMS | Comms project on Claude, ChatGPT and Gemini, and the `my-voice-comms` Claude Desktop skill — 4 fields | When a tier rule proves wrong |
 
-**Quarterly drift check:** run the eleven verification tests against every deployed surface. Log which failed. If the same clause fails on two surfaces, the clause is the problem, not the platform.
+**Quarterly drift check:** run every test in the table above against every deployed surface. Log which failed. If the same clause fails on two surfaces, the clause is the problem, not the platform.
 
 What travels and what never does: see the Live files table in `README.md`.
 
