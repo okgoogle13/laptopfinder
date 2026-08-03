@@ -47,8 +47,8 @@ ChatGPT raised custom instructions to 5,000 characters on 15 July 2026 for Pro, 
 | CORE | 1,196 | 201 |
 | +DEPTH | 1,065 | 168 |
 | +CODE | 919 | 146 |
-| +COMMS | 3,035 | 507 |
-| CORE + COMMS | 4,233 | — |
+| +COMMS | 3,087 | 515 |
+| CORE + COMMS | 4,285 | — |
 | CORE + DEPTH + CODE | 3,184 | — |
 
 **Design constraint: CORE alone stays under 1,500 characters**, so it deploys to the tightest field anywhere without an edit. Re-check after any CORE change. If it won't fit, cut a rule — don't abbreviate per surface, because that's how derived text gets reinvented.
