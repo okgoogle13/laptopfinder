@@ -19,6 +19,19 @@ Payload lives in `agent-operating-spec.md` (CORE, +DEPTH, +CODE) and `voice-prof
 
 ---
 
+## Why no repo carries voice
+
++COMMS can only be delivered by paste. Code has exactly two options and both are barred:
+
+- **Embed the text** — a derived variant. Banned, and it drifts. This is what `voice_rules.md` was, and it contradicted canonical on emoji and sign-offs within one generation.
+- **Read it from a path** — machine-specific, and it fails the moment a second application or a second machine wants the same voice.
+
+Therefore **any component that needs voice must live inside a surface where +COMMS is already pasted.** An application cannot consume voice; it can only hand the job to a session that already carries it. This is why `targets.conf` has no profile containing `voice-profile.md` — a structural consequence, not a policy choice.
+
+Corollary for artifacts and sub-agents: a surface that reaches a model *without* project instructions (a quick inline call, a fresh worker) has no +COMMS and must not draft.
+
+---
+
 ## Deploy map
 
 See `CHEATSHEET.md` for current per-surface mapping (blocks, file, field).
