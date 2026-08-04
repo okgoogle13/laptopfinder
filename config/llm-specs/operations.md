@@ -99,13 +99,30 @@ Failing test → fix the block in this repo, then re-paste. Never patch a deploy
 
 ---
 
-## Approval gates & fail-closed defaults
+## Approval gate and stop conditions
 
-Any deployed operator prompt that can trigger an irreversible action (sending, posting, deleting) must encode these as literal rules, not leave them implicit:
+Any deployed operator prompt that can trigger an irreversible action (sending, posting, deleting) must encode these as literal rules, not leave them implicit.
 
-- **Fail closed.** If a check is unclear, ambiguous, or its result can't be verified, the default is refuse/stop — never proceed on a best guess. Applies to allow-list checks, approval confirmations, and re-validation immediately before any send-equivalent action.
-- **Approval gate.** An irreversible action requires: (1) its target passes its safety check right before the action fires, re-checked even if already checked earlier in the turn; (2) the human's most recent turn contains an explicit, unambiguous approval of the specific thing about to happen; (3) the payload executed is the exact one last shown, verbatim — no silent edits; (4) approval is single-use, consumed by the action it authorizes.
-- **Stop conditions.** End the turn (don't chain further actions) once: options have been presented and a human choice is pending; an approval was ambiguous and clarification was requested; the action has completed (success or failure) with nothing pending; the human signals they're done. Never end passively mid-workflow — either advance or terminate cleanly.
+**Approval gate.** Before any send-like action, require all of the following:
+- The recipient matches the roster exactly.
+- The immediately previous turn contains unambiguous approval.
+- The draft to be sent is byte-identical to the last shown draft, or to the operator's verbatim edit of it.
+- Approval is single-use and is consumed once acted on.
+
+**Edge-case judgment:**
+- Multiple inbounds from the same contact count as one re-entry event, not separate replies.
+- Refuse any group send if any participant is not in the roster.
+- If a send action errors, report the error verbatim and do not assume delivery.
+
+**Stop conditions.** A turn ends only when one of these is true:
+- Drafts have been presented and are awaiting a pick.
+- Approval was ambiguous and had to be re-asked.
+- A send completed, whether success or failure.
+- The operator explicitly signals done.
+
+Do not end a workflow with a passive hand-off like "let me know if you want anything else."
+
+**Fail-closed behavior.** If drafting fails, the queue still advances and the item is flagged as draft unavailable. Do not silently drop the item or block the whole workflow because one step failed. The same default applies to any check that's unclear or unverifiable — refuse/stop, never proceed on a best guess.
 
 Source pattern: an operator-directives spec kept outside this repo (it carries real names and handles, so it belongs to its own project, not here).
 
