@@ -99,6 +99,18 @@ Failing test → fix the block in this repo, then re-paste. Never patch a deploy
 
 ---
 
+## Approval gates & fail-closed defaults
+
+Any deployed operator prompt that can trigger an irreversible action (sending, posting, deleting) must encode these as literal rules, not leave them implicit:
+
+- **Fail closed.** If a check is unclear, ambiguous, or its result can't be verified, the default is refuse/stop — never proceed on a best guess. Applies to allow-list checks, approval confirmations, and re-validation immediately before any send-equivalent action.
+- **Approval gate.** An irreversible action requires: (1) its target passes its safety check right before the action fires, re-checked even if already checked earlier in the turn; (2) the human's most recent turn contains an explicit, unambiguous approval of the specific thing about to happen; (3) the payload executed is the exact one last shown, verbatim — no silent edits; (4) approval is single-use, consumed by the action it authorizes.
+- **Stop conditions.** End the turn (don't chain further actions) once: options have been presented and a human choice is pending; an approval was ambiguous and clarification was requested; the action has completed (success or failure) with nothing pending; the human signals they're done. Never end passively mid-workflow — either advance or terminate cleanly.
+
+Source pattern: an operator-directives spec kept outside this repo (it carries real names and handles, so it belongs to its own project, not here).
+
+---
+
 ## Maintenance
 
 Changes flow one direction: out of these files. **Never edit a deployed copy** — a copy you edited in place is a fork you'll forget about.
