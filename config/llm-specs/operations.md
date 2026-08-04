@@ -105,10 +105,10 @@ Changes flow one direction: out of these files. **Never edit a deployed copy** �
 
 | Change to | Re-paste to | Expected frequency |
 |---|---|---|
-| CORE | Every surface — 12 fields | Twice a year |
-| +DEPTH | 7 fields | Rarely |
-| +CODE | Coding surfaces — 5 fields | Rarely |
-| +COMMS | Comms project on Claude, ChatGPT and Gemini, and the `my-voice-comms` Claude Desktop skill — 4 fields | When a tier rule proves wrong |
+| CORE | Every surface in `deploy-map.md` | Twice a year |
+| +DEPTH | Every surface in `deploy-map.md` carrying +DEPTH | Rarely |
+| +CODE | Every coding surface in `deploy-map.md` | Rarely |
+| +COMMS | Every surface in `deploy-map.md` carrying +COMMS | When a tier rule proves wrong |
 
 **Quarterly drift check:** run every test in the table above against every deployed surface. Log which failed. If the same clause fails on two surfaces, the clause is the problem, not the platform.
 
