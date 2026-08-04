@@ -1,4 +1,4 @@
-# wiring.md
+# operations.md
 
 Budgets, rollout order, verification and maintenance. **This file never gets pasted anywhere** — it's the operating manual, not the payload.
 
@@ -34,7 +34,7 @@ Corollary for artifacts and sub-agents: a surface that reaches a model *without*
 
 ## Deploy map
 
-See `CHEATSHEET.md` for current per-surface mapping (blocks, file, field).
+See `deploy-map.md` for current per-surface mapping (blocks, file, field).
 
 ---
 
@@ -68,12 +68,12 @@ If a project instruction field rejects the full +COMMS, see `_archive/2026-07-31
 Don't deploy everywhere at once. A bad clause landing in nine places is unattributable.
 
 1. **claude.ai account instructions** — CORE. Three days.
-2. **Comms project** — +COMMS + `comms-project.md`. Draft five real messages through it.
+2. **Comms project** — +COMMS + `comms-roster.local.md`. Draft five real messages through it.
 3. **Claude Code / Cowork** — CORE + +DEPTH + +CODE in `~/.claude/CLAUDE.md`. One week.
 4. **ChatGPT and Gemini** — only after 1–2 have held.
 5. **Codex, Antigravity, Perplexity, API** — last.
 6. **Delete the `portable-profiles.md` tombstone** once every surface it fed has been repasted.
-7. **On Go cancellation:** drop ChatGPT from `CHEATSHEET.md`, or repaste on the new plan. Nothing needs regenerating — no ChatGPT surface carries a derived block.
+7. **On Go cancellation:** drop ChatGPT from `deploy-map.md`, or repaste on the new plan. Nothing needs regenerating — no ChatGPT surface carries a derived block.
 
 ---
 
@@ -90,7 +90,7 @@ Don't deploy everywhere at once. A bad clause landing in nine places is unattrib
 | Ask for a draft declining an Outside invite | Refusal in the first clause, no reason at all | +COMMS |
 | Ask for a draft to a parent | Boundary once, alternative in the same message, no re-litigating | +COMMS |
 | Ask for a draft to your manager | Outcome first, no apology opener, no emoji | +COMMS |
-| Claude comms project, ask for any message draft | The patterns `comms-project.md` maps to that scenario, labelled, no commentary | +COMMS + roster |
+| Claude comms project, ask for any message draft | The patterns `comms-roster.local.md` maps to that scenario, labelled, no commentary | +COMMS + roster |
 | Chat surface with no project-defined set, ask for any draft | Three genuinely different angles, labelled, no commentary | +COMMS |
 | Coding tool, edit a 100-line file | Whole updated file, how to verify, what wasn't tested | +CODE |
 | Coding tool, ask for a Slack message | Comms voice should *not* appear — not a chat surface | Block separation |

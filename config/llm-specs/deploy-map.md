@@ -1,6 +1,6 @@
-# CHEATSHEET
+# deploy-map.md
 
-This file is the canonical per-surface mapping; `wiring.md` does not duplicate it.
+This file is the canonical per-surface mapping; `operations.md` does not duplicate it.
 
 Four blocks, none derived from another, none restating another. **CORE** is the non-negotiables and fits the smallest instruction field anywhere. **+DEPTH** adds what only matters in long work. **+CODE** is coding tools only. **+COMMS** is chat surfaces only, and never appears in a coding tool — +CODE wants completeness, +COMMS wants compression. A block is pasted whole or not pasted; there are no summarised variants. Relationships run on two tiers — **Inside** (people who get the truth) and **Outside** (honest, no inner world, decline without a reason) — plus two context overrides that beat closeness, **Family** and **Formal**.
 
@@ -12,7 +12,7 @@ Four blocks, none derived from another, none restating another. **CORE** is the 
 |---|---|---|---|
 | Claude profile | CORE | `agent-operating-spec.md` | Settings → Profile → Instructions for Claude. Account-wide; propagates to web, desktop, mobile and Cowork. |
 | Claude Custom Style | **none — never create one** | — | A Style is a per-conversation toggle that can be left on, and +COMMS in a coding conversation sabotages +CODE. |
-| Claude project | +COMMS + roster | `voice-profile.md` + `comms-project.md` | Project instructions. The only place +COMMS lives on Claude. |
+| Claude project | +COMMS + roster | `voice-profile.md` + `comms-roster.local.md` | Project instructions. The only place +COMMS lives on Claude. |
 | Claude Code — global | CORE + +DEPTH + +CODE | `agent-operating-spec.md` | `~/.claude/CLAUDE.md`. Claude Code does not read account settings, so CORE is needed here too. |
 | Claude Code — per repo | *none* | — | `./CLAUDE.md` carries stack, commands and repo conventions only. Never restates a block. |
 | Cowork — dev folder | +DEPTH + +CODE | `agent-operating-spec.md` | `CLAUDE.md` in the connected folder. CORE should arrive from account settings — confirm with verification test 1. |
@@ -39,4 +39,4 @@ Four blocks, none derived from another, none restating another. **CORE** is the 
 - Comms voice appearing in a coding tool → +COMMS is deployed somewhere it shouldn't be; it is project-scoped only.
 - Inline citation markers or bare URLs in the body → check CORE.
 
-Character budget, rollout order, verification tests and maintenance: `wiring.md`.
+Character budget, rollout order, verification tests and maintenance: `operations.md`.
