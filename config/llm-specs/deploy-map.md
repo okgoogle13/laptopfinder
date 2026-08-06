@@ -12,7 +12,8 @@ Four blocks, none derived from another, none restating another. **CORE** is the 
 |---|---|---|---|
 | Claude profile | CORE | `agent-operating-spec.md` | Settings → Profile → Instructions for Claude. Account-wide; propagates to web, desktop, mobile and Cowork. |
 | Claude Custom Style | **none — never create one** | — | A Style is a per-conversation toggle that can be left on, and +COMMS in a coding conversation sabotages +CODE. |
-| Claude project | +COMMS + roster | `comms/voice-profile.md` + `comms/comms-roster.local.md` | Project instructions. The only place +COMMS lives on Claude. |
+| Claude project | +COMMS + roster rules | `comms/voice-profile.md` + `comms/comms-roster-rules.local.md` | Project instructions. The only place +COMMS lives on Claude. |
+| Claude project — Knowledge | *none — reference only* | `comms/comms-examples.local.md`, `comms/claude.md` | Project Knowledge, not the instructions field. Worked examples, gaps and the scenario audit are evidence consulted on demand; `claude.md` is wiring and file-guide detail that changes no draft. |
 | Claude Code — global | CORE + +DEPTH + +CODE | `agent-operating-spec.md` | `~/.claude/CLAUDE.md`. Claude Code does not read account settings, so CORE is needed here too. |
 | Claude Code — per repo | *none* | — | `./CLAUDE.md` carries stack, commands and repo conventions only. Never restates a block. |
 | Cowork — dev folder | +DEPTH + +CODE | `agent-operating-spec.md` | `CLAUDE.md` in the connected folder. CORE should arrive from account settings — confirm with verification test 1. |

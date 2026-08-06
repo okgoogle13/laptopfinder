@@ -47,8 +47,8 @@ ChatGPT raised custom instructions to 5,000 characters on 15 July 2026 for Pro, 
 | CORE | 1,196 | 201 |
 | +DEPTH | 1,065 | 168 |
 | +CODE | 919 | 146 |
-| +COMMS | 3,080 | 515 |
-| CORE + COMMS | 4,278 | — |
+| +COMMS | 3,453 | 583 |
+| CORE + COMMS | 4,651 | — |
 | CORE + DEPTH + CODE | 3,184 | — |
 
 Counted **as pasted**: Unicode codepoints, including the blank line between paragraphs and the two-character join between stacked blocks — not bytes. `ops/check.sh` recomputes this way; `wc -m` does not, unless the locale is UTF-8.
@@ -68,7 +68,7 @@ If a project instruction field rejects the full +COMMS, see `_archive/2026-07-31
 Don't deploy everywhere at once. A bad clause landing in nine places is unattributable.
 
 1. **claude.ai account instructions** — CORE. Three days.
-2. **Comms project** — +COMMS + `comms/comms-roster.local.md`. Draft five real messages through it.
+2. **Comms project** — +COMMS + `comms/comms-roster-rules.local.md`. Draft five real messages through it.
 3. **Claude Code / Cowork** — CORE + +DEPTH + +CODE in `~/.claude/CLAUDE.md`. One week.
 4. **ChatGPT and Gemini** — only after 1–2 have held.
 5. **Codex, Antigravity, Perplexity, API** — last.
@@ -90,7 +90,7 @@ Don't deploy everywhere at once. A bad clause landing in nine places is unattrib
 | Ask for a draft declining an Outside invite | Refusal in the first clause, no reason at all | +COMMS |
 | Ask for a draft to a parent | Boundary once, alternative in the same message, no re-litigating | +COMMS |
 | Ask for a draft to your manager | Outcome first, no apology opener, no emoji | +COMMS |
-| Claude comms project, ask for any message draft | The patterns `comms-roster.local.md` maps to that scenario, labelled, no commentary | +COMMS + roster |
+| Claude comms project, ask for any message draft | The patterns `comms-roster-rules.local.md` maps to that scenario, labelled, no commentary | +COMMS + roster |
 | Chat surface with no project-defined set, ask for any draft | Three genuinely different angles, labelled, no commentary | +COMMS |
 | Coding tool, edit a 100-line file | Whole updated file, how to verify, what wasn't tested | +CODE |
 | Coding tool, ask for a Slack message | Comms voice should *not* appear — not a chat surface | Block separation |
