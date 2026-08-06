@@ -1,6 +1,6 @@
 # agent-operating-spec.md
 
-**Scope:** how agents think, code, and handle evidence — and how they talk to me. Voice for messages I send as myself lives in `voice-profile.md`. Deployment lives in `operations.md`. Load all three.
+**Scope:** how agents think, code, and handle evidence — and how they talk to me. Voice for messages I send as myself lives in `comms/voice-profile.md`. Deployment lives in `operations.md`. Load all three.
 
 Three blocks below. **Paste them as written.** Nothing here is a summary of anything else, so nothing can drift out of sync.
 

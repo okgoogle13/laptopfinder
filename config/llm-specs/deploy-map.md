@@ -12,16 +12,16 @@ Four blocks, none derived from another, none restating another. **CORE** is the 
 |---|---|---|---|
 | Claude profile | CORE | `agent-operating-spec.md` | Settings → Profile → Instructions for Claude. Account-wide; propagates to web, desktop, mobile and Cowork. |
 | Claude Custom Style | **none — never create one** | — | A Style is a per-conversation toggle that can be left on, and +COMMS in a coding conversation sabotages +CODE. |
-| Claude project | +COMMS + roster | `voice-profile.md` + `comms-roster.local.md` | Project instructions. The only place +COMMS lives on Claude. |
+| Claude project | +COMMS + roster | `comms/voice-profile.md` + `comms/comms-roster.local.md` | Project instructions. The only place +COMMS lives on Claude. |
 | Claude Code — global | CORE + +DEPTH + +CODE | `agent-operating-spec.md` | `~/.claude/CLAUDE.md`. Claude Code does not read account settings, so CORE is needed here too. |
 | Claude Code — per repo | *none* | — | `./CLAUDE.md` carries stack, commands and repo conventions only. Never restates a block. |
 | Cowork — dev folder | +DEPTH + +CODE | `agent-operating-spec.md` | `CLAUDE.md` in the connected folder. CORE should arrive from account settings — confirm with verification test 1. |
 | Claude API / Agent SDK | CORE + +DEPTH + whichever applies | `agent-operating-spec.md` | System prompt. Logged-context variant. |
 | ChatGPT custom instructions | CORE + +DEPTH | `agent-operating-spec.md` | Settings → Personalization → Custom instructions. Box 1 = CORE "About me" + +DEPTH (1,161). Box 2 = the rest of CORE (1,100). |
-| ChatGPT comms project | +COMMS only — no roster | `voice-profile.md` | Project instructions. The roster names real people and is Claude-only, so tier handling is unavailable here. |
+| ChatGPT comms project | +COMMS only — no roster | `comms/voice-profile.md` | Project instructions. The roster names real people and is Claude-only, so tier handling is unavailable here. |
 | Gemini Saved info | CORE | `agent-operating-spec.md` | Settings → Personalization → Saved info |
-| Gemini comms | +COMMS only — no roster | `voice-profile.md` | A Gem, or the head of the drafting conversation. Not Saved info — it would apply to everything. The roster names real people and is Claude-only, so tier handling is unavailable here. |
-| Claude Desktop skill `my-voice-comms` | +COMMS (no roster) | `voice-profile.md` | `SKILL.md` under Claude's local skills-plugin folder. Backstop for drafting outside the comms project — repaste by hand, never symlinked. |
+| Gemini comms | +COMMS only — no roster | `comms/voice-profile.md` | A Gem, or the head of the drafting conversation. Not Saved info — it would apply to everything. The roster names real people and is Claude-only, so tier handling is unavailable here. |
+| Claude Desktop skill `my-voice-comms` | +COMMS (no roster) | `comms/voice-profile.md` | `SKILL.md` under Claude's local skills-plugin folder. Backstop for drafting outside the comms project — repaste by hand, never symlinked. |
 | Gemini CLI | CORE + +DEPTH + +CODE | `agent-operating-spec.md` | `GEMINI.md` |
 | Codex / Antigravity | CORE + +DEPTH + +CODE | `agent-operating-spec.md` | `AGENTS.md` at repo root, or the agent's rules file if it doesn't read `AGENTS.md` |
 | Perplexity | CORE | `agent-operating-spec.md` | Settings → Preferences / AI Profile |

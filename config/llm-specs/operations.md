@@ -2,7 +2,7 @@
 
 Budgets, rollout order, verification and maintenance. **This file never gets pasted anywhere** — it's the operating manual, not the payload.
 
-Payload lives in `agent-operating-spec.md` (CORE, +DEPTH, +CODE) and `voice-profile.md` (+COMMS). Why the system is shaped this way: `README.md` and `_archive/2026-07-31_migration-memo.md`.
+Payload lives in `agent-operating-spec.md` (CORE, +DEPTH, +CODE) and `comms/voice-profile.md` (+COMMS). Why the system is shaped this way: `README.md` and `_archive/2026-07-31_migration-memo.md`.
 
 ---
 
@@ -13,7 +13,7 @@ Payload lives in `agent-operating-spec.md` (CORE, +DEPTH, +CODE) and `voice-prof
 | **CORE** | `agent-operating-spec.md` | How to reason and reply | Everywhere, no exceptions |
 | **+DEPTH** | `agent-operating-spec.md` | Reasoning depth, clarification protocol, planning | Anywhere with room |
 | **+CODE** | `agent-operating-spec.md` | Coding, prompts, configs | Coding tools only |
-| **+COMMS** | `voice-profile.md` | Writing messages as me | Chat surfaces only |
+| **+COMMS** | `comms/voice-profile.md` | Writing messages as me | Chat surfaces only |
 
 +CODE and +COMMS never appear together.
 
@@ -68,7 +68,7 @@ If a project instruction field rejects the full +COMMS, see `_archive/2026-07-31
 Don't deploy everywhere at once. A bad clause landing in nine places is unattributable.
 
 1. **claude.ai account instructions** — CORE. Three days.
-2. **Comms project** — +COMMS + `comms-roster.local.md`. Draft five real messages through it.
+2. **Comms project** — +COMMS + `comms/comms-roster.local.md`. Draft five real messages through it.
 3. **Claude Code / Cowork** — CORE + +DEPTH + +CODE in `~/.claude/CLAUDE.md`. One week.
 4. **ChatGPT and Gemini** — only after 1–2 have held.
 5. **Codex, Antigravity, Perplexity, API** — last.
