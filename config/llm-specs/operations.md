@@ -47,9 +47,11 @@ ChatGPT raised custom instructions to 5,000 characters on 15 July 2026 for Pro, 
 | CORE | 1,196 | 201 |
 | +DEPTH | 1,065 | 168 |
 | +CODE | 919 | 146 |
-| +COMMS | 3,453 | 583 |
-| CORE + COMMS | 4,651 | — |
+| +COMMS | 2,972 | ~500 |
+| CORE + COMMS | 4,170 | — |
 | CORE + DEPTH + CODE | 3,184 | — |
+
+Re-run `ops/build-project-instructions.sh --count` after any +COMMS edit and update this row by hand — it's the one number this table can't verify itself, since +COMMS lives in `comms/voice-profile.md` plus the roster file, not in this repo's counted blocks alone.
 
 Counted **as pasted**: Unicode codepoints, including the blank line between paragraphs and the two-character join between stacked blocks — not bytes. `ops/check.sh` recomputes this way; `wc -m` does not, unless the locale is UTF-8.
 
