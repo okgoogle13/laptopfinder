@@ -365,6 +365,32 @@ def _seller_reward_points(analysis: dict, ref: dict) -> int:
     return classification_points + platform_points + overseas_penalty
 
 
+def _comps_adjustment_points(analysis: dict, ref: dict) -> int:
+    """Reward listings priced below median comps, penalize those priced above."""
+    metadata = analysis.get("metadata", {})
+    comps_median = metadata.get("comps_median_sold_aud")
+    listing_price = metadata.get("listing_price_aud")
+    
+    if not comps_median or not listing_price:
+        return 0
+        
+    try:
+        ratio = float(listing_price) / float(comps_median)
+    except (ValueError, TypeError, ZeroDivisionError):
+        return 0
+        
+    if ratio <= 0.85:
+        return 10
+    elif ratio <= 0.95:
+        return 5
+    elif ratio >= 1.15:
+        return -10
+    elif ratio >= 1.05:
+        return -5
+        
+    return 0
+
+
 def _deduction_points(analysis: dict, ref: dict) -> int:
     """Deductions for missing fields and risk score. Uncapped downside — a sufficiently
     risky/incomplete listing can drive the overall score negative."""
@@ -437,9 +463,10 @@ def calculate_llm_index_score(
     capacity = _capacity_points(tier, ref)
     generation = _uma_soc_points(cpu, model, ref) if is_uma else _gpu_generation_points(gpu, is_uma, ref)
     seller = _seller_reward_points(analysis, ref)
+    comps_adj = _comps_adjustment_points(analysis, ref)
     deductions = _deduction_points(analysis, ref)
 
-    raw = capacity + generation + seller - deductions
+    raw = capacity + generation + seller + comps_adj - deductions
 
     # Target scoring hints — informational bonuses, not routing gates.
     extracted = analysis.get("extracted_data", {})
