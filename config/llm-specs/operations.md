@@ -8,14 +8,7 @@ Payload lives in `agent-operating-spec.md` (CORE, +DEPTH, +CODE) and `comms/voic
 
 ## The four blocks
 
-| Block | Lives in | Job | Where |
-|---|---|---|---|
-| **CORE** | `agent-operating-spec.md` | How to reason and reply | Everywhere, no exceptions |
-| **+DEPTH** | `agent-operating-spec.md` | Reasoning depth, clarification protocol, planning | Anywhere with room |
-| **+CODE** | `agent-operating-spec.md` | Coding, prompts, configs | Coding tools only |
-| **+COMMS** | `comms/voice-profile.md` | Writing messages as me | Chat surfaces only |
-
-+CODE and +COMMS never appear together.
+See `deploy-map.md` for the per-surface mapping table (blocks, files, fields). +CODE and +COMMS never appear together.
 
 ---
 
@@ -29,12 +22,6 @@ Payload lives in `agent-operating-spec.md` (CORE, +DEPTH, +CODE) and `comms/voic
 Therefore **any component that needs voice must live inside a surface where +COMMS is already pasted.** An application cannot consume voice; it can only hand the job to a session that already carries it. This is why `targets.conf` has no profile containing `voice-profile.md` — a structural consequence, not a policy choice.
 
 Corollary for artifacts and sub-agents: a surface that reaches a model *without* project instructions (a quick inline call, a fresh worker) has no +COMMS and must not draft.
-
----
-
-## Deploy map
-
-See `deploy-map.md` for current per-surface mapping (blocks, file, field).
 
 ---
 
@@ -92,7 +79,7 @@ Don't deploy everywhere at once. A bad clause landing in nine places is unattrib
 | Ask for a draft declining an Outside invite | Refusal in the first clause, no reason at all | +COMMS |
 | Ask for a draft to a parent | Boundary once, alternative in the same message, no re-litigating | +COMMS |
 | Ask for a draft to your manager | Outcome first, no apology opener, no emoji | +COMMS |
-| Claude comms project, ask for any message draft | The patterns `comms-roster-rules.local.md` maps to that scenario, labelled, no commentary | +COMMS + roster |
+| Claude comms project *(Claude-specific)*, ask for any message draft | The patterns `comms-roster-rules.local.md` maps to that scenario, labelled, no commentary | +COMMS + roster |
 | Chat surface with no project-defined set, ask for any draft | Three genuinely different angles, labelled, no commentary | +COMMS |
 | Coding tool, edit a 100-line file | Whole updated file, how to verify, what wasn't tested | +CODE |
 | Coding tool, ask for a Slack message | Comms voice should *not* appear — not a chat surface | Block separation |

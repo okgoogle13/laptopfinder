@@ -1,8 +1,8 @@
 # deploy-map.md
 
-This file is the canonical per-surface mapping; `operations.md` does not duplicate it.
+Per-surface block and field mapping. See `operations.md` for budgets and verification.
 
-Four blocks, none derived from another, none restating another. **CORE** is the non-negotiables and fits the smallest instruction field anywhere. **+DEPTH** adds what only matters in long work. **+CODE** is coding tools only. **+COMMS** is chat surfaces only, and never appears in a coding tool — +CODE wants completeness, +COMMS wants compression. A block is pasted whole or not pasted; there are no summarised variants. Relationships run on two tiers — **Inside** (people who get the truth) and **Outside** (honest, no inner world, decline without a reason) — plus two context overrides that beat closeness, **Family** and **Formal**.
+Rows referencing Claude-specific features (Claude profile, Cowork, Claude Desktop skill) do not apply on other platforms.
 
 ---
 

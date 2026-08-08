@@ -80,10 +80,10 @@ def extract_item_id(url: str) -> str:
     return match.group(1)
 
 
-def fetch_item(token: str, item_id: str) -> dict:
+def fetch_item(token: str, item_id: str, marketplace_id: str = "EBAY_AU") -> dict:
     headers = {
         "Authorization": f"Bearer {token}",
-        "X-EBAY-C-MARKETPLACE-ID": "EBAY_AU",
+        "X-EBAY-C-MARKETPLACE-ID": marketplace_id,
     }
     url = ITEM_URL.format(item_id=item_id)
     try:
