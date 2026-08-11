@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
+from laptopfinder.cost_model import calculate_landed_cost_scenarios
 
 Paradigm = Literal["apple_silicon_uma", "amd_uma", "discrete_cuda", "discrete_rocm"]
 
@@ -502,6 +503,22 @@ def decide(analysis: dict, ref: dict | None = None, workload: str | None = None)
     ram_str = extracted.get("total_system_ram")
     egpu_model = extracted.get("egpu_model")
     touchscreen_digitizer = extracted.get("touchscreen_digitizer")
+    
+    metadata = analysis.get("metadata", {})
+    listing_price_local = metadata.get("listing_price_local")
+    currency = metadata.get("currency")
+    item_location_country = metadata.get("item_location_country", "AU")
+    delivery_deadline_feasibility = analysis.get("analysis", {}).get("delivery_deadline_feasibility")
+
+    scenarios = []
+    if listing_price_local is not None and currency is not None:
+        scenarios = calculate_landed_cost_scenarios(
+            listing_price_local=listing_price_local,
+            currency=currency,
+            source_country=item_location_country,
+            delivery_feasibility=delivery_deadline_feasibility,
+            ref=ref
+        )
 
     vram = _vram_gb(vram_str)
     tier = _vram_tier(vram, ref)
@@ -611,4 +628,5 @@ def decide(analysis: dict, ref: dict | None = None, workload: str | None = None)
         "score_0_100": score_0_100,
         "paradigm": paradigm,
         "paradigm_note": paradigm_note,
+        "landed_cost_scenarios": scenarios,
     }

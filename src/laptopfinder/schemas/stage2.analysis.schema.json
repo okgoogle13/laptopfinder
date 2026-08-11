@@ -8,12 +8,18 @@
       "type": "object",
       "required": ["source_platform", "listing_url_or_identifier", "listing_title", "listing_price_aud", "seller_name_or_identifier", "seller_rating_or_profile_signal"],
       "properties": {
-        "source_platform": {"enum": ["EBAY_AU", "FB_MARKETPLACE", "GUMTREE", "UNKNOWN"]},
+        "source_platform": {"enum": ["EBAY_AU", "EBAY_UK", "FB_MARKETPLACE", "GUMTREE", "UK_RESELLER", "UNKNOWN"]},
         "listing_url_or_identifier": {"type": ["string", "null"]},
         "listing_title": {"type": "string"},
         "listing_price_aud": {"type": ["number", "null"]},
+        "listing_price_local": {"type": ["number", "null"]},
+        "currency": {"type": ["string", "null"]},
         "seller_name_or_identifier": {"type": ["string", "null"]},
-        "seller_rating_or_profile_signal": {"type": ["string", "null"]}
+        "seller_rating_or_profile_signal": {"type": ["string", "null"]},
+        "item_location_country": {
+          "type": ["string", "null"],
+          "description": "The country where the physical item is located, e.g., 'AU', 'UK'. Null if unknown."
+        }
       },
       "additionalProperties": false
     },
@@ -76,6 +82,10 @@
         "risk_flags": {"type": "array", "items": {"type": "string"}},
         "stated_pickup_location": {"type": ["string", "null"]},
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "delivery_deadline_feasibility": {
+          "type": ["string", "null"],
+          "description": "Assessment of whether the item can be delivered to the parents in the UK in time for hand-carry, or to AU. Null if no deadline is requested."
+        },
         "seller_classification": {
           "enum": ["RETAILER_WITH_WARRANTY", "ESTABLISHED_RESELLER", "PRIVATE_ESTABLISHED", "PRIVATE_NEW_OR_UNKNOWN"],
           "description": "Judgment call on seller trustworthiness based on source_platform + seller_name_or_identifier + seller_rating_or_profile_signal. Not a literal hardware fact, so it is exempt from the text-grounding firewall — Stage 2 must always classify, never leave null."

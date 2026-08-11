@@ -211,6 +211,7 @@ class TestDecide:
             "risk_gate_passed", "recommended_action", "reasons",
             "is_uma_platform", "uma_ram_gb", "is_radeon_mobile", "has_egpu_bundle",
             "llm_index_score", "score_0_100", "paradigm", "paradigm_note",
+            "landed_cost_scenarios",
         }
 
     def test_touchscreen_exception_shortlisted(self):

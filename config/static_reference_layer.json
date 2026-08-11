@@ -65,7 +65,9 @@
       "CAD": 1.10
     },
     "apply_au_gst_on_imports_over_1000_aud": true,
-    "au_gst_rate": 0.10
+    "au_gst_rate": 0.10,
+    "uk_vat_rate": 0.20,
+    "apply_uk_vat_refund_on_hand_carry": false
   },
   "watched_sellers": [],
   "_comment_watched_sellers": "eBay AU seller usernames to poll directly. Each triggers a Browse API sweep scoped to that seller. Empty list disables seller-scoped sweeps.",
@@ -442,6 +444,8 @@
     },
     "platform_modifier_points": {
       "EBAY_AU": 5,
+      "EBAY_UK": 2,
+      "UK_RESELLER": 10,
       "FB_MARKETPLACE": -5,
       "GUMTREE": -5,
       "UNKNOWN": -5,
